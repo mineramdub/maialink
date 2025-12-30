@@ -32,6 +32,7 @@ import {
   FolderOpen,
   Plus,
   ExternalLink,
+  RefreshCw,
 } from 'lucide-react'
 
 interface Protocol {
@@ -69,6 +70,7 @@ export default function ProtocolesPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
 
   const [formData, setFormData] = useState({
     nom: '',
@@ -151,6 +153,34 @@ export default function ProtocolesPage() {
       }
     } catch (error) {
       console.error('Error deleting protocol:', error)
+    }
+  }
+
+  const handleReprocess = async (id: string) => {
+    setProcessingIds(prev => new Set(prev).add(id))
+
+    try {
+      const res = await fetch(`/api/protocols/${id}/process`, { method: 'POST' })
+      const data = await res.json()
+
+      if (data.success) {
+        // Mettre à jour le protocole dans la liste
+        setProtocols(protocols.map(p =>
+          p.id === id ? { ...p, isProcessed: true, processingError: undefined } : p
+        ))
+      } else {
+        setProtocols(protocols.map(p =>
+          p.id === id ? { ...p, processingError: data.error } : p
+        ))
+      }
+    } catch (error) {
+      console.error('Error reprocessing protocol:', error)
+    } finally {
+      setProcessingIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(id)
+        return newSet
+      })
     }
   }
 
@@ -386,21 +416,46 @@ export default function ProtocolesPage() {
                         <AlertCircle className="h-3 w-3" />
                         Erreur
                       </span>
+                    ) : processingIds.has(protocol.id) ? (
+                      <span className="flex items-center gap-1 text-xs text-blue-600">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Traitement...
+                      </span>
                     ) : (
                       <span className="flex items-center gap-1 text-xs text-amber-600">
                         <Clock className="h-3 w-3" />
-                        En traitement...
+                        En attente
                       </span>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => window.open(protocol.fileUrl, '_blank')}
-                    >
-                      <ExternalLink className="h-3 w-3 mr-1" />
-                      Voir PDF
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {!protocol.isProcessed && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-blue-600 hover:text-blue-700"
+                          onClick={() => handleReprocess(protocol.id)}
+                          disabled={processingIds.has(protocol.id)}
+                        >
+                          {processingIds.has(protocol.id) ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <>
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Traiter
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => window.open(protocol.fileUrl, '_blank')}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        PDF
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

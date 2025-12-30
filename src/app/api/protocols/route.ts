@@ -63,9 +63,11 @@ export async function POST(request: NextRequest) {
       isProcessed: false,
     }).returning()
 
-    // Lancer le traitement en arrière-plan (extraction texte + embeddings)
-    // On le fera via une API séparée pour ne pas bloquer
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/protocols/${protocol.id}/process`, {
+    // Lancer le traitement immédiatement (sans attendre)
+    const baseUrl = request.headers.get('origin') || request.headers.get('host') || 'https://maialink.vercel.app'
+    const processUrl = baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`
+
+    fetch(`${processUrl}/api/protocols/${protocol.id}/process`, {
       method: 'POST',
     }).catch(console.error)
 
