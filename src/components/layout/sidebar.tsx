@@ -16,6 +16,7 @@ import {
   Activity,
   Stethoscope,
   ClipboardList,
+  BookOpen,
 } from 'lucide-react'
 
 const navigation = [
@@ -27,6 +28,7 @@ const navigation = [
   { name: 'Reeducation', href: '/reeducation', icon: Activity },
   { name: 'Gynecologie', href: '/gynecologie', icon: ClipboardList },
   { name: 'Documents', href: '/documents', icon: FileText },
+  { name: 'Protocoles', href: '/protocoles', icon: BookOpen },
   { name: 'Facturation', href: '/facturation', icon: Receipt },
   { name: 'Statistiques', href: '/statistiques', icon: BarChart3 },
 ]

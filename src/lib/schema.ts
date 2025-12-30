@@ -1,8 +1,9 @@
-import { pgTable, text, timestamp, integer, boolean, decimal, date, jsonb, uuid, pgEnum } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, integer, boolean, decimal, date, jsonb, uuid, pgEnum, vector } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
 // Enums
 export const userRoleEnum = pgEnum('user_role', ['admin', 'sage_femme', 'secretaire'])
+export const protocolCategoryEnum = pgEnum('protocol_category', ['grossesse', 'post_partum', 'gynecologie', 'reeducation', 'pediatrie', 'autre'])
 export const patientStatusEnum = pgEnum('patient_status', ['active', 'inactive', 'archived'])
 export const pregnancyStatusEnum = pgEnum('pregnancy_status', ['en_cours', 'terminee', 'fausse_couche', 'ivg', 'img'])
 export const appointmentStatusEnum = pgEnum('appointment_status', ['planifie', 'confirme', 'en_cours', 'termine', 'annule', 'absent'])
@@ -453,6 +454,55 @@ export const auditLogs = pgTable('audit_logs', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+// Protocoles PDF avec IA
+export const protocols = pgTable('protocols', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  nom: text('nom').notNull(),
+  description: text('description'),
+  category: protocolCategoryEnum('category').notNull().default('autre'),
+
+  // Stockage du fichier
+  fileUrl: text('file_url').notNull(),
+  fileName: text('file_name').notNull(),
+  fileSize: integer('file_size').notNull(), // en bytes
+  pageCount: integer('page_count'),
+
+  // Statut de traitement
+  isProcessed: boolean('is_processed').default(false),
+  processingError: text('processing_error'),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const protocolChunks = pgTable('protocol_chunks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  protocolId: uuid('protocol_id').notNull().references(() => protocols.id, { onDelete: 'cascade' }),
+
+  content: text('content').notNull(),
+  chunkIndex: integer('chunk_index').notNull(),
+  pageNumber: integer('page_number'),
+
+  // Embedding vectoriel pour la recherche sémantique (768 dimensions pour Gemini)
+  embedding: vector('embedding', { dimensions: 768 }),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// Historique des conversations avec l'IA
+export const aiConversations = pgTable('ai_conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  question: text('question').notNull(),
+  answer: text('answer').notNull(),
+  sourcesUsed: jsonb('sources_used').$type<{ protocolId: string; protocolName: string; chunkIds: string[] }[]>(),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   patients: many(patients),
@@ -589,6 +639,28 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   }),
 }))
 
+export const protocolsRelations = relations(protocols, ({ one, many }) => ({
+  user: one(users, {
+    fields: [protocols.userId],
+    references: [users.id],
+  }),
+  chunks: many(protocolChunks),
+}))
+
+export const protocolChunksRelations = relations(protocolChunks, ({ one }) => ({
+  protocol: one(protocols, {
+    fields: [protocolChunks.protocolId],
+    references: [protocols.id],
+  }),
+}))
+
+export const aiConversationsRelations = relations(aiConversations, ({ one }) => ({
+  user: one(users, {
+    fields: [aiConversations.userId],
+    references: [users.id],
+  }),
+}))
+
 // Types exports
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -602,3 +674,7 @@ export type Appointment = typeof appointments.$inferSelect
 export type Invoice = typeof invoices.$inferSelect
 export type Document = typeof documents.$inferSelect
 export type AuditLog = typeof auditLogs.$inferSelect
+export type Protocol = typeof protocols.$inferSelect
+export type NewProtocol = typeof protocols.$inferInsert
+export type ProtocolChunk = typeof protocolChunks.$inferSelect
+export type AiConversation = typeof aiConversations.$inferSelect
