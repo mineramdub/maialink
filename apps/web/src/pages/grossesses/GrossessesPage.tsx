@@ -1,48 +1,16 @@
-import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
 import { Plus, Baby, Loader2, Calendar } from 'lucide-react'
 import { formatDate } from '../../lib/utils'
-
-interface Grossesse {
-  id: string
-  ddr: string
-  dpa: string
-  status: string
-  grossesseMultiple: boolean
-  nombreFoetus: number
-  patient: {
-    firstName: string
-    lastName: string
-  }
-}
+import { useGrossesses, usePrefetchGrossesse } from '../../hooks/useGrossesses'
 
 export default function GrossessesPage() {
-  const [grossesses, setGrossesses] = useState<Grossesse[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const prefetchGrossesse = usePrefetchGrossesse()
 
-  useEffect(() => {
-    fetchGrossesses()
-  }, [])
-
-  const fetchGrossesses = async () => {
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/grossesses`, {
-        credentials: 'include'
-      })
-      const data = await res.json()
-
-      if (data.success) {
-        setGrossesses(data.grossesses)
-      }
-    } catch (error) {
-      console.error('Error fetching grossesses:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  // React Query with cache - background refetch
+  const { data: grossesses = [], isLoading, error } = useGrossesses()
 
   return (
     <div className="space-y-6">
@@ -61,11 +29,21 @@ export default function GrossessesPage() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {isLoading && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
         </div>
-      ) : grossesses.length === 0 ? (
+      )}
+
+      {error && (
+        <Card>
+          <CardContent className="py-8 text-center text-red-600">
+            Erreur lors du chargement
+          </CardContent>
+        </Card>
+      )}
+
+      {!isLoading && !error && grossesses.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Baby className="h-12 w-12 text-slate-300 mb-4" />
@@ -83,37 +61,56 @@ export default function GrossessesPage() {
             </Button>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {grossesses.map((g) => (
-            <Link key={g.id} to={`/grossesses/${g.id}`}>
+      )}
+
+      {!isLoading && !error && grossesses.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {grossesses.map((grossesse: any) => (
+            <Link
+              key={grossesse.id}
+              to={`/grossesses/${grossesse.id}`}
+              onMouseEnter={() => prefetchGrossesse(grossesse.id)}
+              onFocus={() => prefetchGrossesse(grossesse.id)}
+            >
               <Card className="hover:border-slate-300 hover:shadow-md transition-all cursor-pointer">
                 <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-pink-100 shrink-0">
+                      <Baby className="h-6 w-6 text-pink-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-slate-900">
-                        {g.patient.firstName} {g.patient.lastName}
+                        {grossesse.patient?.firstName} {grossesse.patient?.lastName}
                       </h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge>{g.status}</Badge>
-                        {g.grossesseMultiple && (
-                          <Badge variant="secondary">
-                            {g.nombreFoetus} foetus
-                          </Badge>
+
+                      <div className="mt-2 space-y-1">
+                        {grossesse.ddr && (
+                          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                            <Calendar className="h-3.5 w-3.5" />
+                            DDR: {formatDate(grossesse.ddr)}
+                          </div>
+                        )}
+                        {grossesse.dpa && (
+                          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                            <Calendar className="h-3.5 w-3.5" />
+                            DPA: {formatDate(grossesse.dpa)}
+                          </div>
                         )}
                       </div>
-                    </div>
-                    <Baby className="h-8 w-8 text-pink-500" />
-                  </div>
 
-                  <div className="space-y-2 text-sm mt-4">
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                      DDR: {formatDate(g.ddr)}
-                    </div>
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                      DPA: {formatDate(g.dpa)}
+                      <div className="mt-3">
+                        <Badge
+                          variant={grossesse.status === 'en_cours' ? 'default' : 'secondary'}
+                        >
+                          {grossesse.status === 'en_cours' ? 'En cours' : grossesse.status}
+                        </Badge>
+                      </div>
+
+                      {grossesse.grossesseMultiple && (
+                        <p className="text-xs text-purple-600 mt-2 font-medium">
+                          Grossesse multiple ({grossesse.nombreFoetus} foetus)
+                        </p>
+                      )}
                     </div>
                   </div>
                 </CardContent>

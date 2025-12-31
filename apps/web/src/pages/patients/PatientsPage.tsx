@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -21,52 +21,18 @@ import {
   Loader2,
 } from 'lucide-react'
 import { formatDate, calculateAge } from '../../lib/utils'
-
-interface Patient {
-  id: string
-  firstName: string
-  lastName: string
-  birthDate: string
-  email?: string
-  phone?: string
-  mobilePhone?: string
-  city?: string
-  status: string
-  gravida: number
-  para: number
-}
+import { usePatients, usePrefetchPatient } from '../../hooks/usePatients'
 
 export default function PatientsPage() {
-  const [patients, setPatients] = useState<Patient[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('active')
+  const prefetchPatient = usePrefetchPatient()
 
-  useEffect(() => {
-    fetchPatients()
-  }, [search, statusFilter])
-
-  const fetchPatients = async () => {
-    setIsLoading(true)
-    try {
-      const params = new URLSearchParams()
-      if (search) params.set('search', search)
-      if (statusFilter) params.set('status', statusFilter)
-
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/patients?${params}`, {
-        credentials: 'include'
-      })
-      const data = await res.json()
-
-      if (data.success) {
-        setPatients(data.patients)
-      }
-    } catch (error) {
-      console.error('Error fetching patients:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  // Use React Query with caching - data will be fetched in background
+  const { data: patients = [], isLoading, error } = usePatients({
+    search: search || undefined,
+    status: statusFilter || undefined,
+  })
 
   return (
     <div className="space-y-6">
@@ -98,24 +64,35 @@ export default function PatientsPage() {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Statut" />
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="active">Actives</SelectItem>
             <SelectItem value="inactive">Inactives</SelectItem>
-            <SelectItem value="archived">Archivees</SelectItem>
             <SelectItem value="all">Toutes</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Liste des patientes */}
-      {isLoading ? (
+      {/* Loading */}
+      {isLoading && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
         </div>
-      ) : patients.length === 0 ? (
+      )}
+
+      {/* Error */}
+      {error && (
+        <Card>
+          <CardContent className="py-8 text-center text-red-600">
+            Erreur lors du chargement des patientes
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && !error && patients.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Users className="h-12 w-12 text-slate-300 mb-4" />
@@ -123,68 +100,82 @@ export default function PatientsPage() {
               Aucune patiente
             </h3>
             <p className="text-sm text-slate-500 mb-4">
-              Commencez par ajouter votre premiere patiente
+              Commencez par ajouter une nouvelle patiente
             </p>
             <Button asChild>
               <Link to="/patients/new">
                 <Plus className="h-4 w-4 mr-1" />
-                Ajouter une patiente
+                Nouvelle patiente
               </Link>
             </Button>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      )}
+
+      {/* Patient Cards with Prefetch on Hover */}
+      {!isLoading && !error && patients.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {patients.map((patient) => (
-            <Link key={patient.id} to={`/patients/${patient.id}`}>
-              <Card className="hover:border-slate-300 hover:shadow-md transition-all cursor-pointer h-full">
+            <Link
+              key={patient.id}
+              to={`/patients/${patient.id}`}
+              onMouseEnter={() => prefetchPatient(patient.id)}
+              onFocus={() => prefetchPatient(patient.id)}
+            >
+              <Card className="hover:border-slate-300 hover:shadow-md transition-all cursor-pointer">
                 <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
-                        {patient.firstName[0]}{patient.lastName[0]}
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-semibold shrink-0">
+                      {patient.firstName[0]}{patient.lastName[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-slate-900 truncate">
+                        {patient.firstName} {patient.lastName}
+                      </h3>
+                      <p className="text-sm text-slate-600 mt-1">
+                        {calculateAge(patient.birthDate)} ans
+                      </p>
+
+                      {/* Contact Info */}
+                      <div className="mt-3 space-y-1">
+                        {patient.email && (
+                          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                            <Mail className="h-3.5 w-3.5" />
+                            <span className="truncate">{patient.email}</span>
+                          </div>
+                        )}
+                        {(patient.phone || patient.mobilePhone) && (
+                          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                            <Phone className="h-3.5 w-3.5" />
+                            <span>{patient.mobilePhone || patient.phone}</span>
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <h3 className="font-medium text-slate-900">
-                          {patient.firstName} {patient.lastName}
-                        </h3>
-                        <p className="text-sm text-slate-500">
-                          {calculateAge(patient.birthDate)} ans
-                        </p>
+
+                      {/* Obstetric Info */}
+                      {(patient.gravida > 0 || patient.para > 0) && (
+                        <div className="flex items-center gap-2 mt-3">
+                          <Baby className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="text-xs text-slate-600">
+                            G{patient.gravida} P{patient.para}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Status Badge */}
+                      <div className="mt-3">
+                        <Badge
+                          variant={patient.status === 'active' ? 'default' : 'secondary'}
+                        >
+                          {patient.status === 'active' ? 'Active' : 'Inactive'}
+                        </Badge>
                       </div>
                     </div>
-                    {patient.gravida > 0 && (
-                      <Badge variant="secondary" className="gap-1">
-                        <Baby className="h-3 w-3" />
-                        G{patient.gravida}P{patient.para}
-                      </Badge>
-                    )}
                   </div>
 
-                  <div className="space-y-2 text-sm">
-                    {(patient.phone || patient.mobilePhone) && (
-                      <div className="flex items-center gap-2 text-slate-600">
-                        <Phone className="h-3.5 w-3.5 text-slate-400" />
-                        {patient.mobilePhone || patient.phone}
-                      </div>
-                    )}
-                    {patient.email && (
-                      <div className="flex items-center gap-2 text-slate-600 truncate">
-                        <Mail className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="truncate">{patient.email}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-xs text-slate-400">
-                      Nee le {formatDate(patient.birthDate)}
-                    </span>
-                    {patient.city && (
-                      <span className="text-xs text-slate-400">
-                        {patient.city}
-                      </span>
-                    )}
+                  {/* Birth Date */}
+                  <div className="mt-4 pt-4 border-t text-xs text-slate-500">
+                    Née le {formatDate(patient.birthDate)}
                   </div>
                 </CardContent>
               </Card>

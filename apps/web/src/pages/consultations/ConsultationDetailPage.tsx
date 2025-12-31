@@ -3,14 +3,16 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
-import { ArrowLeft, Loader2, User, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Loader2, User, AlertTriangle, FileText } from 'lucide-react'
 import { formatDate } from '../../lib/utils'
+import { GenerateOrdonnanceDialog } from '../../components/GenerateOrdonnanceDialog'
 
 export default function ConsultationDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [consultation, setConsultation] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showOrdonnanceDialog, setShowOrdonnanceDialog] = useState(false)
 
   useEffect(() => {
     fetchConsultation()
@@ -66,13 +68,27 @@ export default function ConsultationDetailPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" asChild>
-          <Link to={`/patients/${consultation.patientId}`}>
-            <User className="h-4 w-4 mr-2" />
-            Voir patiente
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setShowOrdonnanceDialog(true)} className="bg-blue-600 hover:bg-blue-700">
+            <FileText className="h-4 w-4 mr-2" />
+            Créer ordonnance
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to={`/patients/${consultation.patientId}`}>
+              <User className="h-4 w-4 mr-2" />
+              Voir patiente
+            </Link>
+          </Button>
+        </div>
       </div>
+
+      {/* Modal de génération d'ordonnance */}
+      <GenerateOrdonnanceDialog
+        open={showOrdonnanceDialog}
+        onOpenChange={setShowOrdonnanceDialog}
+        patientId={consultation.patientId}
+        consultationId={consultation.id}
+      />
 
       {consultation.alertes && consultation.alertes.length > 0 && (
         <Card className="border-orange-200 bg-orange-50">

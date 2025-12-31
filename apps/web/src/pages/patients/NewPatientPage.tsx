@@ -134,6 +134,7 @@ export default function NewPatientPage() {
                     <Label htmlFor="firstName">Prenom *</Label>
                     <Input
                       id="firstName"
+                      name="firstName"
                       value={formData.firstName}
                       onChange={(e) => updateField('firstName', e.target.value)}
                       required
@@ -143,6 +144,7 @@ export default function NewPatientPage() {
                     <Label htmlFor="lastName">Nom *</Label>
                     <Input
                       id="lastName"
+                      name="lastName"
                       value={formData.lastName}
                       onChange={(e) => updateField('lastName', e.target.value)}
                       required
@@ -154,6 +156,7 @@ export default function NewPatientPage() {
                   <Label htmlFor="maidenName">Nom de jeune fille</Label>
                   <Input
                     id="maidenName"
+                    name="maidenName"
                     value={formData.maidenName}
                     onChange={(e) => updateField('maidenName', e.target.value)}
                   />
@@ -164,6 +167,7 @@ export default function NewPatientPage() {
                     <Label htmlFor="birthDate">Date de naissance *</Label>
                     <Input
                       id="birthDate"
+                      name="birthDate"
                       type="date"
                       value={formData.birthDate}
                       onChange={(e) => updateField('birthDate', e.target.value)}
@@ -174,6 +178,7 @@ export default function NewPatientPage() {
                     <Label htmlFor="birthPlace">Lieu de naissance</Label>
                     <Input
                       id="birthPlace"
+                      name="birthPlace"
                       value={formData.birthPlace}
                       onChange={(e) => updateField('birthPlace', e.target.value)}
                     />
@@ -184,6 +189,7 @@ export default function NewPatientPage() {
                   <Label htmlFor="socialSecurityNumber">Numero de securite sociale</Label>
                   <Input
                     id="socialSecurityNumber"
+                    name="socialSecurityNumber"
                     value={formData.socialSecurityNumber}
                     onChange={(e) => updateField('socialSecurityNumber', e.target.value)}
                   />
@@ -202,6 +208,7 @@ export default function NewPatientPage() {
                   <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
+                    name="email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => updateField('email', e.target.value)}
@@ -213,6 +220,7 @@ export default function NewPatientPage() {
                     <Label htmlFor="phone">Telephone fixe</Label>
                     <Input
                       id="phone"
+                      name="phone"
                       value={formData.phone}
                       onChange={(e) => updateField('phone', e.target.value)}
                     />
@@ -221,6 +229,7 @@ export default function NewPatientPage() {
                     <Label htmlFor="mobilePhone">Telephone portable</Label>
                     <Input
                       id="mobilePhone"
+                      name="mobilePhone"
                       value={formData.mobilePhone}
                       onChange={(e) => updateField('mobilePhone', e.target.value)}
                     />
@@ -231,6 +240,7 @@ export default function NewPatientPage() {
                   <Label htmlFor="address">Adresse</Label>
                   <Input
                     id="address"
+                    name="address"
                     value={formData.address}
                     onChange={(e) => updateField('address', e.target.value)}
                   />
@@ -241,6 +251,7 @@ export default function NewPatientPage() {
                     <Label htmlFor="postalCode">Code postal</Label>
                     <Input
                       id="postalCode"
+                      name="postalCode"
                       value={formData.postalCode}
                       onChange={(e) => updateField('postalCode', e.target.value)}
                     />
@@ -249,6 +260,7 @@ export default function NewPatientPage() {
                     <Label htmlFor="city">Ville</Label>
                     <Input
                       id="city"
+                      name="city"
                       value={formData.city}
                       onChange={(e) => updateField('city', e.target.value)}
                     />
@@ -297,6 +309,7 @@ export default function NewPatientPage() {
                   <Label htmlFor="allergies">Allergies</Label>
                   <Textarea
                     id="allergies"
+                    name="allergies"
                     value={formData.allergies}
                     onChange={(e) => updateField('allergies', e.target.value)}
                   />
@@ -306,6 +319,7 @@ export default function NewPatientPage() {
                   <Label htmlFor="traitementEnCours">Traitement en cours</Label>
                   <Textarea
                     id="traitementEnCours"
+                    name="traitementEnCours"
                     value={formData.traitementEnCours}
                     onChange={(e) => updateField('traitementEnCours', e.target.value)}
                   />
@@ -316,6 +330,7 @@ export default function NewPatientPage() {
                     <Label htmlFor="gravida">Gravida</Label>
                     <Input
                       id="gravida"
+                      name="gravida"
                       type="number"
                       min="0"
                       value={formData.gravida}
@@ -326,6 +341,7 @@ export default function NewPatientPage() {
                     <Label htmlFor="para">Para</Label>
                     <Input
                       id="para"
+                      name="para"
                       type="number"
                       min="0"
                       value={formData.para}
@@ -347,6 +363,7 @@ export default function NewPatientPage() {
                   <Label htmlFor="notes">Notes supplementaires</Label>
                   <Textarea
                     id="notes"
+                    name="notes"
                     rows={10}
                     value={formData.notes}
                     onChange={(e) => updateField('notes', e.target.value)}

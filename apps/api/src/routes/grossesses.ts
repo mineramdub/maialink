@@ -56,6 +56,20 @@ router.post('/', async (req: AuthRequest, res) => {
 
     // Calculate DPA from DDR
     const ddr = new Date(body.ddr)
+
+    // Validate DDR date
+    if (isNaN(ddr.getTime())) {
+      return res.status(400).json({ error: 'Date DDR invalide' })
+    }
+
+    // Validate dateConception if provided
+    if (body.dateConception) {
+      const dateConception = new Date(body.dateConception)
+      if (isNaN(dateConception.getTime())) {
+        return res.status(400).json({ error: 'Date de conception invalide' })
+      }
+    }
+
     const dpa = calculateDPA(ddr)
 
     const [newGrossesse] = await db.insert(grossesses).values({
@@ -63,13 +77,13 @@ router.post('/', async (req: AuthRequest, res) => {
       userId: req.user!.id,
       ddr: body.ddr,
       dpa: dpa.toISOString().split('T')[0],
-      dateConception: body.dateConception,
+      dateConception: body.dateConception || null,
       grossesseMultiple: body.grossesseMultiple || false,
       nombreFoetus: body.nombreFoetus || 1,
       gestite: (patient.gravida || 0) + 1,
       parite: patient.para || 0,
       facteursRisque: body.facteursRisque || [],
-      notes: body.notes,
+      notes: body.notes || null,
     }).returning()
 
     // Update patient gravida
@@ -156,6 +170,21 @@ router.patch('/:id', async (req: AuthRequest, res) => {
 
     if (!oldGrossesse) {
       return res.status(404).json({ error: 'Grossesse non trouvee' })
+    }
+
+    // Validate dates if provided
+    if (body.ddr) {
+      const ddr = new Date(body.ddr)
+      if (isNaN(ddr.getTime())) {
+        return res.status(400).json({ error: 'Date DDR invalide' })
+      }
+    }
+
+    if (body.dateConception) {
+      const dateConception = new Date(body.dateConception)
+      if (isNaN(dateConception.getTime())) {
+        return res.status(400).json({ error: 'Date de conception invalide' })
+      }
     }
 
     const [updatedGrossesse] = await db

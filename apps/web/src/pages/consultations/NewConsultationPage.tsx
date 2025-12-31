@@ -6,7 +6,8 @@ import { Label } from '../../components/ui/label'
 import { Textarea } from '../../components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
-import { ArrowLeft, Loader2, Save } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, FileText } from 'lucide-react'
+import { getTemplatesByType, getTemplateById, type ConsultationTemplate } from '../../lib/consultationTemplates'
 
 export default function NewConsultationPage() {
   const navigate = useNavigate()
@@ -16,6 +17,8 @@ export default function NewConsultationPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [patients, setPatients] = useState<any[]>([])
   const [error, setError] = useState('')
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('')
+  const [availableTemplates, setAvailableTemplates] = useState<ConsultationTemplate[]>([])
   const [formData, setFormData] = useState({
     patientId: patientId || '',
     type: 'prenatale',
@@ -35,6 +38,13 @@ export default function NewConsultationPage() {
     fetchPatients()
   }, [])
 
+  // Update available templates when type changes
+  useEffect(() => {
+    const templates = getTemplatesByType(formData.type)
+    setAvailableTemplates(templates)
+    setSelectedTemplate('') // Reset template selection when type changes
+  }, [formData.type])
+
   const fetchPatients = async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/patients?status=active`, {
@@ -46,6 +56,17 @@ export default function NewConsultationPage() {
       }
     } catch (error) {
       console.error('Error fetching patients:', error)
+    }
+  }
+
+  const applyTemplate = (templateId: string) => {
+    const template = getTemplateById(templateId)
+    if (template) {
+      setFormData({
+        ...formData,
+        ...template.data,
+      })
+      setSelectedTemplate(templateId)
     }
   }
 
@@ -169,6 +190,38 @@ export default function NewConsultationPage() {
                 />
               </div>
             </div>
+
+            {availableTemplates.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="template">Utiliser un template (optionnel)</Label>
+                <Select
+                  value={selectedTemplate}
+                  onValueChange={applyTemplate}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionnez un template..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          <div>
+                            <div className="font-medium">{template.name}</div>
+                            <div className="text-xs text-gray-500">{template.description}</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedTemplate && (
+                  <p className="text-xs text-blue-600">
+                    Template appliqué - Les champs ont été pré-remplis
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="motif">Motif</Label>

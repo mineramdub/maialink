@@ -9,6 +9,7 @@ import DashboardPage from './pages/dashboard/DashboardPage'
 import PatientsPage from './pages/patients/PatientsPage'
 import NewPatientPage from './pages/patients/NewPatientPage'
 import PatientDetailPage from './pages/patients/PatientDetailPage'
+import PatientEditPage from './pages/patients/PatientEditPage'
 import GrossessesPage from './pages/grossesses/GrossessesPage'
 import NewGrossessePage from './pages/grossesses/NewGrossessePage'
 import GrosesseDetailPage from './pages/grossesses/GrosesseDetailPage'
@@ -25,6 +26,10 @@ import StatistiquesPage from './pages/statistiques/StatistiquesPage'
 import ParametresPage from './pages/parametres/ParametresPage'
 import GynecologiePage from './pages/gynecologie/GynecologiePage'
 import ReeducationPage from './pages/reeducation/ReeducationPage'
+import OrdonnanceDetailPage from './pages/ordonnances/OrdonnanceDetailPage'
+import NewOrdonnancePage from './pages/ordonnances/NewOrdonnancePage'
+import RoulettePage from './pages/roulette/RoulettePage'
+import AlertesPage from './pages/alertes/AlertesPage'
 
 export const router = createBrowserRouter([
   // Public routes
@@ -47,7 +52,7 @@ export const router = createBrowserRouter([
           { path: '/patients', element: <PatientsPage /> },
           { path: '/patients/new', element: <NewPatientPage /> },
           { path: '/patients/:id', element: <PatientDetailPage /> },
-          { path: '/patients/:id/edit', element: <div>Patient Edit - TODO</div> },
+          { path: '/patients/:id/edit', element: <PatientEditPage /> },
           { path: '/grossesses', element: <GrossessesPage /> },
           { path: '/grossesses/new', element: <NewGrossessePage /> },
           { path: '/grossesses/:id', element: <GrosesseDetailPage /> },
@@ -65,6 +70,10 @@ export const router = createBrowserRouter([
           { path: '/agenda', element: <AgendaPage /> },
           { path: '/statistiques', element: <StatistiquesPage /> },
           { path: '/protocoles', element: <ProtocolesPage /> },
+          { path: '/alertes', element: <AlertesPage /> },
+          { path: '/ordonnances/new', element: <NewOrdonnancePage /> },
+          { path: '/ordonnances/:id', element: <OrdonnanceDetailPage /> },
+          { path: '/roulette', element: <RoulettePage /> },
           { path: '/parametres', element: <ParametresPage /> },
         ]
       }

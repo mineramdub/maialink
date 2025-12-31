@@ -49,33 +49,33 @@ router.post('/', async (req: AuthRequest, res) => {
       userId: req.user!.id,
       firstName: body.firstName,
       lastName: body.lastName,
-      maidenName: body.maidenName,
-      birthDate: body.birthDate,
-      birthPlace: body.birthPlace,
-      socialSecurityNumber: body.socialSecurityNumber,
-      email: body.email,
-      phone: body.phone,
-      mobilePhone: body.mobilePhone,
-      address: body.address,
-      postalCode: body.postalCode,
-      city: body.city,
-      bloodType: body.bloodType,
-      rhesus: body.rhesus,
-      allergies: body.allergies,
-      antecedentsMedicaux: body.antecedentsMedicaux,
-      antecedentsChirurgicaux: body.antecedentsChirurgicaux,
-      antecedentsFamiliaux: body.antecedentsFamiliaux,
-      traitementEnCours: body.traitementEnCours,
+      maidenName: body.maidenName || null,
+      birthDate: body.birthDate || null,
+      birthPlace: body.birthPlace || null,
+      socialSecurityNumber: body.socialSecurityNumber || null,
+      email: body.email || null,
+      phone: body.phone || null,
+      mobilePhone: body.mobilePhone || null,
+      address: body.address || null,
+      postalCode: body.postalCode || null,
+      city: body.city || null,
+      bloodType: body.bloodType || null,
+      rhesus: body.rhesus || null,
+      allergies: body.allergies || null,
+      antecedentsMedicaux: body.antecedentsMedicaux || null,
+      antecedentsChirurgicaux: body.antecedentsChirurgicaux || null,
+      antecedentsFamiliaux: body.antecedentsFamiliaux || null,
+      traitementEnCours: body.traitementEnCours || null,
       gravida: body.gravida || 0,
       para: body.para || 0,
-      mutuelle: body.mutuelle,
-      numeroMutuelle: body.numeroMutuelle,
-      medecinTraitant: body.medecinTraitant,
-      personneConfiance: body.personneConfiance,
-      telephoneConfiance: body.telephoneConfiance,
+      mutuelle: body.mutuelle || null,
+      numeroMutuelle: body.numeroMutuelle || null,
+      medecinTraitant: body.medecinTraitant || null,
+      personneConfiance: body.personneConfiance || null,
+      telephoneConfiance: body.telephoneConfiance || null,
       consentementRGPD: body.consentementRGPD || false,
       dateConsentement: body.consentementRGPD ? new Date() : null,
-      notes: body.notes,
+      notes: body.notes || null,
     }).returning()
 
     // Audit log
@@ -142,8 +142,9 @@ router.get('/:id', async (req: AuthRequest, res) => {
   }
 })
 
-// PATCH /api/patients/:id - Update patient
-router.patch('/:id', async (req: AuthRequest, res) => {
+// PATCH /api/patients/:id - Update patient (partial)
+// PUT /api/patients/:id - Update patient (full)
+const updatePatient = async (req: AuthRequest, res: any) => {
   try {
     const { id } = req.params
     const body = req.body
@@ -181,7 +182,10 @@ router.patch('/:id', async (req: AuthRequest, res) => {
     console.error('Update patient error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
-})
+}
+
+router.patch('/:id', updatePatient)
+router.put('/:id', updatePatient)
 
 // DELETE /api/patients/:id - Archive patient
 router.delete('/:id', async (req: AuthRequest, res) => {

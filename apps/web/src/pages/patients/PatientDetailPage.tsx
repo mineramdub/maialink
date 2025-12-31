@@ -21,12 +21,21 @@ import {
   Plus,
 } from 'lucide-react'
 import { formatDate, calculateAge } from '../../lib/utils'
+import { useAppointments } from '../../hooks/useAppointments'
+import { NewAppointmentDialog } from '../../components/NewAppointmentDialog'
+import { format, parseISO, isFuture, isPast } from 'date-fns'
+import { fr } from 'date-fns/locale'
 
 export default function PatientDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [patient, setPatient] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Fetch appointments for this patient
+  const { data: appointments = [], isLoading: appointmentsLoading } = useAppointments({
+    patientId: id
+  })
 
   useEffect(() => {
     fetchPatient()
@@ -193,6 +202,10 @@ export default function PatientDetailPage() {
             <Stethoscope className="h-4 w-4 mr-2" />
             Consultations
           </TabsTrigger>
+          <TabsTrigger value="appointments">
+            <Calendar className="h-4 w-4 mr-2" />
+            Rendez-vous
+          </TabsTrigger>
           <TabsTrigger value="documents">
             <FileText className="h-4 w-4 mr-2" />
             Documents
@@ -269,6 +282,85 @@ export default function PatientDetailPage() {
               ) : (
                 <p className="text-center text-slate-600 py-8">
                   Aucune consultation enregistree
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="appointments">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Rendez-vous</CardTitle>
+              <NewAppointmentDialog
+                patientId={id!}
+                patientName={`${patient.firstName} ${patient.lastName}`}
+                trigger={
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nouveau RDV
+                  </Button>
+                }
+              />
+            </CardHeader>
+            <CardContent>
+              {appointmentsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                </div>
+              ) : appointments.length > 0 ? (
+                <div className="space-y-4">
+                  {appointments
+                    .sort((a: any, b: any) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+                    .map((apt: any) => {
+                      const startTime = parseISO(apt.startTime)
+                      const isUpcoming = isFuture(startTime)
+
+                      return (
+                        <div
+                          key={apt.id}
+                          className={`p-4 border rounded-lg hover:bg-slate-50 transition-colors ${
+                            isUpcoming ? 'border-blue-200 bg-blue-50/50' : ''
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-slate-400" />
+                                <div className="font-medium">
+                                  {format(startTime, 'EEEE d MMMM yyyy', { locale: fr })}
+                                </div>
+                                {isUpcoming && (
+                                  <Badge className="bg-blue-100 text-blue-700">À venir</Badge>
+                                )}
+                              </div>
+                              <div className="text-sm text-slate-600 mt-2 ml-6">
+                                {format(startTime, 'HH:mm')} - {format(parseISO(apt.endTime), 'HH:mm')}
+                              </div>
+                              <div className="text-sm text-slate-600 mt-1 ml-6">
+                                {apt.type}
+                              </div>
+                              {apt.location && (
+                                <div className="text-sm text-slate-600 mt-1 ml-6 flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {apt.location}
+                                </div>
+                              )}
+                              {apt.notes && (
+                                <div className="text-sm text-slate-600 mt-2 ml-6 pt-2 border-t">
+                                  {apt.notes}
+                                </div>
+                              )}
+                            </div>
+                            <Badge variant="outline">{apt.status}</Badge>
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              ) : (
+                <p className="text-center text-slate-600 py-8">
+                  Aucun rendez-vous enregistré
                 </p>
               )}
             </CardContent>

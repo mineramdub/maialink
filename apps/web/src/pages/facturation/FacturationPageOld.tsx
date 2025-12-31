@@ -1,18 +1,37 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
 import { Plus, Receipt, Loader2, Calendar, Euro } from 'lucide-react'
 import { formatDate } from '../../lib/utils'
-import { useInvoices, usePrefetchInvoice } from '../../hooks/useInvoices'
 
 export default function FacturationPage() {
-  const prefetchInvoice = usePrefetchInvoice()
+  const [invoices, setInvoices] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [stats, setStats] = useState<any>(null)
 
-  // React Query with cache - data fetched in background
-  const { data, isLoading, error } = useInvoices()
-  const invoices = data?.invoices || []
-  const stats = data?.stats
+  useEffect(() => {
+    fetchInvoices()
+  }, [])
+
+  const fetchInvoices = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/invoices`, {
+        credentials: 'include'
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setInvoices(data.invoices)
+        setStats(data.stats)
+      }
+    } catch (error) {
+      console.error('Error fetching invoices:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
@@ -89,21 +108,11 @@ export default function FacturationPage() {
         </div>
       )}
 
-      {isLoading && (
+      {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
         </div>
-      )}
-
-      {error && (
-        <Card>
-          <CardContent className="py-8 text-center text-red-600">
-            Erreur lors du chargement
-          </CardContent>
-        </Card>
-      )}
-
-      {!isLoading && !error && invoices.length === 0 && (
+      ) : invoices.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Receipt className="h-12 w-12 text-slate-300 mb-4" />
@@ -121,17 +130,10 @@ export default function FacturationPage() {
             </Button>
           </CardContent>
         </Card>
-      )}
-
-      {!isLoading && !error && invoices.length > 0 && (
+      ) : (
         <div className="space-y-4">
-          {invoices.map((invoice: any) => (
-            <Link
-              key={invoice.id}
-              to={`/facturation/${invoice.id}`}
-              onMouseEnter={() => prefetchInvoice(invoice.id)}
-              onFocus={() => prefetchInvoice(invoice.id)}
-            >
+          {invoices.map((invoice) => (
+            <Link key={invoice.id} to={`/facturation/${invoice.id}`}>
               <Card className="hover:border-slate-300 hover:shadow-md transition-all cursor-pointer">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
@@ -152,7 +154,7 @@ export default function FacturationPage() {
                             {formatDate(invoice.date)}
                           </div>
                           <span>
-                            {invoice.patient?.firstName} {invoice.patient?.lastName}
+                            {invoice.patient.firstName} {invoice.patient.lastName}
                           </span>
                         </div>
                       </div>
