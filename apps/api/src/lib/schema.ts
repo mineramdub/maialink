@@ -72,6 +72,24 @@ export const patients = pgTable('patients', {
   antecedentsFamiliaux: jsonb('antecedents_familiaux').$type<string[]>(),
   traitementEnCours: text('traitement_en_cours'),
 
+  // Antécédents gynécologiques détaillés
+  antecedentsGynecologiques: jsonb('antecedents_gynecologiques').$type<{
+    dateReglesMenarches?: string // Age ou date des premières règles
+    dureeCycle?: number // en jours
+    dureeRegles?: number // en jours
+    dysmenorrhees?: boolean
+    dysmenorrheesDetails?: string
+    dyspareunies?: boolean
+    dyspareuniesDétails?: string
+    contraception?: string
+    contraceptionDetails?: string
+    dateDernierFrottis?: string
+    resultatDernierFrottis?: string
+    pathologiesGyneco?: string[] // Liste des pathologies gynéco
+    chirurgiesGyneco?: string[] // Liste des chirurgies gynéco avec dates
+    autres?: string
+  }>(),
+
   // Obstétrique
   gravida: integer('gravida').default(0),
   para: integer('para').default(0),
@@ -518,6 +536,7 @@ export const patientsRelations = relations(patients, ({ one, many }) => ({
   }),
   grossesses: many(grossesses),
   consultations: many(consultations),
+  suiviGyneco: many(suiviGyneco),
   appointments: many(appointments),
   invoices: many(invoices),
   documents: many(documents),
@@ -537,6 +556,43 @@ export const grossessesRelations = relations(grossesses, ({ one, many }) => ({
   examens: many(examensPrenataux),
   consultations: many(consultations),
   suiviPostPartum: many(suiviPostPartum),
+}))
+
+export const examensPrenatauxRelations = relations(examensPrenataux, ({ one }) => ({
+  grossesse: one(grossesses, {
+    fields: [examensPrenataux.grossesseId],
+    references: [grossesses.id],
+  }),
+  user: one(users, {
+    fields: [examensPrenataux.userId],
+    references: [users.id],
+  }),
+}))
+
+export const suiviPostPartumRelations = relations(suiviPostPartum, ({ one }) => ({
+  patient: one(patients, {
+    fields: [suiviPostPartum.patientId],
+    references: [patients.id],
+  }),
+  grossesse: one(grossesses, {
+    fields: [suiviPostPartum.grossesseId],
+    references: [grossesses.id],
+  }),
+  user: one(users, {
+    fields: [suiviPostPartum.userId],
+    references: [users.id],
+  }),
+}))
+
+export const suiviGynecoRelations = relations(suiviGyneco, ({ one }) => ({
+  patient: one(patients, {
+    fields: [suiviGyneco.patientId],
+    references: [patients.id],
+  }),
+  user: one(users, {
+    fields: [suiviGyneco.userId],
+    references: [users.id],
+  }),
 }))
 
 export const consultationsRelations = relations(consultations, ({ one }) => ({

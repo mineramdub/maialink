@@ -5,6 +5,7 @@ import { consultations, patients, alertes, auditLogs, grossesses } from '../lib/
 import { eq, and, desc } from 'drizzle-orm'
 import { calculateSA } from '../lib/utils.js'
 import { checkClinicalAlerts } from '../lib/pregnancy-utils.js'
+import { getTemplateForSA, generateConsultationFromTemplate, generateReminders } from '../lib/consultationTemplates.js'
 
 const router = Router()
 router.use(authMiddleware)
@@ -169,6 +170,65 @@ router.get('/:id', async (req: AuthRequest, res) => {
     res.json({ success: true, consultation })
   } catch (error) {
     console.error('Get consultation error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// GET /api/consultations/template/:grossesseId - Get consultation template for pregnancy
+router.get('/template/:grossesseId', async (req: AuthRequest, res) => {
+  try {
+    // Get grossesse
+    const grossesse = await db.query.grossesses.findFirst({
+      where: eq(grossesses.id, req.params.grossesseId),
+      with: {
+        patient: true,
+      },
+    })
+
+    if (!grossesse) {
+      return res.status(404).json({ error: 'Grossesse non trouvée' })
+    }
+
+    // Verify access
+    if (grossesse.userId !== req.user!.id) {
+      return res.status(403).json({ error: 'Accès non autorisé' })
+    }
+
+    // Calculate SA
+    const sa = calculateSA(grossesse.ddr)
+    const saTotal = sa.weeks + sa.days / 7
+
+    // Get template
+    const template = getTemplateForSA(saTotal)
+    if (!template) {
+      return res.json({
+        success: true,
+        template: null,
+        message: 'Aucun template disponible pour ce terme'
+      })
+    }
+
+    // Generate pre-filled consultation
+    const consultationData = generateConsultationFromTemplate(saTotal)
+
+    // Generate reminders
+    const reminders = generateReminders(saTotal)
+
+    res.json({
+      success: true,
+      template: {
+        name: template.name,
+        sa: { weeks: sa.weeks, days: sa.days },
+        examensRecommandes: template.examensRecommandes,
+        pointsVigilance: template.pointsVigilance,
+        questionsPoser: template.questionsPoser,
+        prescriptionsSuggestions: template.prescriptionsSuggestions,
+      },
+      consultationData,
+      reminders,
+    })
+  } catch (error) {
+    console.error('Get template error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })

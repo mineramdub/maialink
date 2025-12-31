@@ -40,3 +40,18 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+
+# Uploads directory (user files)
+apps/api/uploads/
+
+# Test files
+apps/api/*.js
+!apps/api/drizzle.config.js
+apps/api/test-*.json
+
+# Vite cache
+apps/web/node_modules/.vite/
+
+# Build output
+apps/web/dist/
+apps/api/dist/

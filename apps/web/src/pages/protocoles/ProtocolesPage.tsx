@@ -13,6 +13,8 @@ export default function ProtocolesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchProtocols()
@@ -38,6 +40,7 @@ export default function ProtocolesPage() {
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsUploading(true)
+    setUploadError(null)
 
     const form = e.target as HTMLFormElement
     const formData = new FormData(form)
@@ -54,18 +57,55 @@ export default function ProtocolesPage() {
       if (data.success) {
         setProtocols([data.protocol, ...protocols])
         setShowUpload(false)
+        setUploadError(null)
         form.reset()
-        
+
         // Lancer le traitement
         fetch(`${import.meta.env.VITE_API_URL}/api/protocols/${data.protocol.id}/process`, {
           method: 'POST',
           credentials: 'include'
         }).catch(console.error)
+      } else {
+        // Afficher l'erreur retournée par l'API
+        const errorMessage = data.details || data.error || 'Erreur lors de l\'upload'
+        setUploadError(errorMessage)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload error:', error)
+      setUploadError('Erreur réseau lors de l\'upload du fichier')
     } finally {
       setIsUploading(false)
+    }
+  }
+
+  const handleProcess = async (protocolId: string) => {
+    setProcessingIds(prev => new Set(prev).add(protocolId))
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/protocols/${protocolId}/process`, {
+        method: 'POST',
+        credentials: 'include'
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        // Mettre à jour le protocole
+        setProtocols(prev => prev.map(p =>
+          p.id === protocolId ? { ...p, isProcessed: true } : p
+        ))
+      } else {
+        alert('Erreur lors du traitement: ' + (data.error || 'Erreur inconnue'))
+      }
+    } catch (error) {
+      console.error('Process error:', error)
+      alert('Erreur lors du traitement du protocole')
+    } finally {
+      setProcessingIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(protocolId)
+        return newSet
+      })
     }
   }
 
@@ -88,6 +128,13 @@ export default function ProtocolesPage() {
         <Card>
           <CardContent className="pt-6">
             <form onSubmit={handleUpload} className="space-y-4">
+              {uploadError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800 font-medium">❌ Erreur d'upload</p>
+                  <p className="text-sm text-red-600 mt-1">{uploadError}</p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="nom">Nom du protocole *</Label>
                 <Input id="nom" name="nom" required />
@@ -197,9 +244,31 @@ export default function ProtocolesPage() {
                   </p>
                 )}
 
-                <div className="text-xs text-slate-400">
+                <div className="text-xs text-slate-400 mb-3">
                   Importé le {formatDate(protocol.createdAt)}
                 </div>
+
+                {!protocol.isProcessed && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => handleProcess(protocol.id)}
+                    disabled={processingIds.has(protocol.id)}
+                  >
+                    {processingIds.has(protocol.id) ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                        Traitement en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-3 w-3 mr-2" />
+                        Traiter le protocole
+                      </>
+                    )}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}

@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { ProtocolResultsCarousel } from '@/components/ProtocolResultsCarousel'
+import { StructuredResponse } from '@/components/StructuredResponse'
 import {
   MessageCircle,
   X,
@@ -13,11 +15,25 @@ import {
   Minimize2,
 } from 'lucide-react'
 
+interface ProtocolResult {
+  chunkId: string
+  excerpt: string
+  pageNumber: number
+}
+
+interface ProtocolSource {
+  protocolId: string
+  protocolName: string
+  fileUrl: string
+  results: ProtocolResult[]
+}
+
 interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
-  sources?: { protocolId: string; protocolName: string }[]
+  sources?: ProtocolSource[]
+  structured?: any
   timestamp: Date
 }
 
@@ -72,6 +88,7 @@ export function ChatBubble() {
         role: 'assistant',
         content: data.answer || data.error || 'Erreur lors de la generation de la reponse',
         sources: data.sources,
+        structured: data.structured,
         timestamp: new Date(),
       }
 
@@ -204,29 +221,35 @@ export function ChatBubble() {
                     <Bot className="h-4 w-4 text-white" />
                   )}
                 </div>
-                <div
-                  className={`flex-1 rounded-2xl px-4 py-2.5 ${
-                    message.role === 'user'
-                      ? 'bg-slate-100 text-slate-900'
-                      : 'bg-gradient-to-br from-violet-50 to-purple-50 text-slate-900'
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  {message.sources && message.sources.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-violet-200">
-                      <p className="text-xs text-violet-600 mb-1">Sources :</p>
-                      <div className="flex flex-wrap gap-1">
-                        {message.sources.map((source, i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center gap-1 text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full"
-                          >
-                            <FileText className="h-3 w-3" />
-                            {source.protocolName}
-                          </span>
-                        ))}
-                      </div>
+                <div className="flex-1">
+                  {/* Message utilisateur ou réponse structurée */}
+                  {message.role === 'user' ? (
+                    <div className="rounded-2xl px-4 py-2.5 bg-slate-100 text-slate-900">
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                     </div>
+                  ) : message.structured ? (
+                    /* Réponse structurée avec IA */
+                    <div className="rounded-2xl px-4 py-3 bg-gradient-to-br from-violet-50 to-purple-50">
+                      <StructuredResponse data={message.structured} />
+                    </div>
+                  ) : (
+                    /* Réponse simple avec carousel si sources */
+                    <>
+                      {message.sources && message.sources.length > 0 && (
+                        <ProtocolResultsCarousel sources={message.sources} />
+                      )}
+                      <div
+                        className={`rounded-2xl px-4 py-2.5 mt-3 ${
+                          message.sources && message.sources.length > 0
+                            ? 'bg-slate-50 text-slate-600 text-xs'
+                            : 'bg-gradient-to-br from-violet-50 to-purple-50 text-slate-900'
+                        }`}
+                      >
+                        <p className={message.sources && message.sources.length > 0 ? 'text-xs' : 'text-sm whitespace-pre-wrap'}>
+                          {message.content}
+                        </p>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
