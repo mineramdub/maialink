@@ -253,3 +253,39 @@ export const appointmentsApi = {
 export const dashboardApi = {
   getStats: () => apiFetch<{ success: boolean; stats: any }>('/api/dashboard'),
 }
+
+// ============================================
+// AGENDA API
+// ============================================
+
+import type { AgendaEvent, AgendaEventConfig, AgendaEventType } from '../types/agenda'
+
+export interface AgendaEventsResponse {
+  success: boolean
+  events: AgendaEvent[]
+  count: number
+}
+
+export interface AgendaConfigResponse {
+  success: boolean
+  config: AgendaEventConfig[]
+}
+
+export const agendaApi = {
+  getEvents: (params?: {
+    startDate?: string
+    endDate?: string
+    patientId?: string
+    types?: AgendaEventType[]
+  }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.startDate) searchParams.set('startDate', params.startDate)
+    if (params?.endDate) searchParams.set('endDate', params.endDate)
+    if (params?.patientId) searchParams.set('patientId', params.patientId)
+    if (params?.types?.length) searchParams.set('types', params.types.join(','))
+    const query = searchParams.toString()
+    return apiFetch<AgendaEventsResponse>(`/api/agenda/events${query ? `?${query}` : ''}`)
+  },
+
+  getConfig: () => apiFetch<AgendaConfigResponse>('/api/agenda/config'),
+}

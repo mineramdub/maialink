@@ -33,12 +33,15 @@ router.get('/', async (req: AuthRequest, res) => {
       ))
 
     // Stats - Consultations aujourd'hui
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59)
     const todayConsultations = await db
       .select({ count: sql<number>`count(*)` })
       .from(consultations)
       .where(and(
         eq(consultations.userId, userId),
-        eq(consultations.date, today.toISOString().split('T')[0])
+        gte(consultations.date, todayStart),
+        lte(consultations.date, todayEnd)
       ))
 
     // Stats - CA du mois
@@ -47,8 +50,8 @@ router.get('/', async (req: AuthRequest, res) => {
       .from(invoices)
       .where(and(
         eq(invoices.userId, userId),
-        gte(invoices.dateFacture, firstDayOfMonth.toISOString().split('T')[0]),
-        lte(invoices.dateFacture, lastDayOfMonth.toISOString().split('T')[0])
+        gte(invoices.dateFacture, firstDayOfMonth),
+        lte(invoices.dateFacture, lastDayOfMonth)
       ))
 
     // Alertes - Grossesses proche du terme (>= 37 SA)
@@ -171,8 +174,8 @@ router.get('/', async (req: AuthRequest, res) => {
       .leftJoin(patients, eq(consultations.patientId, patients.id))
       .where(and(
         eq(consultations.userId, userId),
-        gte(consultations.date, today.toISOString().split('T')[0]),
-        lte(consultations.date, sevenDaysFromNow.toISOString().split('T')[0])
+        gte(consultations.date, todayStart),
+        lte(consultations.date, sevenDaysFromNow)
       ))
       .orderBy(consultations.date)
       .limit(5)

@@ -19,6 +19,7 @@ import dashboardRoutes from './routes/dashboard.js'
 import documentTemplatesRoutes from './routes/documentTemplates.js'
 import practitionerRoutes from './routes/practitioner.js'
 import templatesRoutes from './routes/templates.js'
+import agendaRoutes from './routes/agenda.js'
 import { auditMiddleware } from './middleware/audit.js'
 
 dotenv.config()
@@ -28,7 +29,7 @@ const PORT = process.env.PORT || 3001
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true
 }))
 app.use(express.json({ limit: '400mb' }))
@@ -109,6 +110,7 @@ app.use('/api/gyneco', gynecoRoutes)
 app.use('/api/document-templates', documentTemplatesRoutes)
 app.use('/api/practitioner', practitionerRoutes)
 app.use('/api/templates', templatesRoutes)
+app.use('/api/agenda', agendaRoutes)
 
 // Global error handler for Multer errors
 app.use((error: any, req: any, res: any, next: any) => {
