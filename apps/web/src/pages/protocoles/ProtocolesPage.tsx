@@ -1,20 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
+import { Plus, BookOpen, Loader2, FileText, CheckCircle, Clock, Search, Filter } from 'lucide-react'
 import { Input } from '../../components/ui/input'
-import { Label } from '../../components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
-import { Plus, BookOpen, Loader2, Upload, FileText, CheckCircle, Clock } from 'lucide-react'
 import { formatDate } from '../../lib/utils'
 
 export default function ProtocolesPage() {
+  const navigate = useNavigate()
   const [protocols, setProtocols] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isUploading, setIsUploading] = useState(false)
-  const [showUpload, setShowUpload] = useState(false)
-  const [uploadError, setUploadError] = useState<string | null>(null)
-  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
 
   useEffect(() => {
     fetchProtocols()
@@ -37,169 +36,95 @@ export default function ProtocolesPage() {
     }
   }
 
-  const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsUploading(true)
-    setUploadError(null)
+  // Get unique categories from protocols
+  const uniqueCategories = useMemo(() => {
+    const categories = new Set(protocols.map(p => p.category).filter(Boolean))
+    return Array.from(categories).sort()
+  }, [protocols])
 
-    const form = e.target as HTMLFormElement
-    const formData = new FormData(form)
+  // Color palette for categories (deterministic based on string hash)
+  const categoryColorPalette = [
+    'bg-pink-100 text-pink-800 hover:bg-pink-200',
+    'bg-purple-100 text-purple-800 hover:bg-purple-200',
+    'bg-blue-100 text-blue-800 hover:bg-blue-200',
+    'bg-green-100 text-green-800 hover:bg-green-200',
+    'bg-yellow-100 text-yellow-800 hover:bg-yellow-200',
+    'bg-orange-100 text-orange-800 hover:bg-orange-200',
+    'bg-teal-100 text-teal-800 hover:bg-teal-200',
+    'bg-indigo-100 text-indigo-800 hover:bg-indigo-200',
+    'bg-rose-100 text-rose-800 hover:bg-rose-200',
+    'bg-cyan-100 text-cyan-800 hover:bg-cyan-200',
+  ]
 
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/protocols`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        setProtocols([data.protocol, ...protocols])
-        setShowUpload(false)
-        setUploadError(null)
-        form.reset()
-
-        // Lancer le traitement
-        fetch(`${import.meta.env.VITE_API_URL}/api/protocols/${data.protocol.id}/process`, {
-          method: 'POST',
-          credentials: 'include'
-        }).catch(console.error)
-      } else {
-        // Afficher l'erreur retournée par l'API
-        const errorMessage = data.details || data.error || 'Erreur lors de l\'upload'
-        setUploadError(errorMessage)
-      }
-    } catch (error: any) {
-      console.error('Upload error:', error)
-      setUploadError('Erreur réseau lors de l\'upload du fichier')
-    } finally {
-      setIsUploading(false)
+  // Get color for a category based on its string hash
+  const getCategoryColor = (category: string): string => {
+    if (!category) return 'bg-slate-100 text-slate-800 hover:bg-slate-200'
+    let hash = 0
+    for (let i = 0; i < category.length; i++) {
+      hash = category.charCodeAt(i) + ((hash << 5) - hash)
     }
+    const index = Math.abs(hash) % categoryColorPalette.length
+    return categoryColorPalette[index]
   }
 
-  const handleProcess = async (protocolId: string) => {
-    setProcessingIds(prev => new Set(prev).add(protocolId))
+  // Filter protocols
+  const filteredProtocols = protocols.filter(protocol => {
+    const matchesSearch = searchQuery === '' ||
+      protocol.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (protocol.description && protocol.description.toLowerCase().includes(searchQuery.toLowerCase()))
 
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/protocols/${protocolId}/process`, {
-        method: 'POST',
-        credentials: 'include'
-      })
+    const matchesCategory = categoryFilter === 'all' || protocol.category === categoryFilter
 
-      const data = await res.json()
-
-      if (data.success) {
-        // Mettre à jour le protocole
-        setProtocols(prev => prev.map(p =>
-          p.id === protocolId ? { ...p, isProcessed: true } : p
-        ))
-      } else {
-        alert('Erreur lors du traitement: ' + (data.error || 'Erreur inconnue'))
-      }
-    } catch (error) {
-      console.error('Process error:', error)
-      alert('Erreur lors du traitement du protocole')
-    } finally {
-      setProcessingIds(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(protocolId)
-        return newSet
-      })
-    }
-  }
+    return matchesSearch && matchesCategory
+  })
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Protocoles médicaux</h1>
           <p className="text-slate-500 mt-1">
-            {protocols.length} protocole{protocols.length > 1 ? 's' : ''}
+            {filteredProtocols.length} protocole{filteredProtocols.length > 1 ? 's' : ''}
+            {categoryFilter !== 'all' && ` (${categoryFilter})`}
           </p>
         </div>
-        <Button onClick={() => setShowUpload(!showUpload)}>
+        <Button onClick={() => navigate('/protocoles/new')}>
           <Plus className="h-4 w-4 mr-1" />
           Importer un protocole
         </Button>
       </div>
 
-      {showUpload && (
-        <Card>
-          <CardContent className="pt-6">
-            <form onSubmit={handleUpload} className="space-y-4">
-              {uploadError && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-800 font-medium">❌ Erreur d'upload</p>
-                  <p className="text-sm text-red-600 mt-1">{uploadError}</p>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="nom">Nom du protocole *</Label>
-                <Input id="nom" name="nom" required />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category">Catégorie *</Label>
-                <Select name="category" required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="grossesse">Grossesse</SelectItem>
-                    <SelectItem value="post_partum">Post-partum</SelectItem>
-                    <SelectItem value="gynecologie">Gynécologie</SelectItem>
-                    <SelectItem value="reeducation">Rééducation</SelectItem>
-                    <SelectItem value="pediatrie">Pédiatrie</SelectItem>
-                    <SelectItem value="autre">Autre</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Input id="description" name="description" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="file">Fichier PDF *</Label>
-                <Input
-                  id="file"
-                  name="file"
-                  type="file"
-                  accept=".pdf"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button type="submit" disabled={isUploading}>
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Upload...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Importer
-                    </>
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowUpload(false)}
-                >
-                  Annuler
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+      {/* Filters */}
+      {protocols.length > 0 && (
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Rechercher par nom ou description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="w-full sm:w-64">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger>
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Catégorie" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les catégories</SelectItem>
+                {uniqueCategories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       )}
 
+      {/* Content */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
@@ -214,15 +139,35 @@ export default function ProtocolesPage() {
             <p className="text-sm text-slate-500 mb-4">
               Importez vos premiers protocoles médicaux
             </p>
+            <Button onClick={() => navigate('/protocoles/new')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Importer un protocole
+            </Button>
+          </CardContent>
+        </Card>
+      ) : filteredProtocols.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Search className="h-12 w-12 text-slate-300 mb-4" />
+            <h3 className="text-lg font-medium text-slate-900 mb-1">
+              Aucun résultat
+            </h3>
+            <p className="text-sm text-slate-500">
+              Aucun protocole ne correspond à votre recherche
+            </p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {protocols.map((protocol) => (
-            <Card key={protocol.id} className="hover:shadow-md transition-all">
+          {filteredProtocols.map((protocol) => (
+            <Card
+              key={protocol.id}
+              className="hover:shadow-md transition-all cursor-pointer group"
+              onClick={() => navigate(`/protocoles/${protocol.id}`)}
+            >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
-                  <FileText className="h-8 w-8 text-blue-500" />
+                  <FileText className="h-8 w-8 text-blue-500 group-hover:text-blue-600 transition-colors" />
                   {protocol.isProcessed ? (
                     <CheckCircle className="h-5 w-5 text-green-500" />
                   ) : (
@@ -230,45 +175,30 @@ export default function ProtocolesPage() {
                   )}
                 </div>
 
-                <h3 className="font-medium text-slate-900 mb-1">
+                <h3 className="font-medium text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
                   {protocol.nom}
                 </h3>
 
-                <Badge variant="secondary" className="mb-2">
-                  {protocol.category}
+                <Badge className={getCategoryColor(protocol.category)}>
+                  {protocol.category || 'Non catégorisé'}
                 </Badge>
 
                 {protocol.description && (
-                  <p className="text-sm text-slate-600 mb-3 line-clamp-2">
+                  <p className="text-sm text-slate-600 mt-3 line-clamp-2">
                     {protocol.description}
                   </p>
                 )}
 
-                <div className="text-xs text-slate-400 mb-3">
-                  Importé le {formatDate(protocol.createdAt)}
+                <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+                  <span className="text-xs text-slate-400">
+                    {formatDate(protocol.createdAt)}
+                  </span>
+                  {protocol.pageCount && (
+                    <span className="text-xs text-slate-400">
+                      {protocol.pageCount} pages
+                    </span>
+                  )}
                 </div>
-
-                {!protocol.isProcessed && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => handleProcess(protocol.id)}
-                    disabled={processingIds.has(protocol.id)}
-                  >
-                    {processingIds.has(protocol.id) ? (
-                      <>
-                        <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                        Traitement en cours...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-3 w-3 mr-2" />
-                        Traiter le protocole
-                      </>
-                    )}
-                  </Button>
-                )}
               </CardContent>
             </Card>
           ))}

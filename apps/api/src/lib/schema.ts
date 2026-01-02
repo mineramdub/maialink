@@ -559,7 +559,7 @@ export const protocols = pgTable('protocols', {
 
   nom: text('nom').notNull(),
   description: text('description'),
-  category: protocolCategoryEnum('category').notNull().default('autre'),
+  category: text('category').notNull().default('Autre'),
 
   // Stockage du fichier
   fileUrl: text('file_url').notNull(),
@@ -647,6 +647,17 @@ export const examensPrenatauxRelations = relations(examensPrenataux, ({ one }) =
   }),
   user: one(users, {
     fields: [examensPrenataux.userId],
+    references: [users.id],
+  }),
+}))
+
+export const reeducationSeancesRelations = relations(reeducationSeances, ({ one }) => ({
+  patient: one(patients, {
+    fields: [reeducationSeances.patientId],
+    references: [patients.id],
+  }),
+  user: one(users, {
+    fields: [reeducationSeances.userId],
     references: [users.id],
   }),
 }))

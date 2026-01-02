@@ -20,6 +20,8 @@ import FacturationPage from './pages/facturation/FacturationPage'
 import NewFacturationPage from './pages/facturation/NewFacturationPage'
 import FacturationDetailPage from './pages/facturation/FacturationDetailPage'
 import ProtocolesPage from './pages/protocoles/ProtocolesPage'
+import ProtocolDetailPage from './pages/protocoles/ProtocolDetailPage'
+import ProtocolUploadWizard from './pages/protocoles/ProtocolUploadWizard'
 import DocumentsPage from './pages/documents/DocumentsPage'
 import DocumentGeneratorPage from './pages/documents/DocumentGeneratorPage'
 import AgendaPage from './pages/agenda/AgendaPage'
@@ -74,6 +76,8 @@ export const router = createBrowserRouter([
           { path: '/agenda', element: <AgendaPage /> },
           { path: '/statistiques', element: <StatistiquesPage /> },
           { path: '/protocoles', element: <ProtocolesPage /> },
+          { path: '/protocoles/new', element: <ProtocolUploadWizard /> },
+          { path: '/protocoles/:id', element: <ProtocolDetailPage /> },
           { path: '/alertes', element: <AlertesPage /> },
           { path: '/ordonnances/new', element: <NewOrdonnancePage /> },
           { path: '/ordonnances/:id', element: <OrdonnanceDetailPage /> },
