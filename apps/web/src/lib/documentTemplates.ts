@@ -57,37 +57,126 @@ const PRATICIEN_DEFAULT: PraticienData = {
 
 // Helper functions
 function addHeader(doc: jsPDF, praticien: PraticienData) {
-  doc.setFontSize(10)
-  doc.text(`${praticien.firstName} ${praticien.lastName}`, 15, 15)
-  doc.text(`Sage-femme`, 15, 20)
-  if (praticien.rpps) doc.text(`RPPS: ${praticien.rpps}`, 15, 25)
-  if (praticien.adeli) doc.text(`ADELI: ${praticien.adeli}`, 15, 30)
-  doc.text(praticien.address, 15, 35)
-  doc.text(`Tél: ${praticien.phone}`, 15, 40)
-  doc.text(praticien.email, 15, 45)
+  // Header box with light background
+  doc.setFillColor(245, 247, 250) // Light blue-gray background
+  doc.rect(10, 10, 190, 45, 'F')
 
-  doc.setLineWidth(0.5)
-  doc.line(15, 50, 195, 50)
+  // Practitioner name - larger and bold
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`${praticien.firstName} ${praticien.lastName}`, 15, 18)
+
+  // Title
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(60, 80, 120) // Professional blue
+  doc.text('Sage-femme', 15, 24)
+
+  // Professional identifiers
+  doc.setFontSize(9)
+  doc.setTextColor(80, 80, 80)
+  let idY = 30
+  if (praticien.rpps) {
+    doc.text(`N° RPPS: ${praticien.rpps}`, 15, idY)
+    idY += 5
+  }
+  if (praticien.adeli && !praticien.rpps) {
+    doc.text(`N° ADELI: ${praticien.adeli}`, 15, idY)
+    idY += 5
+  }
+
+  // Contact information - right aligned
+  doc.setFontSize(9)
+  const addressLines = doc.splitTextToSize(praticien.address, 60)
+  let contactY = 18
+  addressLines.forEach((line: string) => {
+    doc.text(line, 195, contactY, { align: 'right' })
+    contactY += 4
+  })
+  doc.text(`Tél: ${praticien.phone}`, 195, contactY, { align: 'right' })
+  contactY += 4
+  doc.text(praticien.email, 195, contactY, { align: 'right' })
+
+  // Reset colors
+  doc.setTextColor(0, 0, 0)
+
+  // Separator line
+  doc.setDrawColor(60, 80, 120)
+  doc.setLineWidth(0.8)
+  doc.line(10, 58, 200, 58)
 }
 
 function addPatientInfo(doc: jsPDF, patient: PatientData, y: number): number {
+  // Patient info box
+  doc.setFillColor(250, 250, 252)
+  const boxHeight = patient.address && patient.city ? 32 : (patient.address ? 27 : 22)
+  doc.rect(10, y - 3, 190, boxHeight, 'F')
+
+  // Patient label
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(60, 80, 120)
+  doc.text('PATIENTE', 15, y + 2)
+
+  // Patient name - prominent
   doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
-  doc.text('Patiente :', 15, y)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`${patient.firstName} ${patient.lastName}`, 15, y + 5)
-  doc.text(`Née le : ${formatDate(patient.birthDate)}`, 15, y + 10)
+  doc.setTextColor(0, 0, 0)
+  doc.text(`${patient.firstName} ${patient.lastName}`, 15, y + 9)
 
-  if (patient.address) {
-    doc.text(`Adresse : ${patient.address}`, 15, y + 15)
-    if (patient.city) {
-      doc.text(`${patient.postalCode} ${patient.city}`, 15, y + 20)
-      return y + 25
-    }
-    return y + 20
+  // Birth date
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Née le : ${formatDate(patient.birthDate)}`, 15, y + 15)
+
+  let finalY = y + 15
+
+  if (patient.secuNumber) {
+    doc.setFontSize(9)
+    doc.text(`N° Sécurité Sociale : ${patient.secuNumber}`, 15, y + 20)
+    finalY = y + 20
   }
 
-  return y + 15
+  if (patient.address) {
+    doc.setFontSize(9)
+    doc.text(`${patient.address}`, 15, finalY + 5)
+    finalY += 5
+    if (patient.city) {
+      doc.text(`${patient.postalCode} ${patient.city}`, 15, finalY + 4)
+      finalY += 4
+    }
+  }
+
+  // Reset colors
+  doc.setTextColor(0, 0, 0)
+
+  return finalY + 8
+}
+
+function addDocumentTitle(doc: jsPDF, title: string, subtitle?: string, y: number = 70): number {
+  // Title
+  doc.setFontSize(16)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(40, 60, 100) // Professional dark blue
+  doc.text(title, 105, y, { align: 'center' })
+
+  // Subtitle if provided
+  if (subtitle) {
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text(subtitle, 105, y + 7, { align: 'center' })
+  }
+
+  // Decorative line under title
+  const lineY = subtitle ? y + 12 : y + 6
+  doc.setDrawColor(60, 80, 120)
+  doc.setLineWidth(0.5)
+  doc.line(70, lineY, 140, lineY)
+
+  // Reset colors
+  doc.setTextColor(0, 0, 0)
+
+  return subtitle ? y + 18 : y + 12
 }
 
 function calculateSA(ddr: string): { weeks: number; days: number } {
@@ -321,48 +410,91 @@ export function generateOrdonnanceBiologie(
 
   addHeader(doc, praticien)
 
-  doc.setFontSize(16)
-  doc.setFont('helvetica', 'bold')
-  doc.text('ORDONNANCE', 105, 70, { align: 'center' })
-  doc.text('Examens de biologie médicale', 105, 78, { align: 'center' })
+  let y = addDocumentTitle(doc, 'ORDONNANCE', 'Examens de biologie médicale', 70)
 
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'normal')
-
-  let y = 95
+  y += 5
   y = addPatientInfo(doc, patient, y)
 
   y += 10
   const sa = calculateSA(grossesse.ddr)
-  doc.text(`Grossesse : ${sa.weeks} SA + ${sa.days} jours`, 15, y)
 
-  y += 15
+  // Date et contexte de la prescription
+  doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
-  doc.text('EXAMENS PRESCRITS :', 15, y)
+  doc.text(`Date : ${new Date().toLocaleDateString('fr-FR')}`, 15, y)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Grossesse : ${sa.weeks} SA + ${sa.days} jours`, 120, y)
+
+  // Symbole Rp/ (prescription)
+  y += 15
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Rp/', 15, y)
+
+  // Ligne horizontale sous Rp/
+  doc.setLineWidth(0.5)
+  doc.line(15, y + 2, 195, y + 2)
+
+  y += 12
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('EXAMENS DE BIOLOGIE MÉDICALE', 15, y)
   doc.setFont('helvetica', 'normal')
 
   y += 10
+  doc.setFontSize(10)
+
   examens.forEach((examen) => {
-    doc.text(`☐ ${examen}`, 20, y)
-    y += 6
+    // Checkbox stylisé
+    doc.setDrawColor(100, 100, 100)
+    doc.rect(18, y - 3, 3, 3)
+    doc.text(examen, 25, y)
+    y += 7
   })
 
-  y += 10
+  y += 8
+
+  // Box pour l'indication
+  doc.setFillColor(250, 250, 252)
+  doc.rect(15, y - 5, 180, 20, 'F')
+
   doc.setFont('helvetica', 'bold')
-  doc.text('Indication :', 15, y)
+  doc.text('Indication clinique :', 18, y)
   doc.setFont('helvetica', 'normal')
-  y += 7
-  doc.text(indication, 15, y)
+  y += 6
+  const indicationLines = doc.splitTextToSize(indication, 170)
+  doc.text(indicationLines, 18, y)
 
   y += 15
   doc.setFontSize(9)
-  doc.text('Résultats à communiquer au prescripteur.', 15, y)
+  doc.setTextColor(100, 100, 100)
+  doc.text('→ Résultats à communiquer au prescripteur', 15, y)
+  doc.setTextColor(0, 0, 0)
 
-  y = 250
-  doc.setFontSize(11)
-  doc.text(`Le ${new Date().toLocaleDateString('fr-FR')}`, 15, y)
-  y += 10
-  doc.text('Signature et cachet du praticien :', 15, y)
+  // Footer professionnel
+  y = 240
+
+  // Box pour la signature
+  doc.setDrawColor(200, 200, 200)
+  doc.setLineWidth(0.3)
+  doc.rect(120, y - 5, 75, 35)
+
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`Fait à ${praticien.address.split('\\n')[1] || 'Paris'}`, 15, y)
+  doc.text(`Le ${new Date().toLocaleDateString('fr-FR')}`, 15, y + 6)
+
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Signature et cachet', 125, y + 2)
+  doc.text('du praticien :', 125, y + 7)
+
+  // Mention légale
+  y = 278
+  doc.setFontSize(7)
+  doc.setTextColor(120, 120, 120)
+  doc.text('Ordonnance conforme aux dispositions du Code de la santé publique', 15, y)
+  doc.setTextColor(0, 0, 0)
 
   return doc
 }
@@ -523,14 +655,204 @@ export function generateCompteRenduConsultation(
   return doc
 }
 
+// Specialized biology templates
+export function generateBilanPreEclampsie(
+  patient: PatientData,
+  grossesse: GrossesseData,
+  indication: string,
+  praticien: PraticienData = PRATICIEN_DEFAULT
+): jsPDF {
+  const examensPreEclampsie = [
+    'NFS (Numération Formule Sanguine)',
+    'Créatinine plasmatique',
+    'Acide urique',
+    'Transaminases (ASAT, ALAT)',
+    'LDH (Lactate déshydrogénase)',
+    'Protéinurie des 24h',
+    'Rapport protéinurie/créatininurie',
+    'Plaquettes',
+    'Bilan hépatique complet',
+  ]
+
+  return generateOrdonnanceBiologie(
+    patient,
+    grossesse,
+    examensPreEclampsie,
+    indication || 'Suspicion de pré-éclampsie - Bilan biologique',
+    praticien
+  )
+}
+
+export function generateBilanCholestase(
+  patient: PatientData,
+  grossesse: GrossesseData,
+  indication: string,
+  praticien: PraticienData = PRATICIEN_DEFAULT
+): jsPDF {
+  const examensCholestase = [
+    'Transaminases (ASAT, ALAT)',
+    'Gamma-GT',
+    'Phosphatases alcalines',
+    'Bilirubine totale et conjuguée',
+    'Acides biliaires sériques (à jeun)',
+    'NFS',
+    'TP/TCA (bilan de coagulation)',
+  ]
+
+  return generateOrdonnanceBiologie(
+    patient,
+    grossesse,
+    examensCholestase,
+    indication || 'Suspicion de cholestase gravidique - Bilan biologique',
+    praticien
+  )
+}
+
+export function generateBilanDiabeteGestationnel(
+  patient: PatientData,
+  grossesse: GrossesseData,
+  indication: string,
+  praticien: PraticienData = PRATICIEN_DEFAULT
+): jsPDF {
+  const examensDiabete = [
+    'Glycémie à jeun',
+    'HGPO 75g (Hyperglycémie provoquée par voie orale)',
+    'HbA1c (Hémoglobine glyquée)',
+    'Créatinine plasmatique',
+    'Protéinurie',
+    'Albuminurie',
+  ]
+
+  return generateOrdonnanceBiologie(
+    patient,
+    grossesse,
+    examensDiabete,
+    indication || 'Dépistage/Surveillance diabète gestationnel',
+    praticien
+  )
+}
+
+export function generateBilanAnemie(
+  patient: PatientData,
+  grossesse: GrossesseData,
+  indication: string,
+  praticien: PraticienData = PRATICIEN_DEFAULT
+): jsPDF {
+  const examensAnemie = [
+    'NFS (Numération Formule Sanguine)',
+    'Ferritine',
+    'Coefficient de saturation de la transferrine',
+    'CRP (Protéine C-réactive)',
+    'Réticulocytes',
+    'Vitamine B12',
+    'Folates sériques et érythrocytaires',
+  ]
+
+  return generateOrdonnanceBiologie(
+    patient,
+    grossesse,
+    examensAnemie,
+    indication || 'Bilan étiologique d\'anémie',
+    praticien
+  )
+}
+
 // Export all templates
+// Generate formatted PDF from text ordonnance
+export function generateOrdonnanceFromText(
+  textContent: string,
+  praticien: PraticienData = PRATICIEN_DEFAULT
+): jsPDF {
+  const doc = new jsPDF()
+
+  // Parse header to extract patient info
+  const lines = textContent.split('\n').filter(line => line.trim())
+
+  // Add professional header
+  addHeader(doc, praticien)
+
+  // Title
+  let y = addDocumentTitle(doc, 'ORDONNANCE', undefined, 70)
+  y += 5
+
+  // Find and display content starting after the header
+  const contentStartIndex = lines.findIndex(line => line.includes('─────────'))
+  if (contentStartIndex >= 0) {
+    // Skip the header separator
+    const contentLines = lines.slice(contentStartIndex + 1)
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+
+    // Process each line
+    for (const line of contentLines) {
+      if (line.includes('─────────')) {
+        // Separator line - stop before footer
+        break
+      }
+
+      if (y > 250) {
+        doc.addPage()
+        y = 20
+      }
+
+      if (line.startsWith('Patient')) {
+        // Patient section
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(60, 80, 120)
+      } else if (line.includes('Rp/') || line.includes('ORDONNANCE')) {
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+      } else {
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(0, 0, 0)
+        doc.setFontSize(10)
+      }
+
+      const wrappedLines = doc.splitTextToSize(line, 180)
+      doc.text(wrappedLines, 15, y)
+      y += wrappedLines.length * 6
+    }
+  }
+
+  // Professional footer
+  y = 240
+  doc.setDrawColor(200, 200, 200)
+  doc.setLineWidth(0.3)
+  doc.rect(120, y - 5, 75, 35)
+
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(0, 0, 0)
+  doc.text(`Fait à ${praticien.address.split('\\n')[1] || 'Paris'}`, 15, y)
+  doc.text(`Le ${new Date().toLocaleDateString('fr-FR')}`, 15, y + 6)
+
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Signature et cachet', 125, y + 2)
+  doc.text('du praticien :', 125, y + 7)
+
+  // Legal mention
+  y = 278
+  doc.setFontSize(7)
+  doc.setTextColor(120, 120, 120)
+  doc.text('Ordonnance conforme aux dispositions du Code de la santé publique', 15, y)
+
+  return doc
+}
+
 export const documentTemplates = {
   declarationGrossesse: generateDeclarationGrossesse,
   certificatGrossesse: generateCertificatGrossesse,
   arretTravail: generateArretTravail,
   ordonnanceBiologie: generateOrdonnanceBiologie,
+  bilanPreEclampsie: generateBilanPreEclampsie,
+  bilanCholestase: generateBilanCholestase,
+  bilanDiabeteGestationnel: generateBilanDiabeteGestationnel,
+  bilanAnemie: generateBilanAnemie,
   demandeEchographie: generateDemandeEchographie,
   compteRenduConsultation: generateCompteRenduConsultation,
+  ordonnanceFromText: generateOrdonnanceFromText,
 }
 
 export type DocumentType = keyof typeof documentTemplates

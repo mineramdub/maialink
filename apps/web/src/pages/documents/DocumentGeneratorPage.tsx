@@ -6,7 +6,8 @@ import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { Textarea } from '../../components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
-import { FileText, Download, ArrowLeft, Loader2 } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
+import { FileText, Download, ArrowLeft, Loader2, AlertCircle } from 'lucide-react'
 import {
   documentTemplates,
   type PatientData,
@@ -15,12 +16,17 @@ import {
   type PraticienData,
   type DocumentType,
 } from '../../lib/documentTemplates'
+import { usePractitionerData } from '../../hooks/usePractitionerData'
 
 const DOCUMENT_TYPES = [
   { value: 'declarationGrossesse', label: 'Déclaration de grossesse' },
   { value: 'certificatGrossesse', label: 'Certificat de grossesse' },
   { value: 'arretTravail', label: 'Arrêt de travail (grossesse pathologique)' },
-  { value: 'ordonnanceBiologie', label: 'Ordonnance - Biologie' },
+  { value: 'ordonnanceBiologie', label: 'Ordonnance - Biologie (personnalisée)' },
+  { value: 'bilanPreEclampsie', label: 'Bilan biologique - Pré-éclampsie' },
+  { value: 'bilanCholestase', label: 'Bilan biologique - Cholestase gravidique' },
+  { value: 'bilanDiabeteGestationnel', label: 'Bilan biologique - Diabète gestationnel' },
+  { value: 'bilanAnemie', label: 'Bilan biologique - Anémie' },
   { value: 'demandeEchographie', label: 'Demande d\'échographie' },
   { value: 'compteRenduConsultation', label: 'Compte-rendu de consultation' },
 ]
@@ -47,10 +53,16 @@ const EXAMENS_BIOLOGIE = [
 export default function DocumentGeneratorPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const patientId = searchParams.get('patientId')
+  const patientIdFromUrl = searchParams.get('patientId')
   const grossesseId = searchParams.get('grossesseId')
 
+  const praticien = usePractitionerData()
+
   const [isLoading, setIsLoading] = useState(true)
+  const [allPatients, setAllPatients] = useState<any[]>([])
+  const [allGrossesses, setAllGrossesses] = useState<any[]>([])
+  const [patientId, setPatientId] = useState<string>(patientIdFromUrl || '')
+  const [selectedGrossesseId, setSelectedGrossesseId] = useState<string>(grossesseId || '')
   const [patient, setPatient] = useState<PatientData | null>(null)
   const [grossesse, setGrossesse] = useState<GrossesseData | null>(null)
   const [lastConsultation, setLastConsultation] = useState<ConsultationData | null>(null)
@@ -87,15 +99,39 @@ export default function DocumentGeneratorPage() {
   })
 
   useEffect(() => {
+    fetchAllPatients()
+  }, [])
+
+  useEffect(() => {
     if (patientId) {
       fetchPatientData()
     } else {
-      setIsLoading(false)
+      setPatient(null)
+      setGrossesse(null)
+      setLastConsultation(null)
     }
   }, [patientId])
 
+  const fetchAllPatients = async () => {
+    try {
+      setIsLoading(true)
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/patients`, {
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data.success) {
+        setAllPatients(data.patients || [])
+      }
+    } catch (error) {
+      console.error('Error fetching patients:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const fetchPatientData = async () => {
     try {
+      setIsLoading(true)
       const patientRes = await fetch(`${import.meta.env.VITE_API_URL}/api/patients/${patientId}`, {
         credentials: 'include',
       })
@@ -103,37 +139,25 @@ export default function DocumentGeneratorPage() {
 
       if (patientData.success) {
         setPatient(patientData.patient)
-      }
 
-      if (grossesseId) {
-        const grossesseRes = await fetch(`${import.meta.env.VITE_API_URL}/api/grossesses/${grossesseId}`, {
-          credentials: 'include',
-        })
-        const grossesseData = await grossesseRes.json()
+        // Fetch grossesses for this patient
+        const grossessesRes = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/grossesses?patientId=${patientId}`,
+          { credentials: 'include' }
+        )
+        const grossessesData = await grossessesRes.json()
 
-        if (grossesseData.success) {
-          setGrossesse({
-            ddr: grossesseData.grossesse.ddr,
-            dpa: grossesseData.grossesse.dpa,
-            gestite: grossesseData.grossesse.gestite,
-            parite: grossesseData.grossesse.parite,
-            grossesseMultiple: grossesseData.grossesse.grossesseMultiple,
-            nombreFoetus: grossesseData.grossesse.nombreFoetus,
-          })
+        if (grossessesData.success && grossessesData.grossesses) {
+          setAllGrossesses(grossessesData.grossesses)
 
-          // Get last consultation
-          if (grossesseData.grossesse.consultations && grossesseData.grossesse.consultations.length > 0) {
-            const lastConsult = grossesseData.grossesse.consultations[0]
-            setLastConsultation({
-              date: lastConsult.date,
-              poids: lastConsult.poids,
-              tensionSystolique: lastConsult.tensionSystolique,
-              tensionDiastolique: lastConsult.tensionDiastolique,
-              hauteurUterine: lastConsult.hauteurUterine,
-              bdc: lastConsult.bdc,
-              saTerm: lastConsult.saTerm,
-              saJours: lastConsult.saJours,
-            })
+          // Auto-select active grossesse if not already specified
+          if (!selectedGrossesseId && grossessesData.grossesses.length > 0) {
+            const activeGrossesse = grossessesData.grossesses.find((g: any) => g.statut === 'en_cours')
+            if (activeGrossesse) {
+              setSelectedGrossesseId(activeGrossesse.id)
+            } else {
+              setSelectedGrossesseId(grossessesData.grossesses[0].id)
+            }
           }
         }
       }
@@ -144,8 +168,64 @@ export default function DocumentGeneratorPage() {
     }
   }
 
+  useEffect(() => {
+    if (selectedGrossesseId) {
+      fetchGrossesseData()
+    } else {
+      setGrossesse(null)
+      setLastConsultation(null)
+    }
+  }, [selectedGrossesseId])
+
+  const fetchGrossesseData = async () => {
+    if (!selectedGrossesseId) return
+
+    try {
+      const grossesseRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/grossesses/${selectedGrossesseId}`,
+        { credentials: 'include' }
+      )
+      const grossesseData = await grossesseRes.json()
+
+      if (grossesseData.success) {
+        setGrossesse({
+          ddr: grossesseData.grossesse.ddr,
+          dpa: grossesseData.grossesse.dpa,
+          gestite: grossesseData.grossesse.gestite,
+          parite: grossesseData.grossesse.parite,
+          grossesseMultiple: grossesseData.grossesse.grossesseMultiple,
+          nombreFoetus: grossesseData.grossesse.nombreFoetus,
+        })
+
+        // Get last consultation
+        if (grossesseData.grossesse.consultations && grossesseData.grossesse.consultations.length > 0) {
+          const lastConsult = grossesseData.grossesse.consultations[0]
+          setLastConsultation({
+            date: lastConsult.date,
+            poids: lastConsult.poids,
+            tensionSystolique: lastConsult.tensionSystolique,
+            tensionDiastolique: lastConsult.tensionDiastolique,
+            hauteurUterine: lastConsult.hauteurUterine,
+            bdc: lastConsult.bdc,
+            saTerm: lastConsult.saTerm,
+            saJours: lastConsult.saJours,
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching grossesse data:', error)
+    }
+  }
+
   const handleGenerate = () => {
     if (!documentType || !patient) return
+
+    // VALIDATION PRATICIEN
+    if (!praticien || !praticien.address) {
+      alert('Complétez vos paramètres praticien avant de générer des documents')
+      navigate('/parametres/praticien')
+      return
+    }
 
     setIsGenerating(true)
 
@@ -158,7 +238,7 @@ export default function DocumentGeneratorPage() {
             alert('Sélectionnez une grossesse')
             return
           }
-          doc = documentTemplates.declarationGrossesse(patient, grossesse)
+          doc = documentTemplates.declarationGrossesse(patient, grossesse, praticien)
           break
 
         case 'certificatGrossesse':
@@ -166,7 +246,7 @@ export default function DocumentGeneratorPage() {
             alert('Données de grossesse requises')
             return
           }
-          doc = documentTemplates.certificatGrossesse(patient, grossesse, lastConsultation, undefined, certificatOptions)
+          doc = documentTemplates.certificatGrossesse(patient, grossesse, lastConsultation, praticien, certificatOptions)
           break
 
         case 'arretTravail':
@@ -174,7 +254,7 @@ export default function DocumentGeneratorPage() {
             alert('Sélectionnez une grossesse')
             return
           }
-          doc = documentTemplates.arretTravail(patient, grossesse, arretData.dateDebut, arretData.dateFin, arretData.motif)
+          doc = documentTemplates.arretTravail(patient, grossesse, arretData.dateDebut, arretData.dateFin, arretData.motif, praticien)
           break
 
         case 'ordonnanceBiologie':
@@ -182,7 +262,39 @@ export default function DocumentGeneratorPage() {
             alert('Sélectionnez une grossesse')
             return
           }
-          doc = documentTemplates.ordonnanceBiologie(patient, grossesse, biologieData.examens, biologieData.indication)
+          doc = documentTemplates.ordonnanceBiologie(patient, grossesse, biologieData.examens, biologieData.indication, praticien)
+          break
+
+        case 'bilanPreEclampsie':
+          if (!grossesse) {
+            alert('Sélectionnez une grossesse')
+            return
+          }
+          doc = documentTemplates.bilanPreEclampsie(patient, grossesse, biologieData.indication, praticien)
+          break
+
+        case 'bilanCholestase':
+          if (!grossesse) {
+            alert('Sélectionnez une grossesse')
+            return
+          }
+          doc = documentTemplates.bilanCholestase(patient, grossesse, biologieData.indication, praticien)
+          break
+
+        case 'bilanDiabeteGestationnel':
+          if (!grossesse) {
+            alert('Sélectionnez une grossesse')
+            return
+          }
+          doc = documentTemplates.bilanDiabeteGestationnel(patient, grossesse, biologieData.indication, praticien)
+          break
+
+        case 'bilanAnemie':
+          if (!grossesse) {
+            alert('Sélectionnez une grossesse')
+            return
+          }
+          doc = documentTemplates.bilanAnemie(patient, grossesse, biologieData.indication, praticien)
           break
 
         case 'demandeEchographie':
@@ -190,7 +302,7 @@ export default function DocumentGeneratorPage() {
             alert('Données requises')
             return
           }
-          doc = documentTemplates.demandeEchographie(patient, grossesse, echoData.type, echoData.indication)
+          doc = documentTemplates.demandeEchographie(patient, grossesse, echoData.type, echoData.indication, praticien)
           break
 
         case 'compteRenduConsultation':
@@ -203,7 +315,8 @@ export default function DocumentGeneratorPage() {
             grossesse,
             lastConsultation,
             compteRenduData.observations,
-            compteRenduData.destinataire
+            compteRenduData.destinataire,
+            praticien
           )
           break
       }
@@ -252,6 +365,73 @@ export default function DocumentGeneratorPage() {
           )}
         </div>
       </div>
+
+      {!praticien?.address && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Paramètres praticien incomplets</AlertTitle>
+          <AlertDescription>
+            Complétez vos informations de cabinet pour générer des documents valides.{' '}
+            <Button
+              variant="link"
+              className="p-0 h-auto font-semibold text-red-600 underline"
+              onClick={() => navigate('/parametres/praticien')}
+            >
+              Accéder aux paramètres
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!patientIdFromUrl && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Patiente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label>Sélectionnez une patiente</Label>
+              <Select value={patientId} onValueChange={setPatientId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir une patiente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allPatients.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.firstName} {p.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {patient && allGrossesses.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Grossesse</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label>Sélectionnez une grossesse</Label>
+              <Select value={selectedGrossesseId} onValueChange={setSelectedGrossesseId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir une grossesse..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allGrossesses.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      DDR: {new Date(g.ddr).toLocaleDateString('fr-FR')} - {g.statut === 'en_cours' ? '(En cours)' : g.statut}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -349,10 +529,14 @@ export default function DocumentGeneratorPage() {
 
           {documentType === 'ordonnanceBiologie' && (
             <div className="space-y-4 pt-4 border-t">
-              <h3 className="font-medium">Examens à prescrire</h3>
-              <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto border rounded-lg p-4">
+              <div>
+                <h3 className="font-medium mb-2">Examens à prescrire</h3>
+                <p className="text-sm text-slate-600 mb-3">Cochez les examens souhaités ou ajoutez des examens personnalisés</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto border rounded-lg p-4 bg-slate-50">
                 {EXAMENS_BIOLOGIE.map((examen) => (
-                  <div key={examen} className="flex items-center gap-2">
+                  <div key={examen} className="flex items-center gap-2 hover:bg-white p-1 rounded">
                     <input
                       type="checkbox"
                       id={examen}
@@ -360,18 +544,116 @@ export default function DocumentGeneratorPage() {
                       onChange={() => toggleExamen(examen)}
                       className="rounded"
                     />
-                    <Label htmlFor={examen} className="cursor-pointer">
+                    <Label htmlFor={examen} className="cursor-pointer flex-1">
                       {examen}
                     </Label>
                   </div>
                 ))}
               </div>
+
+              <div className="space-y-2 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <Label htmlFor="customExamen" className="font-medium text-blue-900">Ajouter un examen personnalisé</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="customExamen"
+                    placeholder="Ex: Vitamine D, Ferritine..."
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                        const newExamen = e.currentTarget.value.trim()
+                        if (!biologieData.examens.includes(newExamen)) {
+                          setBiologieData({
+                            ...biologieData,
+                            examens: [...biologieData.examens, newExamen]
+                          })
+                          e.currentTarget.value = ''
+                        }
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={(e) => {
+                      const input = document.getElementById('customExamen') as HTMLInputElement
+                      if (input && input.value.trim()) {
+                        const newExamen = input.value.trim()
+                        if (!biologieData.examens.includes(newExamen)) {
+                          setBiologieData({
+                            ...biologieData,
+                            examens: [...biologieData.examens, newExamen]
+                          })
+                          input.value = ''
+                        }
+                      }
+                    }}
+                  >
+                    Ajouter
+                  </Button>
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="indication">Indication</Label>
-                <Input
+                <Label htmlFor="indication" className="font-medium">Indication clinique</Label>
+                <Textarea
                   id="indication"
                   value={biologieData.indication}
                   onChange={(e) => setBiologieData({ ...biologieData, indication: e.target.value })}
+                  placeholder="Ex: Suivi de grossesse - Bilan du 2ème trimestre, Suspicion d'anémie ferriprive..."
+                  rows={3}
+                />
+              </div>
+
+              {biologieData.examens.length > 0 && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm font-medium text-green-900 mb-2">
+                    ✓ {biologieData.examens.length} examen(s) sélectionné(s)
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {biologieData.examens.map((examen) => (
+                      <span
+                        key={examen}
+                        className="inline-flex items-center gap-1 bg-white px-2 py-1 rounded text-xs border"
+                      >
+                        {examen}
+                        <button
+                          onClick={() => {
+                            setBiologieData({
+                              ...biologieData,
+                              examens: biologieData.examens.filter(e => e !== examen)
+                            })
+                          }}
+                          className="text-red-600 hover:text-red-800 ml-1"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {(documentType === 'bilanPreEclampsie' ||
+            documentType === 'bilanCholestase' ||
+            documentType === 'bilanDiabeteGestationnel' ||
+            documentType === 'bilanAnemie') && (
+            <div className="space-y-4 pt-4 border-t">
+              <h3 className="font-medium">Bilan biologique spécialisé</h3>
+              <p className="text-sm text-slate-600">
+                {documentType === 'bilanPreEclampsie' && 'Ce bilan comprend les examens standards pour le diagnostic de pré-éclampsie.'}
+                {documentType === 'bilanCholestase' && 'Ce bilan comprend les examens standards pour le diagnostic de cholestase gravidique.'}
+                {documentType === 'bilanDiabeteGestationnel' && 'Ce bilan comprend les examens standards pour le dépistage et la surveillance du diabète gestationnel.'}
+                {documentType === 'bilanAnemie' && 'Ce bilan comprend les examens standards pour le diagnostic étiologique d\'anémie.'}
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="indicationBilan">Indication complémentaire (optionnelle)</Label>
+                <Textarea
+                  id="indicationBilan"
+                  value={biologieData.indication}
+                  onChange={(e) => setBiologieData({ ...biologieData, indication: e.target.value })}
+                  placeholder="Ajouter des précisions cliniques si nécessaire..."
+                  rows={3}
                 />
               </div>
             </div>

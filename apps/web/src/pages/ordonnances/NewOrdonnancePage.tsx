@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -35,6 +35,7 @@ interface SelectedMedicament extends Medicament {
 export default function NewOrdonnancePage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
 
   const [patients, setPatients] = useState<any[]>([])
   const [medicaments, setMedicaments] = useState<Medicament[]>([])
@@ -73,6 +74,17 @@ export default function NewOrdonnancePage() {
       })
       .catch(err => console.error('Erreur chargement templates:', err))
   }, [])
+
+  // Appliquer automatiquement le template depuis l'URL
+  useEffect(() => {
+    const templateParam = searchParams.get('template')
+    if (templateParam && templates.length > 0 && !selectedTemplate) {
+      const templateToApply = templates.find(t => t.nom === templateParam)
+      if (templateToApply) {
+        applyTemplate(templateParam)
+      }
+    }
+  }, [searchParams, templates, selectedTemplate])
 
   // Appliquer un template
   const applyTemplate = (templateNom: string) => {

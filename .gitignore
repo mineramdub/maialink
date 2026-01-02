@@ -55,3 +55,40 @@ apps/web/node_modules/.vite/
 # Build output
 apps/web/dist/
 apps/api/dist/
+
+# Python virtual environments
+**venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.Python
+
+# Drizzle auto-generated files
+apps/api/drizzle/meta/_journal.json
+
+# Documentation temporaire
+*.md
+!README.md
+!apps/*/README.md
+
+# Scripts temporaires
+push*.sh
+test-*.html
+
+# Lock files (géré par pnpm)
+pnpm-lock.yaml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

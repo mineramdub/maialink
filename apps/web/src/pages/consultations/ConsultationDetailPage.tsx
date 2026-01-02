@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
-import { ArrowLeft, Loader2, User, AlertTriangle, FileText } from 'lucide-react'
+import { ArrowLeft, Loader2, User, AlertTriangle, FileText, Trash2 } from 'lucide-react'
 import { formatDate } from '../../lib/utils'
 import { GenerateOrdonnanceDialog } from '../../components/GenerateOrdonnanceDialog'
 
@@ -35,6 +35,33 @@ export default function ConsultationDetailPage() {
       navigate('/consultations')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm(
+      `Êtes-vous sûr de vouloir supprimer cette consultation du ${formatDate(consultation.date)} ?\n\n` +
+      `Cette action est irréversible et supprimera définitivement toutes les données associées.`
+    )) {
+      return
+    }
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/consultations/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        navigate(`/patients/${consultation.patientId}`)
+      } else {
+        alert(data.error || 'Erreur lors de la suppression')
+      }
+    } catch (error) {
+      console.error('Error deleting consultation:', error)
+      alert('Erreur lors de la suppression')
     }
   }
 
@@ -78,6 +105,13 @@ export default function ConsultationDetailPage() {
               <User className="h-4 w-4 mr-2" />
               Voir patiente
             </Link>
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Supprimer
           </Button>
         </div>
       </div>

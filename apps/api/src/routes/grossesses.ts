@@ -4,6 +4,7 @@ import { db } from '../lib/db.js'
 import { grossesses, patients, auditLogs, alertes } from '../lib/schema.js'
 import { eq, and, desc } from 'drizzle-orm'
 import { calculateDPA } from '../lib/utils.js'
+import { CALENDRIER_GROSSESSE, getCalendarEventsForSA, getConsultationRecommendations } from '../lib/pregnancy-calendar.js'
 
 const router = Router()
 router.use(authMiddleware)
@@ -209,6 +210,87 @@ router.patch('/:id', async (req: AuthRequest, res) => {
     res.json({ success: true, grossesse: updatedGrossesse })
   } catch (error) {
     console.error('Update grossesse error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// GET /api/grossesses/:id/calendrier - Get pregnancy calendar
+router.get('/:id/calendrier', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    const grossesse = await db.query.grossesses.findFirst({
+      where: and(
+        eq(grossesses.id, id),
+        eq(grossesses.userId, req.user!.id)
+      ),
+      with: {
+        patient: true
+      }
+    })
+
+    if (!grossesse) {
+      return res.status(404).json({ error: 'Grossesse non trouvée' })
+    }
+
+    // Calculate current SA
+    const ddr = new Date(grossesse.ddr)
+    const today = new Date()
+    const diffTime = Math.abs(today.getTime() - ddr.getTime())
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+    const currentSA = diffDays / 7
+
+    // Get calendar events
+    const events = getCalendarEventsForSA(currentSA)
+
+    // Get consultation recommendations
+    const recommendations = getConsultationRecommendations(currentSA)
+
+    res.json({
+      success: true,
+      currentSA,
+      calendrier: CALENDRIER_GROSSESSE,
+      events,
+      recommendations
+    })
+  } catch (error) {
+    console.error('Get calendar error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// GET /api/grossesses/:id/recommendations - Get consultation recommendations for current term
+router.get('/:id/recommendations', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    const grossesse = await db.query.grossesses.findFirst({
+      where: and(
+        eq(grossesses.id, id),
+        eq(grossesses.userId, req.user!.id)
+      )
+    })
+
+    if (!grossesse) {
+      return res.status(404).json({ error: 'Grossesse non trouvée' })
+    }
+
+    // Calculate current SA
+    const ddr = new Date(grossesse.ddr)
+    const today = new Date()
+    const diffTime = Math.abs(today.getTime() - ddr.getTime())
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+    const currentSA = diffDays / 7
+
+    const recommendations = getConsultationRecommendations(currentSA)
+
+    res.json({
+      success: true,
+      currentSA,
+      recommendations
+    })
+  } catch (error) {
+    console.error('Get recommendations error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })

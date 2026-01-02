@@ -2,21 +2,45 @@ import { Router } from 'express'
 import { authMiddleware, AuthRequest } from '../middleware/auth.js'
 import { db } from '../lib/db.js'
 import { alertes } from '../lib/schema.js'
-import { eq, and, desc, isNull } from 'drizzle-orm'
+import { eq, and, desc, isNull, sql } from 'drizzle-orm'
 import { generateExamAlertes, generatePostPartumAlertes } from '../lib/alertes.js'
 
 const router = Router()
 router.use(authMiddleware)
 
+// GET /api/alertes/count - Get count of active alertes
+router.get('/count', async (req: AuthRequest, res) => {
+  try {
+    const result = await db
+      .select({ value: sql<number>`count(*)` })
+      .from(alertes)
+      .where(
+        and(
+          eq(alertes.userId, req.user!.id),
+          eq(alertes.isDismissed, false)
+        )
+      )
+
+    res.json({ success: true, count: result[0]?.value || 0 })
+  } catch (error) {
+    console.error('Alert count error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // GET /api/alertes - List all alertes for current user
 router.get('/', async (req: AuthRequest, res) => {
   try {
-    const { onlyUnread } = req.query
+    const { onlyUnread, patientId } = req.query
 
     let whereClause = eq(alertes.userId, req.user!.id)
 
     if (onlyUnread === 'true') {
       whereClause = and(whereClause, eq(alertes.isRead, false), eq(alertes.isDismissed, false))!
+    }
+
+    if (patientId) {
+      whereClause = and(whereClause, eq(alertes.patientId, patientId as string))!
     }
 
     const result = await db.query.alertes.findMany({
@@ -76,6 +100,34 @@ router.get('/stats', async (req: AuthRequest, res) => {
     res.json({ success: true, stats })
   } catch (error) {
     console.error('Get alertes stats error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// POST /api/alertes - Create a manual alerte
+router.post('/', async (req: AuthRequest, res) => {
+  try {
+    const { patientId, grossesseId, type, message, severity } = req.body
+
+    if (!patientId || !message) {
+      return res.status(400).json({ error: 'PatientId et message requis' })
+    }
+
+    const [newAlerte] = await db
+      .insert(alertes)
+      .values({
+        patientId,
+        grossesseId: grossesseId || null,
+        userId: req.user!.id,
+        type: type || 'tache_manuelle',
+        message,
+        severity: severity || 'info',
+      })
+      .returning()
+
+    res.json({ success: true, alerte: newAlerte })
+  } catch (error) {
+    console.error('Create alerte error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })

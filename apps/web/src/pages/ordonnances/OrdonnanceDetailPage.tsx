@@ -3,8 +3,10 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
 import { Textarea } from '../../components/ui/textarea'
-import { ArrowLeft, Loader2, Edit2, Save, Check, Printer, FileSignature } from 'lucide-react'
+import { ArrowLeft, Loader2, Edit2, Save, Check, Printer, FileSignature, Download } from 'lucide-react'
 import { formatDate } from '../../lib/utils'
+import { documentTemplates } from '../../lib/documentTemplates'
+import { usePractitionerData } from '../../hooks/usePractitionerData'
 
 export default function OrdonnanceDetailPage() {
   const { id } = useParams()
@@ -15,6 +17,7 @@ export default function OrdonnanceDetailPage() {
   const [editedContent, setEditedContent] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isSigning, setIsSigning] = useState(false)
+  const praticien = usePractitionerData()
 
   useEffect(() => {
     fetchOrdonnance()
@@ -97,6 +100,31 @@ export default function OrdonnanceDetailPage() {
 
   const handlePrint = () => {
     window.print()
+  }
+
+  const handleDownloadPDF = () => {
+    if (!ordonnance || !praticien) {
+      alert('Impossible de générer le PDF. Vérifiez vos paramètres praticien.')
+      return
+    }
+
+    try {
+      const doc = documentTemplates.ordonnanceFromText(
+        ordonnance.contenu,
+        praticien
+      )
+
+      const patientName = ordonnance.patient
+        ? `${ordonnance.patient.lastName}_${ordonnance.patient.firstName}`
+        : 'patient'
+      const date = new Date().toISOString().split('T')[0]
+      const filename = `ordonnance_${patientName}_${date}.pdf`
+
+      doc.save(filename)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Erreur lors de la génération du PDF')
+    }
   }
 
   if (isLoading) {
@@ -184,6 +212,15 @@ export default function OrdonnanceDetailPage() {
               )}
             </Button>
           )}
+          <Button
+            onClick={handleDownloadPDF}
+            variant="outline"
+            disabled={!praticien}
+            title={!praticien ? 'Complétez vos paramètres praticien' : 'Télécharger au format PDF'}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Télécharger PDF
+          </Button>
           <Button onClick={handlePrint} variant="outline">
             <Printer className="h-4 w-4 mr-2" />
             Imprimer

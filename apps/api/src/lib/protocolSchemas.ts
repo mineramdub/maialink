@@ -23,7 +23,7 @@ export interface ExamenInfo {
   periode: string
   timing: string // "11-13 SA", "16-18 SA"
   objectif: string
-  valeursNormales?: Record<string, string>
+  valeursNormales?: string
   conduiteAnormal?: string
 }
 
@@ -139,8 +139,8 @@ export function getResponseSchema(): any {
             timing: { type: "string" },
             objectif: { type: "string" },
             valeursNormales: {
-              type: "object",
-              additionalProperties: { type: "string" }
+              type: "string",
+              description: "Valeurs normales de l'examen (format texte)"
             },
             conduiteAnormal: { type: "string" }
           },

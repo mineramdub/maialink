@@ -87,7 +87,7 @@ export function GenerateOrdonnanceDialog({ open, onOpenChange, patientId, consul
 
       if (data.success) {
         // Navigate to ordonnance page for editing/signing
-        navigate(`/ordonnances/${data.document.id}`)
+        navigate(`/ordonnances/${data.ordonnance.id}`)
         onOpenChange(false)
       } else {
         alert('Erreur lors de la génération')

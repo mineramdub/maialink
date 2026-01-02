@@ -25,12 +25,15 @@ import DocumentGeneratorPage from './pages/documents/DocumentGeneratorPage'
 import AgendaPage from './pages/agenda/AgendaPage'
 import StatistiquesPage from './pages/statistiques/StatistiquesPage'
 import ParametresPage from './pages/parametres/ParametresPage'
+import PractitionerSettingsPage from './pages/parametres/PractitionerSettingsPage'
 import GynecologiePage from './pages/gynecologie/GynecologiePage'
 import ReeducationPage from './pages/reeducation/ReeducationPage'
 import OrdonnanceDetailPage from './pages/ordonnances/OrdonnanceDetailPage'
 import NewOrdonnancePage from './pages/ordonnances/NewOrdonnancePage'
 import RoulettePage from './pages/roulette/RoulettePage'
 import AlertesPage from './pages/alertes/AlertesPage'
+import TemplatesPage from './pages/templates/TemplatesPage'
+import TemplateEditorPage from './pages/templates/TemplateEditorPage'
 
 export const router = createBrowserRouter([
   // Public routes
@@ -75,7 +78,11 @@ export const router = createBrowserRouter([
           { path: '/ordonnances/new', element: <NewOrdonnancePage /> },
           { path: '/ordonnances/:id', element: <OrdonnanceDetailPage /> },
           { path: '/roulette', element: <RoulettePage /> },
+          { path: '/templates', element: <TemplatesPage /> },
+          { path: '/templates/new', element: <TemplateEditorPage /> },
+          { path: '/templates/:id/edit', element: <TemplateEditorPage /> },
           { path: '/parametres', element: <ParametresPage /> },
+          { path: '/parametres/praticien', element: <PractitionerSettingsPage /> },
         ]
       }
     ]

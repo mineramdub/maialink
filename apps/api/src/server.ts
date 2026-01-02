@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.js'
 import patientsRoutes from './routes/patients.js'
 import grossessesRoutes from './routes/grossesses.js'
 import consultationsRoutes from './routes/consultations.js'
+import accouchementsRoutes from './routes/accouchements.js'
 import invoicesRoutes from './routes/invoices.js'
 import protocolsRoutes from './routes/protocols.js'
 import chatRoutes from './routes/chat.js'
@@ -15,6 +16,9 @@ import alertesRoutes from './routes/alertes.js'
 import auditRoutes from './routes/audit.js'
 import gynecoRoutes from './routes/gyneco.js'
 import dashboardRoutes from './routes/dashboard.js'
+import documentTemplatesRoutes from './routes/documentTemplates.js'
+import practitionerRoutes from './routes/practitioner.js'
+import templatesRoutes from './routes/templates.js'
 import { auditMiddleware } from './middleware/audit.js'
 
 dotenv.config()
@@ -93,6 +97,7 @@ app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/patients', patientsRoutes)
 app.use('/api/grossesses', grossessesRoutes)
 app.use('/api/consultations', consultationsRoutes)
+app.use('/api/accouchements', accouchementsRoutes)
 app.use('/api/invoices', invoicesRoutes)
 app.use('/api/protocols', protocolsRoutes)
 app.use('/api/chat', chatRoutes)
@@ -101,6 +106,9 @@ app.use('/api/ordonnances', ordonnancesRoutes)
 app.use('/api/alertes', alertesRoutes)
 app.use('/api/audit', auditRoutes)
 app.use('/api/gyneco', gynecoRoutes)
+app.use('/api/document-templates', documentTemplatesRoutes)
+app.use('/api/practitioner', practitionerRoutes)
+app.use('/api/templates', templatesRoutes)
 
 // Global error handler for Multer errors
 app.use((error: any, req: any, res: any, next: any) => {

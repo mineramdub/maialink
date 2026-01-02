@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
+import { Textarea } from '../../components/ui/textarea'
 import {
   ArrowLeft,
   Loader2,
@@ -19,10 +20,16 @@ import {
   Calendar,
   Activity,
   Plus,
+  Trash2,
+  Bell,
+  StickyNote,
+  Save,
+  X,
 } from 'lucide-react'
 import { formatDate, calculateAge } from '../../lib/utils'
 import { useAppointments } from '../../hooks/useAppointments'
 import { NewAppointmentDialog } from '../../components/NewAppointmentDialog'
+import { CalendrierGrossesse } from '../../components/CalendrierGrossesse'
 import { format, parseISO, isFuture, isPast } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -31,6 +38,12 @@ export default function PatientDetailPage() {
   const navigate = useNavigate()
   const [patient, setPatient] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [alertes, setAlertes] = useState<any[]>([])
+  const [isEditingNotes, setIsEditingNotes] = useState(false)
+  const [notesValue, setNotesValue] = useState('')
+  const [isSavingNotes, setIsSavingNotes] = useState(false)
+  const [calendrierData, setCalendrierData] = useState<any>(null)
+  const [isLoadingCalendrier, setIsLoadingCalendrier] = useState(false)
 
   // Fetch appointments for this patient
   const { data: appointments = [], isLoading: appointmentsLoading } = useAppointments({
@@ -39,7 +52,18 @@ export default function PatientDetailPage() {
 
   useEffect(() => {
     fetchPatient()
+    fetchAlertes()
   }, [id])
+
+  useEffect(() => {
+    // Fetch calendar for active pregnancy
+    if (patient?.grossesses) {
+      const activeGrossesse = patient.grossesses.find((g: any) => g.status === 'en_cours')
+      if (activeGrossesse) {
+        fetchCalendrier(activeGrossesse.id)
+      }
+    }
+  }, [patient])
 
   const fetchPatient = async () => {
     try {
@@ -50,6 +74,7 @@ export default function PatientDetailPage() {
 
       if (data.success) {
         setPatient(data.patient)
+        setNotesValue(data.patient.notes || '')
       } else {
         navigate('/patients')
       }
@@ -58,6 +83,95 @@ export default function PatientDetailPage() {
       navigate('/patients')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchAlertes = async () => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/alertes?patientId=${id}`,
+        { credentials: 'include' }
+      )
+      const data = await res.json()
+      if (data.success) {
+        setAlertes(data.alertes.filter((a: any) => !a.isDismissed))
+      }
+    } catch (error) {
+      console.error('Error fetching alertes:', error)
+    }
+  }
+
+  const fetchCalendrier = async (grossesseId: string) => {
+    setIsLoadingCalendrier(true)
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/grossesses/${grossesseId}/calendrier`,
+        { credentials: 'include' }
+      )
+      const data = await res.json()
+      if (data.success) {
+        setCalendrierData(data)
+      }
+    } catch (error) {
+      console.error('Error fetching calendrier:', error)
+    } finally {
+      setIsLoadingCalendrier(false)
+    }
+  }
+
+  const handleSaveNotes = async () => {
+    setIsSavingNotes(true)
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/patients/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ notes: notesValue })
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setPatient({ ...patient, notes: notesValue })
+        setIsEditingNotes(false)
+      } else {
+        alert(data.error || 'Erreur lors de la sauvegarde')
+      }
+    } catch (error) {
+      console.error('Error saving notes:', error)
+      alert('Erreur lors de la sauvegarde')
+    } finally {
+      setIsSavingNotes(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    const patientName = `${patient.firstName} ${patient.lastName}`
+
+    if (!confirm(
+      `Êtes-vous sûr de vouloir archiver la patiente ${patientName} ?\n\n` +
+      `Cette action archivera la patiente et toutes ses données associées (consultations, grossesses, etc.). ` +
+      `Les données archivées ne seront plus visibles mais resteront dans la base de données.`
+    )) {
+      return
+    }
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/patients/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        navigate('/patients')
+      } else {
+        alert(data.error || 'Erreur lors de l\'archivage')
+      }
+    } catch (error) {
+      console.error('Error deleting patient:', error)
+      alert('Erreur lors de l\'archivage')
     }
   }
 
@@ -91,33 +205,160 @@ export default function PatientDetailPage() {
             </p>
           </div>
         </div>
-        <Button asChild>
-          <Link to={`/patients/${id}/edit`}>
-            <Edit className="h-4 w-4 mr-2" />
-            Modifier
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild>
+            <Link to={`/patients/${id}/edit`}>
+              <Edit className="h-4 w-4 mr-2" />
+              Modifier
+            </Link>
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Archiver
+          </Button>
+        </div>
       </div>
 
-      {patient.alertes && patient.alertes.length > 0 && (
-        <Card className="border-orange-200 bg-orange-50">
+      {/* Alertes & Tâches */}
+      {alertes.length > 0 && (
+        <Card className="border-blue-200 bg-blue-50">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
-              <div>
-                <h3 className="font-medium text-orange-900">Alertes actives</h3>
-                <ul className="mt-2 space-y-1">
-                  {patient.alertes.map((alert: any) => (
-                    <li key={alert.id} className="text-sm text-orange-800">
-                      • {alert.message}
-                    </li>
+              <Bell className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-medium text-blue-900 mb-3">
+                  Alertes & Tâches ({alertes.length})
+                </h3>
+                <div className="space-y-2">
+                  {alertes.map((alerte: any) => (
+                    <div
+                      key={alerte.id}
+                      className={`p-3 rounded-lg ${
+                        alerte.severity === 'urgent'
+                          ? 'bg-red-100 border border-red-300'
+                          : alerte.severity === 'warning'
+                          ? 'bg-orange-100 border border-orange-300'
+                          : 'bg-white border border-blue-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge
+                              variant="outline"
+                              className={
+                                alerte.severity === 'urgent'
+                                  ? 'bg-red-200 text-red-800 border-red-300'
+                                  : alerte.severity === 'warning'
+                                  ? 'bg-orange-200 text-orange-800 border-orange-300'
+                                  : 'bg-blue-200 text-blue-800 border-blue-300'
+                              }
+                            >
+                              {alerte.type === 'tache_manuelle' ? 'Tâche' : alerte.type}
+                            </Badge>
+                            {!alerte.isRead && (
+                              <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                                Nouveau
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm">{alerte.message}</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {formatDate(alerte.createdAt)}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          asChild
+                        >
+                          <Link to="/alertes">
+                            <ArrowLeft className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Notes - Pense-bête */}
+      <Card className="border-slate-200">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <div className="flex items-center gap-2">
+            <StickyNote className="h-5 w-5 text-slate-600" />
+            <CardTitle className="text-base">Notes & Pense-bête</CardTitle>
+          </div>
+          {!isEditingNotes ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditingNotes(true)}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Modifier
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsEditingNotes(false)
+                  setNotesValue(patient.notes || '')
+                }}
+                disabled={isSavingNotes}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Annuler
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveNotes}
+                disabled={isSavingNotes}
+              >
+                {isSavingNotes ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sauvegarde...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Sauvegarder
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent>
+          {isEditingNotes ? (
+            <Textarea
+              value={notesValue}
+              onChange={(e) => setNotesValue(e.target.value)}
+              placeholder="Ajoutez des notes pour vos prochaines consultations : antécédents importants, préférences de la patiente, points à surveiller..."
+              rows={6}
+              className="w-full"
+            />
+          ) : (
+            <div className="text-sm text-slate-700 whitespace-pre-wrap min-h-[80px]">
+              {patient.notes || (
+                <span className="text-slate-400 italic">
+                  Aucune note. Cliquez sur "Modifier" pour ajouter un pense-bête.
+                </span>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
@@ -213,42 +454,58 @@ export default function PatientDetailPage() {
         </TabsList>
 
         <TabsContent value="grossesses">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Grossesses</CardTitle>
-              <Button size="sm" asChild>
-                <Link to={`/grossesses/new?patientId=${id}`}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Nouvelle grossesse
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {patient.grossesses && patient.grossesses.length > 0 ? (
-                <div className="space-y-4">
-                  {patient.grossesses.map((g: any) => (
-                    <Link key={g.id} to={`/grossesses/${g.id}`}>
-                      <div className="p-4 border rounded-lg hover:bg-slate-50 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium">DDR: {formatDate(g.ddr)}</div>
-                            <div className="text-sm text-slate-600 mt-1">
-                              DPA: {formatDate(g.dpa)}
+          <div className="space-y-6">
+            {/* Active pregnancy calendar */}
+            {patient.grossesses && patient.grossesses.find((g: any) => g.status === 'en_cours') && calendrierData && (
+              <CalendrierGrossesse
+                grossesseId={patient.grossesses.find((g: any) => g.status === 'en_cours').id}
+                currentSA={calendrierData.currentSA}
+                ddr={patient.grossesses.find((g: any) => g.status === 'en_cours').ddr}
+                dpa={patient.grossesses.find((g: any) => g.status === 'en_cours').dpa}
+                calendrierEvents={calendrierData.calendrier || []}
+              />
+            )}
+
+            {/* Pregnancies list */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Toutes les grossesses</CardTitle>
+                <Button size="sm" asChild>
+                  <Link to={`/grossesses/new?patientId=${id}`}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nouvelle grossesse
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {patient.grossesses && patient.grossesses.length > 0 ? (
+                  <div className="space-y-4">
+                    {patient.grossesses.map((g: any) => (
+                      <Link key={g.id} to={`/grossesses/${g.id}`}>
+                        <div className="p-4 border rounded-lg hover:bg-slate-50 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium">DDR: {formatDate(g.ddr)}</div>
+                              <div className="text-sm text-slate-600 mt-1">
+                                DPA: {formatDate(g.dpa)}
+                              </div>
                             </div>
+                            <Badge variant={g.status === 'en_cours' ? 'default' : 'outline'}>
+                              {g.status}
+                            </Badge>
                           </div>
-                          <Badge>{g.status}</Badge>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-slate-600 py-8">
-                  Aucune grossesse enregistree
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-slate-600 py-8">
+                    Aucune grossesse enregistree
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="consultations">

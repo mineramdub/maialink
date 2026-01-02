@@ -85,7 +85,7 @@ router.post('/', async (req: AuthRequest, res) => {
     const [newConsultation] = await db.insert(consultations).values({
       patientId: body.patientId,
       userId: req.user!.id,
-      grossesseId: body.grossesseId,
+      grossesseId: body.grossesseId || null,
       type: body.type,
       date: new Date(body.date),
       duree: body.duree,
@@ -116,7 +116,7 @@ router.post('/', async (req: AuthRequest, res) => {
     for (const alert of clinicalAlerts) {
       await db.insert(alertes).values({
         patientId: body.patientId,
-        grossesseId: body.grossesseId,
+        grossesseId: body.grossesseId || null,
         consultationId: newConsultation.id,
         userId: req.user!.id,
         type: alert.type,
@@ -229,6 +229,43 @@ router.get('/template/:grossesseId', async (req: AuthRequest, res) => {
     })
   } catch (error) {
     console.error('Get template error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// DELETE /api/consultations/:id - Delete consultation
+router.delete('/:id', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    // Check if consultation belongs to user
+    const consultation = await db.query.consultations.findFirst({
+      where: and(
+        eq(consultations.id, id),
+        eq(consultations.userId, req.user!.id)
+      ),
+    })
+
+    if (!consultation) {
+      return res.status(404).json({ error: 'Consultation non trouvée' })
+    }
+
+    // Delete consultation (cascade will handle related records)
+    await db
+      .delete(consultations)
+      .where(eq(consultations.id, id))
+
+    // Audit log
+    await db.insert(auditLogs).values({
+      userId: req.user!.id,
+      action: 'delete',
+      tableName: 'consultations',
+      recordId: id,
+    })
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Delete consultation error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })

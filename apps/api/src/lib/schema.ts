@@ -33,6 +33,19 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+export const practitionerSettings = pgTable('practitioner_settings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+  cabinetAddress: text('cabinet_address').notNull(),
+  cabinetPostalCode: text('cabinet_postal_code'),
+  cabinetCity: text('cabinet_city'),
+  cabinetPhone: text('cabinet_phone'),
+  cabinetEmail: text('cabinet_email'),
+  signatureImageUrl: text('signature_image_url'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 export const sessions = pgTable('sessions', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -146,6 +159,73 @@ export const grossesses = pgTable('grossesses', {
   facteursRisque: jsonb('facteurs_risque').$type<string[]>(),
 
   notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// Table des comptes rendus d'accouchement
+export const accouchements = pgTable('accouchements', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  grossesseId: uuid('grossesse_id').notNull().references(() => grossesses.id, { onDelete: 'cascade' }),
+  patientId: uuid('patient_id').notNull().references(() => patients.id),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  // Informations générales
+  dateAccouchement: timestamp('date_accouchement').notNull(),
+  lieuAccouchement: text('lieu_accouchement'), // Maternité, domicile, etc.
+  termeSemaines: integer('terme_semaines'),
+  termeJours: integer('terme_jours'),
+
+  // Travail
+  dateDebutTravail: timestamp('date_debut_travail'),
+  dureeTravailHeures: integer('duree_travail_heures'),
+  dureeTravailMinutes: integer('duree_travail_minutes'),
+
+  // Poche des eaux
+  ruptureMembranes: text('rupture_membranes'), // spontanée, artificielle, avant travail
+  dateRuptureMembranes: timestamp('date_rupture_membranes'),
+  aspectLiquideAmniotique: text('aspect_liquide_amniotique'), // clair, teinté, méconial
+
+  // Analgésie
+  apd: boolean('apd').default(false), // Analgésie péridurale
+  dateApd: timestamp('date_apd'),
+  autreAnalgesie: text('autre_analgesie'),
+
+  // Accouchement
+  modeAccouchement: text('mode_accouchement').notNull(), // voie basse, césarienne, instrumental
+  typeInstrumental: text('type_instrumental'), // forceps, ventouse, spatules
+  indicationInstrumental: text('indication_instrumental'),
+  indicationCesarienne: text('indication_cesarienne'),
+
+  // Présentation et position
+  presentation: text('presentation'), // céphalique, siège, transverse
+  variete: text('variete'), // OIGA, OIDA, etc.
+
+  // Périnée
+  perinee: text('perinee'), // intact, déchirure, épisiotomie
+  degre: text('degre'), // 1er, 2ème, 3ème, 4ème degré
+  suture: boolean('suture'),
+  typeFilSuture: text('type_fil_suture'),
+
+  // Délivrance
+  typeDelivrance: text('type_delivrance'), // spontanée, dirigée, artificielle, révision utérine
+  dureeDelivranceMinutes: integer('duree_delivrance_minutes'),
+  placentaComplet: boolean('placenta_complet'),
+  poidsPlacenta: integer('poids_placenta'), // en grammes
+  anomaliesPlacenta: text('anomalies_placenta'),
+
+  // Hémorragie
+  perteSanguine: integer('perte_sanguine'), // en mL
+  hemorragie: boolean('hemorragie').default(false),
+  traitementHemorragie: text('traitement_hemorragie'),
+
+  // Post-partum immédiat
+  examenPostPartum: text('examen_post_partum'),
+  complications: text('complications'),
+
+  // Observations et notes
+  notes: text('notes'),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
@@ -541,6 +621,7 @@ export const patientsRelations = relations(patients, ({ one, many }) => ({
   invoices: many(invoices),
   documents: many(documents),
   alertes: many(alertes),
+  accouchements: many(accouchements),
 }))
 
 export const grossessesRelations = relations(grossesses, ({ one, many }) => ({
@@ -556,6 +637,7 @@ export const grossessesRelations = relations(grossesses, ({ one, many }) => ({
   examens: many(examensPrenataux),
   consultations: many(consultations),
   suiviPostPartum: many(suiviPostPartum),
+  accouchements: many(accouchements),
 }))
 
 export const examensPrenatauxRelations = relations(examensPrenataux, ({ one }) => ({
@@ -691,6 +773,21 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(users, {
     fields: [auditLogs.userId],
+    references: [users.id],
+  }),
+}))
+
+export const accouchementsRelations = relations(accouchements, ({ one }) => ({
+  grossesse: one(grossesses, {
+    fields: [accouchements.grossesseId],
+    references: [grossesses.id],
+  }),
+  patient: one(patients, {
+    fields: [accouchements.patientId],
+    references: [patients.id],
+  }),
+  user: one(users, {
+    fields: [accouchements.userId],
     references: [users.id],
   }),
 }))

@@ -9,14 +9,9 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog'
-import { Input } from '../../components/ui/input'
-import { Label } from '../../components/ui/label'
-import { Textarea } from '../../components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import {
   ArrowLeft,
   Loader2,
@@ -31,6 +26,7 @@ import {
   Stethoscope,
 } from 'lucide-react'
 import { formatDate, calculateSA } from '../../lib/utils'
+import { AccouchementForm } from '../../components/AccouchementForm'
 
 export default function GrosesseDetailPage() {
   const { id } = useParams()
@@ -39,13 +35,6 @@ export default function GrosesseDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [sa, setSa] = useState<any>(null)
   const [showAccouchementDialog, setShowAccouchementDialog] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [accouchementData, setAccouchementData] = useState({
-    dateAccouchement: '',
-    modeAccouchement: '',
-    lieuAccouchement: '',
-    compteRendu: '',
-  })
 
   useEffect(() => {
     fetchGrossesse()
@@ -72,39 +61,10 @@ export default function GrosesseDetailPage() {
     }
   }
 
-  const handleAccouchementSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/grossesses/${id}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dateAccouchement: accouchementData.dateAccouchement,
-          modeAccouchement: accouchementData.modeAccouchement,
-          lieuAccouchement: accouchementData.lieuAccouchement,
-          compteRendu: accouchementData.compteRendu,
-          status: 'terminee',
-        }),
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        setShowAccouchementDialog(false)
-        fetchGrossesse()
-        alert('Accouchement enregistré avec succès')
-      } else {
-        alert('Erreur: ' + data.error)
-      }
-    } catch (error) {
-      console.error('Error saving accouchement:', error)
-      alert('Erreur lors de l\'enregistrement')
-    } finally {
-      setIsSubmitting(false)
-    }
+  const handleAccouchementSuccess = () => {
+    setShowAccouchementDialog(false)
+    fetchGrossesse()
+    alert('Accouchement enregistré avec succès')
   }
 
   if (isLoading) {
@@ -320,87 +280,20 @@ export default function GrosesseDetailPage() {
 
       {/* Dialog Accouchement */}
       <Dialog open={showAccouchementDialog} onOpenChange={setShowAccouchementDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Compte rendu d'accouchement</DialogTitle>
             <DialogDescription>
-              Enregistrez les informations de l'accouchement pour {grossesse.patient.firstName} {grossesse.patient.lastName}
+              Enregistrez les informations détaillées de l'accouchement pour {grossesse.patient.firstName} {grossesse.patient.lastName}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleAccouchementSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dateAccouchement">Date d'accouchement *</Label>
-                <Input
-                  id="dateAccouchement"
-                  type="date"
-                  value={accouchementData.dateAccouchement}
-                  onChange={(e) => setAccouchementData({ ...accouchementData, dateAccouchement: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="modeAccouchement">Mode d'accouchement *</Label>
-                <Select
-                  value={accouchementData.modeAccouchement}
-                  onValueChange={(value) => setAccouchementData({ ...accouchementData, modeAccouchement: value })}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="voie_basse">Voie basse spontanée</SelectItem>
-                    <SelectItem value="voie_basse_instrumentale">Voie basse instrumentale</SelectItem>
-                    <SelectItem value="cesarienne">Césarienne</SelectItem>
-                    <SelectItem value="cesarienne_urgence">Césarienne en urgence</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="lieuAccouchement">Lieu d'accouchement</Label>
-                <Input
-                  id="lieuAccouchement"
-                  value={accouchementData.lieuAccouchement}
-                  onChange={(e) => setAccouchementData({ ...accouchementData, lieuAccouchement: e.target.value })}
-                  placeholder="Ex: Maternité de l'hôpital..."
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="compteRendu">Compte rendu</Label>
-                <Textarea
-                  id="compteRendu"
-                  value={accouchementData.compteRendu}
-                  onChange={(e) => setAccouchementData({ ...accouchementData, compteRendu: e.target.value })}
-                  placeholder="Déroulement de l'accouchement, complications éventuelles, état de la mère et du bébé..."
-                  rows={8}
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowAccouchementDialog(false)}>
-                Annuler
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enregistrement...
-                  </>
-                ) : (
-                  <>
-                    <Baby className="mr-2 h-4 w-4" />
-                    Enregistrer
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
+          <AccouchementForm
+            grossesseId={id!}
+            patientId={grossesse.patientId}
+            onSuccess={handleAccouchementSuccess}
+            onCancel={() => setShowAccouchementDialog(false)}
+          />
         </DialogContent>
       </Dialog>
     </div>

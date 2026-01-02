@@ -66,13 +66,189 @@ router.post('/', async (req: AuthRequest, res) => {
 
     console.log(`[Chat Structured] ${relevantChunks.length} chunks pertinents trouvés`)
 
-    if (relevantChunks.length === 0) {
-      return res.json({
-        success: true,
-        answer: 'Aucun contenu pertinent trouvé dans vos protocoles pour cette question. Vérifiez que vos protocoles ont été traités (vectorisés).',
-        sources: [],
-        mode: 'no_results'
-      })
+    // Vérifier la pertinence des résultats
+    const hasPertinentResults = relevantChunks.length > 0 &&
+      relevantChunks.some((chunk: any) => parseFloat(chunk.similarity) > 0.5)
+
+    // Si aucun résultat pertinent, chercher sur sources médicales officielles
+    if (!hasPertinentResults) {
+      console.log('[Chat Structured] Recherche sur sources médicales officielles...')
+
+      try {
+        // Recherche web via Google Custom Search API (gratuit 100 req/jour)
+        const webSearchQuery = encodeURIComponent(`${question} site:has-sante.fr OR site:ansm.sante.fr OR site:cngof.fr`)
+
+        const googleSearchUrl = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_API_KEY || ''}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID || ''}&q=${webSearchQuery}&num=3`
+
+        const webSearchRes = await fetch(googleSearchUrl)
+
+        if (webSearchRes.ok) {
+          const webData = await webSearchRes.json()
+          const webResults = (webData.items || []).map((item: any) => ({
+            title: item.title,
+            url: item.link,
+            content: item.snippet,
+            source: item.displayLink
+          }))
+
+          if (webResults.length > 0) {
+            // Construire le contexte à partir des résultats web
+            const webContext = webResults
+              .map((result: any, i: number) =>
+                `[Source ${i + 1} - ${result.title}]\nURL: ${result.url}\n${result.content}`
+              )
+              .join('\n\n---\n\n')
+
+            // Générer réponse avec sources web
+            const webPrompt = `Tu es un assistant médical expert pour les sages-femmes. Analyse les informations ci-dessous provenant de sources médicales officielles françaises et réponds à la question.
+
+RÈGLES IMPORTANTES:
+- Utilise UNIQUEMENT les informations des sources fournies
+- Cite systématiquement les sources (nom + URL)
+- Sois précis et factuel
+- Indique clairement que ces informations proviennent de sources externes officielles
+
+SOURCES MÉDICALES OFFICIELLES:
+${webContext}
+
+QUESTION: ${question}
+
+Réponds de manière structurée avec :
+1. Un résumé clair de la réponse
+2. Les détails pertinents
+3. Les sources citées (avec URL)
+
+Format ta réponse en JSON avec la structure:
+{
+  "resume": "résumé de la réponse",
+  "details": ["point 1", "point 2", ...],
+  "sources": [{"nom": "...", "url": "...", "organisme": "..."}],
+  "type": "reponse_generale"
+}`
+
+            const webGenerativeModel = genAI.getGenerativeModel({
+              model: 'gemini-1.5-flash-latest',
+              generationConfig: {
+                responseMimeType: 'application/json'
+              }
+            })
+
+            const webResult = await webGenerativeModel.generateContent(webPrompt)
+            const webResponseText = webResult.response.text()
+            const webStructuredData = JSON.parse(webResponseText)
+
+            // Formater les sources web
+            const webSources = webResults.map((result: any) => ({
+              protocolId: 'web',
+              protocolName: result.title || 'Source web',
+              fileUrl: result.url,
+              results: [{
+                chunkId: 'web',
+                excerpt: result.content.substring(0, 200) + '...',
+                pageNumber: null,
+                similarity: 100
+              }]
+            }))
+
+            // Ajouter indication que c'est une source externe
+            const finalAnswer = `📚 **Réponse depuis sources médicales officielles**\n\n${webStructuredData.resume}\n\n**Sources consultées :**\n${webStructuredData.sources.map((s: any) => `• ${s.organisme || 'Source'}: [${s.nom}](${s.url})`).join('\n')}`
+
+            await db.insert(aiConversations).values({
+              userId: req.user!.id,
+              question,
+              answer: finalAnswer,
+              sourcesUsed: webSources,
+            })
+
+            return res.json({
+              success: true,
+              answer: finalAnswer,
+              structured: webStructuredData,
+              sources: webSources,
+              mode: 'web_sources'
+            })
+          }
+        }
+      } catch (webError) {
+        console.error('[Chat Structured] Erreur recherche web:', webError)
+      }
+
+      // FALLBACK: Utiliser Gemini avec ses connaissances générales sur les recommandations HAS/CNGOF
+      console.log('[Chat Structured] Fallback: Utilisation des connaissances Gemini sur recommandations médicales françaises')
+
+      try {
+        const fallbackModel = genAI.getGenerativeModel({
+          model: 'gemini-1.5-flash-latest',
+          generationConfig: {
+            responseMimeType: 'application/json'
+          }
+        })
+
+        const fallbackPrompt = `Tu es un assistant médical expert pour les sages-femmes en France.
+
+QUESTION: ${question}
+
+Réponds en te basant sur les recommandations officielles françaises (HAS, CNGOF, ANSM, Ordre des sages-femmes).
+
+RÈGLES IMPORTANTES:
+- Base-toi UNIQUEMENT sur les recommandations officielles françaises que tu connais
+- Cite précisément les sources (nom de l'organisme + type de document si connu)
+- Si tu n'es pas certain, indique-le clairement
+- Ajoute des liens vers les sites officiels pour consultation
+- Indique toujours l'année de la recommandation si tu la connais
+
+Réponds au format JSON avec:
+{
+  "resume": "résumé clair de la réponse",
+  "details": ["point 1 avec source", "point 2 avec source", ...],
+  "sources": [{"organisme": "HAS/CNGOF/ANSM/etc", "type": "recommandation/guide/etc", "annee": "2023", "lien": "https://..."}],
+  "type": "recommandation_generale",
+  "avertissement": "Cette réponse se base sur les connaissances générales. Pour plus de précision, consultez directement les sources officielles."
+}`
+
+        const fallbackResult = await fallbackModel.generateContent(fallbackPrompt)
+        const fallbackText = fallbackResult.response.text()
+        const fallbackData = JSON.parse(fallbackText)
+
+        const fallbackAnswer = `⚕️ **Réponse basée sur les recommandations officielles françaises**\n\n${fallbackData.resume}\n\n**Détails:**\n${fallbackData.details.map((d: string, i: number) => `${i + 1}. ${d}`).join('\n')}\n\n**Sources recommandées:**\n${fallbackData.sources.map((s: any) => `• ${s.organisme} - ${s.type} ${s.annee ? `(${s.annee})` : ''}\n  ${s.lien || ''}`).join('\n')}\n\n⚠️ ${fallbackData.avertissement}`
+
+        const fallbackSources = fallbackData.sources.map((s: any) => ({
+          protocolId: 'external',
+          protocolName: `${s.organisme} - ${s.type}`,
+          fileUrl: s.lien || `https://${s.organisme === 'HAS' ? 'has-sante.fr' : s.organisme === 'CNGOF' ? 'cngof.fr' : s.organisme === 'ANSM' ? 'ansm.sante.fr' : 'ordre-sages-femmes.fr'}`,
+          results: [{
+            chunkId: 'external',
+            excerpt: `Recommandation ${s.organisme}${s.annee ? ` ${s.annee}` : ''}`,
+            pageNumber: null,
+            similarity: 95
+          }]
+        }))
+
+        await db.insert(aiConversations).values({
+          userId: req.user!.id,
+          question,
+          answer: fallbackAnswer,
+          sourcesUsed: fallbackSources.length > 0 ? fallbackSources : null,
+        })
+
+        return res.json({
+          success: true,
+          answer: fallbackAnswer,
+          structured: fallbackData,
+          sources: fallbackSources,
+          mode: 'general_knowledge'
+        })
+      } catch (fallbackError) {
+        console.error('[Chat Structured] Erreur fallback:', fallbackError)
+
+        // Dernier fallback : message simple
+        return res.json({
+          success: true,
+          answer: 'Aucune information pertinente trouvée dans vos protocoles pour cette question. Pour des informations fiables, consultez directement:\n\n• **HAS** (Haute Autorité de Santé): https://has-sante.fr\n• **CNGOF** (Collège National des Gynécologues et Obstétriciens): https://cngof.fr\n• **ANSM** (Agence Nationale de Sécurité du Médicament): https://ansm.sante.fr\n• **Ordre des sages-femmes**: https://ordre-sages-femmes.fr',
+          sources: [],
+          mode: 'no_results'
+        })
+      }
     }
 
     // **ÉTAPE 3: Construire le contexte pour l'IA**
@@ -92,7 +268,7 @@ router.post('/', async (req: AuthRequest, res) => {
     console.log('[Chat Structured] Génération de la réponse structurée...')
 
     const generativeModel = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-1.5-flash-latest',
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: getResponseSchema()
