@@ -8,19 +8,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { ArrowLeft, Loader2, Save, FileText } from 'lucide-react'
 import { getTemplatesByType, getTemplateById, type ConsultationTemplate } from '../../lib/consultationTemplates'
+import { getObservationTemplate, generateObservationFromData } from '../../lib/observationTemplates'
 
 export default function NewConsultationPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const patientId = searchParams.get('patientId')
-  
+  const grossesseId = searchParams.get('grossesseId')
+
   const [isLoading, setIsLoading] = useState(false)
   const [patients, setPatients] = useState<any[]>([])
+  const [grossesses, setGrossesses] = useState<any[]>([])
   const [error, setError] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [availableTemplates, setAvailableTemplates] = useState<ConsultationTemplate[]>([])
   const [formData, setFormData] = useState({
     patientId: patientId || '',
+    grossesseId: grossesseId || '',
     type: 'prenatale',
     date: new Date().toISOString().split('T')[0],
     duree: 30,
@@ -109,6 +113,46 @@ export default function NewConsultationPage() {
 
   const updateField = (field: string, value: unknown) => {
     setFormData({ ...formData, [field]: value })
+  }
+
+  const applyObservationTemplate = async () => {
+    try {
+      let sa: number | undefined
+
+      // If prenatal consultation with grossesse, fetch SA
+      if (formData.type === 'prenatale' && formData.grossesseId) {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/grossesses/${formData.grossesseId}`, {
+          credentials: 'include',
+        })
+        const data = await res.json()
+        if (data.success && data.grossesse.ddr) {
+          // Calculate SA
+          const ddr = new Date(data.grossesse.ddr)
+          const today = new Date()
+          const diffDays = Math.floor((today.getTime() - ddr.getTime()) / (1000 * 60 * 60 * 24))
+          sa = diffDays / 7
+        }
+      }
+
+      const template = getObservationTemplate(formData.type as any, sa)
+
+      if (template) {
+        // Generate observation with current data
+        const observationText = generateObservationFromData(template.template, {
+          sa: sa ? { weeks: Math.floor(sa), days: Math.round((sa - Math.floor(sa)) * 7) } : undefined,
+          poids: formData.poids ? parseFloat(formData.poids) : undefined,
+          tension: formData.tensionSystolique && formData.tensionDiastolique
+            ? { systolique: parseInt(formData.tensionSystolique), diastolique: parseInt(formData.tensionDiastolique) }
+            : undefined,
+          hauteurUterine: formData.hauteurUterine ? parseFloat(formData.hauteurUterine) : undefined,
+          bdc: formData.bdc ? parseInt(formData.bdc) : undefined,
+        })
+
+        setFormData({ ...formData, examenClinique: observationText })
+      }
+    } catch (error) {
+      console.error('Error applying template:', error)
+    }
   }
 
   return (
@@ -300,13 +344,26 @@ export default function NewConsultationPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="examenClinique">Examen clinique</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="examenClinique">Examen clinique</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={applyObservationTemplate}
+                  className="text-xs"
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  Appliquer template
+                </Button>
+              </div>
               <Textarea
                 id="examenClinique"
-                rows={4}
+                rows={12}
                 value={formData.examenClinique}
                 onChange={(e) => updateField('examenClinique', e.target.value)}
-                placeholder="Description de l'examen..."
+                placeholder="Description de l'examen... (Cliquez sur 'Appliquer template' pour un template pré-rempli)"
+                className="font-mono text-sm"
               />
             </div>
 

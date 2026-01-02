@@ -2,7 +2,6 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
-import { createRequire } from 'module'
 import authRoutes from './routes/auth.js'
 import patientsRoutes from './routes/patients.js'
 import grossessesRoutes from './routes/grossesses.js'
@@ -15,12 +14,10 @@ import ordonnancesRoutes from './routes/ordonnances.js'
 import alertesRoutes from './routes/alertes.js'
 import auditRoutes from './routes/audit.js'
 import gynecoRoutes from './routes/gyneco.js'
+import dashboardRoutes from './routes/dashboard.js'
 import { auditMiddleware } from './middleware/audit.js'
 
 dotenv.config()
-
-const require = createRequire(import.meta.url)
-const pdfParse = require('pdf-parse')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -92,6 +89,7 @@ app.post('/admin/process-protocols', async (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes)
+app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/patients', patientsRoutes)
 app.use('/api/grossesses', grossessesRoutes)
 app.use('/api/consultations', consultationsRoutes)

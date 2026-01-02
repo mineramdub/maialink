@@ -21,6 +21,7 @@ import NewFacturationPage from './pages/facturation/NewFacturationPage'
 import FacturationDetailPage from './pages/facturation/FacturationDetailPage'
 import ProtocolesPage from './pages/protocoles/ProtocolesPage'
 import DocumentsPage from './pages/documents/DocumentsPage'
+import DocumentGeneratorPage from './pages/documents/DocumentGeneratorPage'
 import AgendaPage from './pages/agenda/AgendaPage'
 import StatistiquesPage from './pages/statistiques/StatistiquesPage'
 import ParametresPage from './pages/parametres/ParametresPage'
@@ -63,7 +64,7 @@ export const router = createBrowserRouter([
           { path: '/reeducation/new', element: <div>Reeducation New - TODO</div> },
           { path: '/gynecologie', element: <GynecologiePage /> },
           { path: '/documents', element: <DocumentsPage /> },
-          { path: '/documents/new', element: <div>Document New - TODO</div> },
+          { path: '/documents/generate', element: <DocumentGeneratorPage /> },
           { path: '/facturation', element: <FacturationPage /> },
           { path: '/facturation/new', element: <NewFacturationPage /> },
           { path: '/facturation/:id', element: <FacturationDetailPage /> },

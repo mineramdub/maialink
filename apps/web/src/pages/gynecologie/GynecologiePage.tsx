@@ -6,8 +6,9 @@ import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { Textarea } from '../../components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
-import { Plus, Activity, Loader2, Calendar, X, User } from 'lucide-react'
+import { Plus, Activity, Loader2, Calendar, X, User, FileText } from 'lucide-react'
 import { formatDate } from '../../lib/utils'
+import { getObservationTemplate, generateObservationFromData } from '../../lib/observationTemplates'
 
 interface Patient {
   id: string
@@ -116,6 +117,22 @@ export default function GynecologiePage() {
 
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }))
+  }
+
+  const applyGynecoTemplate = () => {
+    try {
+      // Get gyneco template (no SA calculation needed)
+      const template = getObservationTemplate('gyneco')
+
+      if (template) {
+        // Generate observation text with current form data
+        const observationText = generateObservationFromData(template.template, {})
+
+        setFormData((prev: any) => ({ ...prev, observations: observationText }))
+      }
+    } catch (error) {
+      console.error('Error applying gyneco template:', error)
+    }
   }
 
   return (
@@ -362,13 +379,26 @@ export default function GynecologiePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="observations">Observations</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="observations">Observations</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={applyGynecoTemplate}
+                      className="text-xs"
+                    >
+                      <FileText className="h-3 w-3 mr-1" />
+                      Appliquer template
+                    </Button>
+                  </div>
                   <Textarea
                     id="observations"
                     value={formData.observations || ''}
                     onChange={(e) => handleInputChange('observations', e.target.value)}
-                    placeholder="Notes complémentaires..."
-                    rows={3}
+                    placeholder="Notes complémentaires... (Cliquez sur 'Appliquer template' pour un template pré-rempli)"
+                    rows={12}
+                    className="font-mono text-sm"
                   />
                 </div>
               </div>
