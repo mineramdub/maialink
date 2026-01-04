@@ -127,7 +127,7 @@ Format ta réponse en JSON avec la structure:
 }`
 
             const webGenerativeModel = genAI.getGenerativeModel({
-              model: 'gemini-1.5-flash-latest',
+              model: 'gemini-1.5-flash',
               generationConfig: {
                 responseMimeType: 'application/json'
               }
@@ -178,7 +178,7 @@ Format ta réponse en JSON avec la structure:
 
       try {
         const fallbackModel = genAI.getGenerativeModel({
-          model: 'gemini-1.5-flash-latest',
+          model: 'gemini-1.5-flash',
           generationConfig: {
             responseMimeType: 'application/json'
           }
@@ -268,7 +268,7 @@ Réponds au format JSON avec:
     console.log('[Chat Structured] Génération de la réponse structurée...')
 
     const generativeModel = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash-latest',
+      model: 'gemini-1.5-flash',
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: getResponseSchema()

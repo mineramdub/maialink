@@ -43,6 +43,7 @@ export default function NewOrdonnancePage() {
 
   const [selectedPatientId, setSelectedPatientId] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState('')
+  const [templateSearchQuery, setTemplateSearchQuery] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedMedicaments, setSelectedMedicaments] = useState<SelectedMedicament[]>([])
   const [notes, setNotes] = useState('')
@@ -57,7 +58,15 @@ export default function NewOrdonnancePage() {
       credentials: 'include'
     })
       .then(res => res.json())
-      .then(data => setPatients(data.patients || []))
+      .then(data => {
+        setPatients(data.patients || [])
+
+        // Auto-select patient from URL parameter
+        const patientIdParam = searchParams.get('patientId')
+        if (patientIdParam && !selectedPatientId) {
+          setSelectedPatientId(patientIdParam)
+        }
+      })
       .catch(err => console.error('Erreur chargement patients:', err))
   }, [])
 
@@ -103,6 +112,13 @@ export default function NewOrdonnancePage() {
     // Générer preview
     generatePreview(templateMeds, template.contenu)
   }
+
+  // Filtrer templates selon recherche
+  const filteredTemplates = templates.filter(template =>
+    template.nom.toLowerCase().includes(templateSearchQuery.toLowerCase()) ||
+    template.description.toLowerCase().includes(templateSearchQuery.toLowerCase()) ||
+    template.categorie.toLowerCase().includes(templateSearchQuery.toLowerCase())
+  )
 
   // Filtrer médicaments selon recherche
   const filteredMedicaments = medicaments.filter(med =>
@@ -178,6 +194,7 @@ export default function NewOrdonnancePage() {
 
     try {
       const patient = patients.find(p => p.id === selectedPatientId)
+      const consultationIdParam = searchParams.get('consultationId')
 
       const ordonnanceData = {
         patientId: selectedPatientId,
@@ -194,7 +211,8 @@ export default function NewOrdonnancePage() {
         contenu: previewContent,
         dureeValidite: parseInt(dureeValidite),
         notes: notes || undefined,
-        templateNom: selectedTemplate || undefined
+        templateNom: selectedTemplate || undefined,
+        consultationId: consultationIdParam || undefined
       }
 
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/ordonnances/generate`, {
@@ -277,26 +295,98 @@ export default function NewOrdonnancePage() {
           {/* Templates prédéfinis */}
           <Card className="p-6">
             <h2 className="text-lg font-semibold mb-4">Templates Prédéfinis</h2>
-            <div className="space-y-2">
-              <Label>Utiliser un template</Label>
-              <Select value={selectedTemplate} onValueChange={applyTemplate}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choisir un template (optionnel)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.map((template) => (
-                    <SelectItem key={template.nom} value={template.nom}>
-                      <div>
-                        <div className="font-medium">{template.nom}</div>
-                        <div className="text-xs text-gray-500">{template.description}</div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedTemplate && (
-                <p className="text-xs text-blue-600">
-                  ✓ Template "{selectedTemplate}" appliqué
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Rechercher un template par nom, catégorie ou description..."
+                  value={templateSearchQuery}
+                  onChange={(e) => setTemplateSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              {/* Template actuellement appliqué */}
+              {selectedTemplate && !templateSearchQuery && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-blue-900">
+                        ✓ Template appliqué
+                      </p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        {selectedTemplate}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedTemplate('')
+                        setSelectedMedicaments([])
+                        setPreviewContent('')
+                      }}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Résultats recherche templates */}
+              {templateSearchQuery && (
+                <div className="border rounded-lg max-h-80 overflow-y-auto">
+                  {filteredTemplates.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">
+                      Aucun template trouvé
+                    </div>
+                  ) : (
+                    <>
+                      {/* Grouper par catégorie */}
+                      {Array.from(new Set(filteredTemplates.map(t => t.categorie))).map(categorie => (
+                        <div key={categorie}>
+                          <div className="px-3 py-2 bg-gray-50 border-b">
+                            <p className="text-xs font-semibold text-gray-600 uppercase">
+                              {categorie}
+                            </p>
+                          </div>
+                          {filteredTemplates
+                            .filter(t => t.categorie === categorie)
+                            .map((template) => (
+                              <button
+                                key={template.nom}
+                                onClick={() => {
+                                  applyTemplate(template.nom)
+                                  setTemplateSearchQuery('')
+                                }}
+                                className="w-full p-3 text-left hover:bg-gray-50 border-b last:border-b-0 transition-colors"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="font-medium text-sm">{template.nom}</div>
+                                    <div className="text-xs text-gray-600 mt-0.5">
+                                      {template.description}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Badge variant="outline" className="text-xs">
+                                        {template.medicaments.length} médicament(s)
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                </div>
+                              </button>
+                            ))}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Message d'aide si pas de recherche */}
+              {!templateSearchQuery && !selectedTemplate && (
+                <p className="text-xs text-gray-500">
+                  💡 Tapez pour rechercher parmi {templates.length} template(s) disponible(s)
                 </p>
               )}
             </div>

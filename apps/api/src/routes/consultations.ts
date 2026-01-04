@@ -6,6 +6,7 @@ import { eq, and, desc } from 'drizzle-orm'
 import { calculateSA } from '../lib/utils.js'
 import { checkClinicalAlerts } from '../lib/pregnancy-utils.js'
 import { getTemplateForSA, generateConsultationFromTemplate, generateReminders } from '../lib/consultationTemplates.js'
+import { getGynecologyRecommendations } from '../lib/pregnancy-calendar.js'
 
 const router = Router()
 router.use(authMiddleware)
@@ -266,6 +267,29 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     res.json({ success: true })
   } catch (error) {
     console.error('Delete consultation error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// GET /api/consultations/gynecology-recommendations - Get ordonnance recommendations for gynecology consultation
+router.get('/gynecology-recommendations', async (req: AuthRequest, res) => {
+  try {
+    const { motif } = req.query
+
+    if (!motif || typeof motif !== 'string') {
+      return res.status(400).json({
+        error: 'Motif de consultation requis'
+      })
+    }
+
+    const recommendations = getGynecologyRecommendations(motif)
+
+    res.json({
+      success: true,
+      recommendations
+    })
+  } catch (error) {
+    console.error('Get gynecology recommendations error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })
