@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, boolean, decimal, date, jsonb, uuid, pgEnum, vector } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, integer, boolean, decimal, date, jsonb, uuid, pgEnum, vector, index } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
 // Enums
@@ -10,9 +10,11 @@ export const appointmentStatusEnum = pgEnum('appointment_status', ['planifie', '
 export const invoiceStatusEnum = pgEnum('invoice_status', ['brouillon', 'envoyee', 'payee', 'impayee', 'annulee'])
 export const paymentMethodEnum = pgEnum('payment_method', ['especes', 'cheque', 'carte', 'virement', 'tiers_payant'])
 export const documentTypeEnum = pgEnum('document_type', ['ordonnance', 'certificat', 'courrier', 'declaration_grossesse', 'compte_rendu', 'autre'])
-export const consultationTypeEnum = pgEnum('consultation_type', ['prenatale', 'postnatale', 'gyneco', 'reeducation', 'preparation', 'monitoring', 'autre'])
+export const consultationTypeEnum = pgEnum('consultation_type', ['prenatale', 'postnatale', 'gyneco', 'reeducation', 'preparation', 'monitoring', 'ivg', 'autre'])
 export const alertSeverityEnum = pgEnum('alert_severity', ['info', 'warning', 'critical'])
 export const auditActionEnum = pgEnum('audit_action', ['create', 'read', 'update', 'delete', 'login', 'logout', 'export'])
+export const ordonnanceTypeEnum = pgEnum('ordonnance_type', ['medicament', 'biologie', 'echographie', 'autre'])
+export const ordonnancePrioriteEnum = pgEnum('ordonnance_priorite', ['urgent', 'recommande', 'optionnel'])
 
 // Tables
 export const users = pgTable('users', {
@@ -46,6 +48,30 @@ export const practitionerSettings = pgTable('practitioner_settings', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+export const calendarIntegrations = pgTable('calendar_integrations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+
+  // Google Calendar OAuth
+  googleAccessToken: text('google_access_token'),
+  googleRefreshToken: text('google_refresh_token'),
+  googleTokenExpiresAt: timestamp('google_token_expires_at'),
+  googleCalendarId: text('google_calendar_id'), // ID du calendrier Google à synchroniser
+  googleEmail: text('google_email'),
+
+  // Sync settings
+  syncEnabled: boolean('sync_enabled').default(false),
+  syncDirection: text('sync_direction').default('bidirectional'), // 'import', 'export', 'bidirectional'
+  lastSyncAt: timestamp('last_sync_at'),
+  syncFrequency: integer('sync_frequency').default(15), // minutes
+
+  // Doctolib detection
+  doctolibCalendarName: text('doctolib_calendar_name'), // Nom du calendrier Doctolib dans Google Calendar
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 export const sessions = pgTable('sessions', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -54,7 +80,10 @@ export const sessions = pgTable('sessions', {
   userAgent: text('user_agent'),
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  userIdIdx: index('sessions_user_id_idx').on(table.userId),
+  expiresAtIdx: index('sessions_expires_at_idx').on(table.expiresAt),
+}))
 
 export const patients = pgTable('patients', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -127,7 +156,11 @@ export const patients = pgTable('patients', {
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  userIdIdx: index('patients_user_id_idx').on(table.userId),
+  statusIdx: index('patients_status_idx').on(table.status),
+  updatedAtIdx: index('patients_updated_at_idx').on(table.updatedAt),
+}))
 
 export const grossesses = pgTable('grossesses', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -161,7 +194,12 @@ export const grossesses = pgTable('grossesses', {
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  patientIdIdx: index('grossesses_patient_id_idx').on(table.patientId),
+  userIdIdx: index('grossesses_user_id_idx').on(table.userId),
+  statusIdx: index('grossesses_status_idx').on(table.status),
+  dpaIdx: index('grossesses_dpa_idx').on(table.dpa),
+}))
 
 // Table des comptes rendus d'accouchement
 export const accouchements = pgTable('accouchements', {
@@ -228,7 +266,12 @@ export const accouchements = pgTable('accouchements', {
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  grossesseIdIdx: index('accouchements_grossesse_id_idx').on(table.grossesseId),
+  patientIdIdx: index('accouchements_patient_id_idx').on(table.patientId),
+  userIdIdx: index('accouchements_user_id_idx').on(table.userId),
+  dateIdx: index('accouchements_date_idx').on(table.dateAccouchement),
+}))
 
 export const bebes = pgTable('bebes', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -253,13 +296,46 @@ export const bebes = pgTable('bebes', {
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  grossesseIdIdx: index('bebes_grossesse_id_idx').on(table.grossesseId),
+  patientIdIdx: index('bebes_patient_id_idx').on(table.patientId),
+}))
+
+export const mensurationsBebe = pgTable('mensurations_bebe', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  bebeId: uuid('bebe_id').notNull().references(() => bebes.id, { onDelete: 'cascade' }),
+  consultationId: uuid('consultation_id').references(() => consultations.id),
+
+  date: timestamp('date').notNull().defaultNow(),
+  ageJours: integer('age_jours'), // Âge en jours au moment de la mesure
+
+  poids: integer('poids'), // en grammes
+  taille: integer('taille'), // en cm
+  perimetreCranien: integer('perimetre_cranien'), // en mm
+
+  // Percentiles calculés
+  percentilePoids: integer('percentile_poids'),
+  percentileTaille: integer('percentile_taille'),
+  percentilePC: integer('percentile_pc'),
+
+  // Alertes
+  alertes: jsonb('alertes').$type<string[]>(),
+  statusGlobal: text('status_global'), // normal, surveillance, pathologique
+
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  bebeIdIdx: index('mensurations_bebe_bebe_id_idx').on(table.bebeId),
+  dateIdx: index('mensurations_bebe_date_idx').on(table.date),
+}))
 
 export const consultations = pgTable('consultations', {
   id: uuid('id').defaultRandom().primaryKey(),
   patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').notNull().references(() => users.id),
   grossesseId: uuid('grossesse_id').references(() => grossesses.id),
+  bebeId: uuid('bebe_id').references(() => bebes.id), // Pour consultations post-natales
 
   type: consultationTypeEnum('type').notNull(),
   date: timestamp('date').notNull(),
@@ -283,6 +359,7 @@ export const consultations = pgTable('consultations', {
 
   // Examen
   motif: text('motif'),
+  sousTypeGyneco: text('sous_type_gyneco'), // instauration, suivi, depistage, infection, autre
   examenClinique: text('examen_clinique'),
   conclusion: text('conclusion'),
   prescriptions: text('prescriptions'),
@@ -297,7 +374,13 @@ export const consultations = pgTable('consultations', {
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  patientIdIdx: index('consultations_patient_id_idx').on(table.patientId),
+  userIdIdx: index('consultations_user_id_idx').on(table.userId),
+  grossesseIdIdx: index('consultations_grossesse_id_idx').on(table.grossesseId),
+  dateIdx: index('consultations_date_idx').on(table.date),
+  typeIdx: index('consultations_type_idx').on(table.type),
+}))
 
 export const reeducationSeances = pgTable('reeducation_seances', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -321,7 +404,11 @@ export const reeducationSeances = pgTable('reeducation_seances', {
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  patientIdIdx: index('reeducation_seances_patient_id_idx').on(table.patientId),
+  userIdIdx: index('reeducation_seances_user_id_idx').on(table.userId),
+  dateIdx: index('reeducation_seances_date_idx').on(table.date),
+}))
 
 export const suiviPostPartum = pgTable('suivi_post_partum', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -357,7 +444,12 @@ export const suiviPostPartum = pgTable('suivi_post_partum', {
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  patientIdIdx: index('suivi_post_partum_patient_id_idx').on(table.patientId),
+  grossesseIdIdx: index('suivi_post_partum_grossesse_id_idx').on(table.grossesseId),
+  userIdIdx: index('suivi_post_partum_user_id_idx').on(table.userId),
+  dateIdx: index('suivi_post_partum_date_idx').on(table.date),
+}))
 
 export const suiviGyneco = pgTable('suivi_gyneco', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -391,7 +483,11 @@ export const suiviGyneco = pgTable('suivi_gyneco', {
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  patientIdIdx: index('suivi_gyneco_patient_id_idx').on(table.patientId),
+  userIdIdx: index('suivi_gyneco_user_id_idx').on(table.userId),
+  dateIdx: index('suivi_gyneco_date_idx').on(table.date),
+}))
 
 export const examensPrenataux = pgTable('examens_prenataux', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -410,7 +506,11 @@ export const examensPrenataux = pgTable('examens_prenataux', {
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  grossesseIdIdx: index('examens_prenataux_grossesse_id_idx').on(table.grossesseId),
+  userIdIdx: index('examens_prenataux_user_id_idx').on(table.userId),
+  dateRealiseeIdx: index('examens_prenataux_date_realisee_idx').on(table.dateRealisee),
+}))
 
 export const alertes = pgTable('alertes', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -429,7 +529,15 @@ export const alertes = pgTable('alertes', {
   dismissedAt: timestamp('dismissed_at'),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  patientIdIdx: index('alertes_patient_id_idx').on(table.patientId),
+  grossesseIdIdx: index('alertes_grossesse_id_idx').on(table.grossesseId),
+  consultationIdIdx: index('alertes_consultation_id_idx').on(table.consultationId),
+  userIdIdx: index('alertes_user_id_idx').on(table.userId),
+  isReadIdx: index('alertes_is_read_idx').on(table.isRead),
+  severityIdx: index('alertes_severity_idx').on(table.severity),
+  createdAtIdx: index('alertes_created_at_idx').on(table.createdAt),
+}))
 
 export const appointments = pgTable('appointments', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -446,13 +554,21 @@ export const appointments = pgTable('appointments', {
   location: text('location'),
   isHomeVisit: boolean('is_home_visit').default(false),
 
+  // External integrations
   doctolibId: text('doctolib_id'),
+  googleCalendarEventId: text('google_calendar_event_id'),
 
   notes: text('notes'),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  patientIdIdx: index('appointments_patient_id_idx').on(table.patientId),
+  userIdIdx: index('appointments_user_id_idx').on(table.userId),
+  startTimeIdx: index('appointments_start_time_idx').on(table.startTime),
+  statusIdx: index('appointments_status_idx').on(table.status),
+  googleCalendarEventIdIdx: index('appointments_google_calendar_event_id_idx').on(table.googleCalendarEventId),
+}))
 
 export const invoices = pgTable('invoices', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -489,7 +605,13 @@ export const invoices = pgTable('invoices', {
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  patientIdIdx: index('invoices_patient_id_idx').on(table.patientId),
+  userIdIdx: index('invoices_user_id_idx').on(table.userId),
+  consultationIdIdx: index('invoices_consultation_id_idx').on(table.consultationId),
+  dateIdx: index('invoices_date_idx').on(table.date),
+  statusIdx: index('invoices_status_idx').on(table.status),
+}))
 
 export const cotationsNGAP = pgTable('cotations_ngap', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -519,7 +641,13 @@ export const documents = pgTable('documents', {
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  patientIdIdx: index('documents_patient_id_idx').on(table.patientId),
+  userIdIdx: index('documents_user_id_idx').on(table.userId),
+  consultationIdIdx: index('documents_consultation_id_idx').on(table.consultationId),
+  typeIdx: index('documents_type_idx').on(table.type),
+  createdAtIdx: index('documents_created_at_idx').on(table.createdAt),
+}))
 
 export const documentTemplates = pgTable('document_templates', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -550,7 +678,41 @@ export const auditLogs = pgTable('audit_logs', {
   userAgent: text('user_agent'),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  userIdIdx: index('audit_logs_user_id_idx').on(table.userId),
+  actionIdx: index('audit_logs_action_idx').on(table.action),
+  tableNameIdx: index('audit_logs_table_name_idx').on(table.tableName),
+  createdAtIdx: index('audit_logs_created_at_idx').on(table.createdAt),
+}))
+
+// Templates d'ordonnances
+export const ordonnanceTemplates = pgTable('ordonnance_templates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }), // null = template système
+
+  nom: text('nom').notNull(),
+  categorie: text('categorie').notNull(), // contraception, infection, grossesse, gynecologie, etc.
+  type: ordonnanceTypeEnum('type').notNull(),
+  priorite: ordonnancePrioriteEnum('priorite').notNull().default('recommande'),
+
+  contenu: text('contenu').notNull(), // Contenu du template avec checkboxes
+  description: text('description'), // Description courte
+
+  source: text('source'), // HAS, CNGOF, etc.
+  version: text('version'), // Version du template (ex: "2024.1")
+  dateValidite: date('date_validite'), // Date d'expiration des recommandations
+
+  isActive: boolean('is_active').default(true),
+  isSystemTemplate: boolean('is_system_template').default(false), // Templates par défaut non modifiables
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  categorieIdx: index('ordonnance_templates_categorie_idx').on(table.categorie),
+  typeIdx: index('ordonnance_templates_type_idx').on(table.type),
+  isActiveIdx: index('ordonnance_templates_is_active_idx').on(table.isActive),
+  userIdIdx: index('ordonnance_templates_user_id_idx').on(table.userId),
+}))
 
 // Protocoles PDF avec IA
 export const protocols = pgTable('protocols', {
@@ -573,7 +735,11 @@ export const protocols = pgTable('protocols', {
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  userIdIdx: index('protocols_user_id_idx').on(table.userId),
+  categoryIdx: index('protocols_category_idx').on(table.category),
+  isProcessedIdx: index('protocols_is_processed_idx').on(table.isProcessed),
+}))
 
 export const protocolChunks = pgTable('protocol_chunks', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -587,7 +753,9 @@ export const protocolChunks = pgTable('protocol_chunks', {
   embedding: vector('embedding', { dimensions: 768 }),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  protocolIdIdx: index('protocol_chunks_protocol_id_idx').on(table.protocolId),
+}))
 
 // Historique des conversations avec l'IA
 export const aiConversations = pgTable('ai_conversations', {
@@ -599,14 +767,21 @@ export const aiConversations = pgTable('ai_conversations', {
   sourcesUsed: jsonb('sources_used').$type<{ protocolId: string; protocolName: string; chunkIds: string[] }[]>(),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  userIdIdx: index('ai_conversations_user_id_idx').on(table.userId),
+  createdAtIdx: index('ai_conversations_created_at_idx').on(table.createdAt),
+}))
 
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   patients: many(patients),
   consultations: many(consultations),
   sessions: many(sessions),
   auditLogs: many(auditLogs),
+  calendarIntegration: one(calendarIntegrations, {
+    fields: [users.id],
+    references: [calendarIntegrations.userId],
+  }),
 }))
 
 export const patientsRelations = relations(patients, ({ one, many }) => ({
@@ -825,6 +1000,20 @@ export const aiConversationsRelations = relations(aiConversations, ({ one }) => 
   }),
 }))
 
+export const ordonnanceTemplatesRelations = relations(ordonnanceTemplates, ({ one }) => ({
+  user: one(users, {
+    fields: [ordonnanceTemplates.userId],
+    references: [users.id],
+  }),
+}))
+
+export const calendarIntegrationsRelations = relations(calendarIntegrations, ({ one }) => ({
+  user: one(users, {
+    fields: [calendarIntegrations.userId],
+    references: [users.id],
+  }),
+}))
+
 // Types exports
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -842,3 +1031,7 @@ export type Protocol = typeof protocols.$inferSelect
 export type NewProtocol = typeof protocols.$inferInsert
 export type ProtocolChunk = typeof protocolChunks.$inferSelect
 export type AiConversation = typeof aiConversations.$inferSelect
+export type OrdonnanceTemplate = typeof ordonnanceTemplates.$inferSelect
+export type NewOrdonnanceTemplate = typeof ordonnanceTemplates.$inferInsert
+export type CalendarIntegration = typeof calendarIntegrations.$inferSelect
+export type NewCalendarIntegration = typeof calendarIntegrations.$inferInsert

@@ -6,7 +6,8 @@ import { eq, and, desc } from 'drizzle-orm'
 import { calculateSA } from '../lib/utils.js'
 import { checkClinicalAlerts } from '../lib/pregnancy-utils.js'
 import { getTemplateForSA, generateConsultationFromTemplate, generateReminders } from '../lib/consultationTemplates.js'
-import { getGynecologyRecommendations } from '../lib/pregnancy-calendar.js'
+import { getGynecologyRecommendations, getGynecologyRecommendationsAsync } from '../lib/pregnancy-calendar.js'
+import { getOrdonnanceSuggestions } from '../lib/ordonnanceTemplates.js'
 
 const router = Router()
 router.use(authMiddleware)
@@ -151,6 +152,32 @@ router.post('/', async (req: AuthRequest, res) => {
   }
 })
 
+// GET /api/consultations/gynecology-recommendations - Get ordonnance recommendations for gynecology consultation
+router.get('/gynecology-recommendations', async (req: AuthRequest, res) => {
+  try {
+    const { motif, sousTypeGyneco } = req.query
+
+    if (!motif || typeof motif !== 'string') {
+      return res.status(400).json({
+        error: 'Motif de consultation requis'
+      })
+    }
+
+    const sousType = typeof sousTypeGyneco === 'string' ? sousTypeGyneco : undefined
+
+    // Utiliser la version async qui charge depuis la BDD avec fallback sur version synchrone
+    const recommendations = await getGynecologyRecommendationsAsync(motif, sousType, req.user!.id)
+
+    res.json({
+      success: true,
+      recommendations
+    })
+  } catch (error) {
+    console.error('Get gynecology recommendations error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // GET /api/consultations/:id - Get consultation details
 router.get('/:id', async (req: AuthRequest, res) => {
   try {
@@ -234,6 +261,116 @@ router.get('/template/:grossesseId', async (req: AuthRequest, res) => {
   }
 })
 
+// PUT /api/consultations/:id - Update consultation
+router.put('/:id', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const body = req.body
+
+    // Check if consultation belongs to user
+    const existingConsultation = await db.query.consultations.findFirst({
+      where: and(
+        eq(consultations.id, id),
+        eq(consultations.userId, req.user!.id)
+      ),
+    })
+
+    if (!existingConsultation) {
+      return res.status(404).json({ error: 'Consultation non trouvée' })
+    }
+
+    // Calculate SA if grossesse
+    let saTerm: number | undefined
+    let saJours: number | undefined
+    if (body.grossesseId) {
+      const grossesse = await db.query.grossesses.findFirst({
+        where: eq(grossesses.id, body.grossesseId),
+      })
+      if (grossesse) {
+        const sa = calculateSA(grossesse.ddr)
+        saTerm = sa.weeks
+        saJours = sa.days
+      }
+    }
+
+    // Check clinical alerts
+    const clinicalAlerts = checkClinicalAlerts({
+      tensionSystolique: body.tensionSystolique,
+      tensionDiastolique: body.tensionDiastolique,
+      proteineUrinaire: body.proteineUrinaire,
+      poids: body.poids,
+      sa: saTerm,
+      hauteurUterine: body.hauteurUterine,
+      bdc: body.bdc,
+    })
+
+    // Update consultation
+    const [updatedConsultation] = await db.update(consultations)
+      .set({
+        type: body.type,
+        date: new Date(body.date),
+        duree: body.duree,
+        poids: body.poids,
+        taille: body.taille,
+        tensionSystolique: body.tensionSystolique,
+        tensionDiastolique: body.tensionDiastolique,
+        pouls: body.pouls,
+        temperature: body.temperature,
+        saTerm,
+        saJours,
+        hauteurUterine: body.hauteurUterine,
+        bdc: body.bdc,
+        mouvementsFoetaux: body.mouvementsFoetaux,
+        presentationFoetale: body.presentationFoetale,
+        motif: body.motif,
+        examenClinique: body.examenClinique,
+        conclusion: body.conclusion,
+        prescriptions: body.prescriptions,
+        proteineUrinaire: body.proteineUrinaire,
+        glucoseUrinaire: body.glucoseUrinaire,
+        leucocytesUrinaires: body.leucocytesUrinaires,
+        nitritesUrinaires: body.nitritesUrinaires,
+        alertes: clinicalAlerts.length > 0 ? clinicalAlerts : undefined,
+      })
+      .where(eq(consultations.id, id))
+      .returning()
+
+    // Delete old alerts and create new ones
+    await db.delete(alertes).where(eq(alertes.consultationId, id))
+
+    for (const alert of clinicalAlerts) {
+      await db.insert(alertes).values({
+        patientId: existingConsultation.patientId,
+        grossesseId: body.grossesseId || null,
+        consultationId: id,
+        userId: req.user!.id,
+        type: alert.type,
+        message: alert.message,
+        severity: alert.severity,
+      })
+    }
+
+    // Audit log
+    await db.insert(auditLogs).values({
+      userId: req.user!.id,
+      action: 'update',
+      tableName: 'consultations',
+      recordId: id,
+      newData: updatedConsultation,
+      oldData: existingConsultation,
+    })
+
+    res.json({
+      success: true,
+      consultation: updatedConsultation,
+      alerts: clinicalAlerts,
+    })
+  } catch (error) {
+    console.error('Update consultation error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // DELETE /api/consultations/:id - Delete consultation
 router.delete('/:id', async (req: AuthRequest, res) => {
   try {
@@ -271,25 +408,89 @@ router.delete('/:id', async (req: AuthRequest, res) => {
   }
 })
 
-// GET /api/consultations/gynecology-recommendations - Get ordonnance recommendations for gynecology consultation
-router.get('/gynecology-recommendations', async (req: AuthRequest, res) => {
+// GET /api/consultations/patient/:patientId/last - Get last consultation for a patient
+router.get('/patient/:patientId/last', async (req: AuthRequest, res) => {
   try {
-    const { motif } = req.query
+    const { patientId } = req.params
+    const { type, excludeId } = req.query
 
-    if (!motif || typeof motif !== 'string') {
-      return res.status(400).json({
-        error: 'Motif de consultation requis'
-      })
+    // Verify patient belongs to user
+    const patient = await db.query.patients.findFirst({
+      where: and(eq(patients.id, patientId), eq(patients.userId, req.user!.id)),
+    })
+
+    if (!patient) {
+      return res.status(404).json({ error: 'Patiente non trouvée' })
     }
 
-    const recommendations = getGynecologyRecommendations(motif)
+    // Build where clause
+    let whereClause = and(
+      eq(consultations.patientId, patientId),
+      eq(consultations.userId, req.user!.id)
+    )!
+
+    // Filter by type if provided
+    if (type) {
+      whereClause = and(whereClause, eq(consultations.type, type as any))!
+    }
+
+    // Exclude current consultation if editing
+    if (excludeId) {
+      whereClause = and(whereClause, eq(consultations.id, excludeId as string))!
+    }
+
+    // Get last consultation
+    const lastConsultation = await db.query.consultations.findFirst({
+      where: whereClause,
+      orderBy: [desc(consultations.date)],
+      with: {
+        grossesse: true,
+      }
+    })
+
+    if (!lastConsultation) {
+      return res.json({ success: true, lastConsultation: null })
+    }
 
     res.json({
       success: true,
-      recommendations
+      lastConsultation
     })
   } catch (error) {
-    console.error('Get gynecology recommendations error:', error)
+    console.error('Get last consultation error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// GET /api/consultations/:id/ordonnance-suggestions - Get ordonnance suggestions for a consultation
+router.get('/:id/ordonnance-suggestions', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    // Get consultation
+    const consultation = await db.query.consultations.findFirst({
+      where: and(
+        eq(consultations.id, id),
+        eq(consultations.userId, req.user!.id)
+      ),
+    })
+
+    if (!consultation) {
+      return res.status(404).json({ error: 'Consultation non trouvée' })
+    }
+
+    // Get ordonnance suggestions based on motif and type
+    const suggestions = getOrdonnanceSuggestions(
+      consultation.motif || '',
+      consultation.type
+    )
+
+    res.json({
+      success: true,
+      suggestions
+    })
+  } catch (error) {
+    console.error('Get ordonnance suggestions error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })

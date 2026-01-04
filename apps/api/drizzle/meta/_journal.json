@@ -8,6 +8,48 @@
       "when": 1767050436345,
       "tag": "0000_wonderful_johnny_blaze",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1767350913751,
+      "tag": "0001_cute_silver_sable",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767546500349,
+      "tag": "0002_sleepy_toad_men",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1767554240090,
+      "tag": "0003_confused_reptil",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1767555444792,
+      "tag": "0004_magical_cyclops",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1767558880842,
+      "tag": "0005_freezing_kronos",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1767561325689,
+      "tag": "0006_equal_maverick",
+      "breakpoints": true
     }
   ]
 }

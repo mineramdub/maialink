@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link, useSearchParams } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams, useParams } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
@@ -13,6 +13,11 @@ import { getObservationTemplate, generateObservationFromData } from '../../lib/o
 import { useConsultationSuggestions } from '../../hooks/useConsultationSuggestions'
 import { ConsultationSuggestions } from '../../components/ConsultationSuggestions'
 import { TextTemplateSelector } from '../../components/TextTemplateSelector'
+import { ExamenCliniqueAdapte } from '../../components/ExamenCliniqueAdapte'
+import { SuiviBebe } from '../../components/SuiviBebe'
+import { HistoriqueConsultation } from '../../components/HistoriqueConsultation'
+import { AlertesCliniques } from '../../components/AlertesCliniques'
+import { SuggestionsOrdonnances } from '../../components/SuggestionsOrdonnances'
 import {
   EXAMEN_CLINIQUE_TEMPLATES,
   CONCLUSION_TEMPLATES,
@@ -22,10 +27,13 @@ import {
 export default function NewConsultationPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { id: consultationId } = useParams()
   const patientId = searchParams.get('patientId')
   const grossesseId = searchParams.get('grossesseId')
+  const isEditMode = !!consultationId
 
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingConsultation, setIsLoadingConsultation] = useState(isEditMode)
   const [patients, setPatients] = useState<any[]>([])
   const [grossesses, setGrossesses] = useState<any[]>([])
   const [error, setError] = useState('')
@@ -35,9 +43,15 @@ export default function NewConsultationPage() {
   const [calendarRecommendations, setCalendarRecommendations] = useState<any>(null)
   const [gynecologyRecommendations, setGynecologyRecommendations] = useState<any>(null)
   const [checkedRecommendations, setCheckedRecommendations] = useState<{[key: string]: boolean}>({})
+  const [bebes, setBebes] = useState<any[]>([])
+  const [selectedBebe, setSelectedBebe] = useState<any>(null)
+  const [patientData, setPatientData] = useState<any>(null)
+  const [grossesseData, setGrossesseData] = useState<any>(null)
+  const [lastConsultation, setLastConsultation] = useState<any>(null)
   const [formData, setFormData] = useState({
     patientId: patientId || '',
     grossesseId: grossesseId || '',
+    bebeId: '',
     type: 'prenatale',
     date: new Date().toISOString().split('T')[0],
     duree: 30,
@@ -51,11 +65,58 @@ export default function NewConsultationPage() {
     conclusion: '',
     saTerm: '',
     saJours: '',
+    sousTypeGyneco: '', // 'instauration' ou 'suivi' pour les consultations gynéco
+    prescriptions: '', // Liste des prescriptions créées
   })
+
+  const [prescriptionsList, setPrescriptionsList] = useState<string[]>([])
 
   useEffect(() => {
     fetchPatients()
+    if (isEditMode && consultationId) {
+      fetchConsultationData(consultationId)
+    }
   }, [])
+
+  const fetchConsultationData = async (id: string) => {
+    try {
+      setIsLoadingConsultation(true)
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/consultations/${id}`, {
+        credentials: 'include'
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        const consultation = data.consultation
+        setFormData({
+          patientId: consultation.patientId,
+          grossesseId: consultation.grossesseId || '',
+          type: consultation.type,
+          date: consultation.date.split('T')[0],
+          duree: consultation.duree || 30,
+          poids: consultation.poids?.toString() || '',
+          tensionSystolique: consultation.tensionSystolique?.toString() || '',
+          tensionDiastolique: consultation.tensionDiastolique?.toString() || '',
+          hauteurUterine: consultation.hauteurUterine?.toString() || '',
+          bdc: consultation.bdc?.toString() || '',
+          motif: consultation.motif || '',
+          examenClinique: consultation.examenClinique || '',
+          conclusion: consultation.conclusion || '',
+          saTerm: consultation.saTerm?.toString() || '',
+          saJours: consultation.saJours?.toString() || '',
+          sousTypeGyneco: consultation.sousTypeGyneco || '',
+        })
+      } else {
+        setError('Consultation non trouvée')
+        navigate('/consultations')
+      }
+    } catch (error) {
+      console.error('Error fetching consultation:', error)
+      setError('Erreur lors du chargement de la consultation')
+    } finally {
+      setIsLoadingConsultation(false)
+    }
+  }
 
   // Update available templates when type changes
   useEffect(() => {
@@ -87,14 +148,43 @@ export default function NewConsultationPage() {
     }
   }, [formData.grossesseId, formData.saTerm, formData.saJours])
 
-  // Fetch gynecology recommendations when motif changes for gyneco consultations
+  // Fetch gynecology recommendations when motif or sousTypeGyneco changes for gyneco consultations
   useEffect(() => {
-    if (formData.type === 'gyneco' && formData.motif && formData.motif.trim().length > 3) {
-      fetchGynecologyRecommendations(formData.motif)
+    console.log('[Gyneco useEffect] Type:', formData.type, 'Motif:', formData.motif, 'SousType:', formData.sousTypeGyneco)
+    if (formData.type === 'gyneco' && (formData.motif?.trim().length > 3 || formData.sousTypeGyneco)) {
+      console.log('[Gyneco useEffect] Triggering fetch for motif:', formData.motif, 'sousType:', formData.sousTypeGyneco)
+      fetchGynecologyRecommendations(formData.motif, formData.sousTypeGyneco)
     } else if (formData.type !== 'gyneco') {
       setGynecologyRecommendations(null)
+    } else {
+      console.log('[Gyneco useEffect] Motif too short or empty:', formData.motif)
     }
-  }, [formData.type, formData.motif])
+  }, [formData.type, formData.motif, formData.sousTypeGyneco])
+
+  // Fetch bebes when patient changes for postnatal consultations
+  useEffect(() => {
+    if (formData.type === 'postnatale' && formData.patientId) {
+      fetchBebesForPatient(formData.patientId)
+    } else {
+      setBebes([])
+      setSelectedBebe(null)
+    }
+  }, [formData.type, formData.patientId])
+
+  // Fetch patient data and last consultation for alerts
+  useEffect(() => {
+    if (formData.patientId) {
+      fetchPatientForAlerts(formData.patientId)
+      fetchLastConsultationForAlerts(formData.patientId)
+    }
+  }, [formData.patientId])
+
+  // Fetch grossesse data for alerts
+  useEffect(() => {
+    if (formData.grossesseId) {
+      fetchGrossesseForAlerts(formData.grossesseId)
+    }
+  }, [formData.grossesseId])
 
   // Suggestions et alertes automatiques
   const { alerts, suggestions } = useConsultationSuggestions({
@@ -134,6 +224,88 @@ export default function NewConsultationPage() {
       }
     } catch (error) {
       console.error('Error fetching grossesses:', error)
+    }
+  }
+
+  const fetchBebesForPatient = async (patientId: string) => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/patients/${patientId}`,
+        { credentials: 'include' }
+      )
+      const data = await res.json()
+
+      if (data.success && data.patient) {
+        // Récupérer les bébés via les grossesses terminées
+        const grossessesRes = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/grossesses?patientId=${patientId}`,
+          { credentials: 'include' }
+        )
+        const grossessesData = await grossessesRes.json()
+
+        if (grossessesData.success) {
+          // Pour chaque grossesse, récupérer les bébés
+          const allBebes = []
+          for (const grossesse of grossessesData.grossesses) {
+            const bebesRes = await fetch(
+              `${import.meta.env.VITE_API_URL}/api/bebes/grossesse/${grossesse.id}`,
+              { credentials: 'include' }
+            )
+            const bebesData = await bebesRes.json()
+            if (bebesData.success && bebesData.bebes) {
+              allBebes.push(...bebesData.bebes)
+            }
+          }
+          setBebes(allBebes)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching bebes:', error)
+    }
+  }
+
+  const fetchPatientForAlerts = async (patientId: string) => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/patients/${patientId}`,
+        { credentials: 'include' }
+      )
+      const data = await res.json()
+      if (data.success && data.patient) {
+        setPatientData(data.patient)
+      }
+    } catch (error) {
+      console.error('Error fetching patient for alerts:', error)
+    }
+  }
+
+  const fetchLastConsultationForAlerts = async (patientId: string) => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/consultations/patient/${patientId}/last`,
+        { credentials: 'include' }
+      )
+      const data = await res.json()
+      if (data.success && data.lastConsultation) {
+        setLastConsultation(data.lastConsultation)
+      }
+    } catch (error) {
+      console.error('Error fetching last consultation for alerts:', error)
+    }
+  }
+
+  const fetchGrossesseForAlerts = async (grossesseId: string) => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/grossesses/${grossesseId}`,
+        { credentials: 'include' }
+      )
+      const data = await res.json()
+      if (data.success && data.grossesse) {
+        setGrossesseData(data.grossesse)
+      }
+    } catch (error) {
+      console.error('Error fetching grossesse for alerts:', error)
     }
   }
 
@@ -187,18 +359,29 @@ export default function NewConsultationPage() {
     }
   }
 
-  const fetchGynecologyRecommendations = async (motif: string) => {
+  const fetchGynecologyRecommendations = async (motif: string, sousTypeGyneco?: string) => {
     try {
+      console.log('[Gyneco] Fetching recommendations for motif:', motif, 'sousType:', sousTypeGyneco)
+      const params = new URLSearchParams({ motif: motif || '' })
+      if (sousTypeGyneco) {
+        params.append('sousTypeGyneco', sousTypeGyneco)
+      }
+
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/consultations/gynecology-recommendations?motif=${encodeURIComponent(motif)}`,
+        `${import.meta.env.VITE_API_URL}/api/consultations/gynecology-recommendations?${params.toString()}`,
         { credentials: 'include' }
       )
       const data = await res.json()
+      console.log('[Gyneco] API response:', data)
       if (data.success) {
+        console.log('[Gyneco] Recommendations:', data.recommendations)
+        console.log('[Gyneco] Ordonnances suggérées:', data.recommendations?.ordonnancesSuggerees)
         setGynecologyRecommendations(data.recommendations)
+      } else {
+        console.error('[Gyneco] API returned error:', data.error)
       }
     } catch (error) {
-      console.error('Error fetching gynecology recommendations:', error)
+      console.error('[Gyneco] Error fetching recommendations:', error)
       setGynecologyRecommendations(null)
     }
   }
@@ -208,6 +391,39 @@ export default function NewConsultationPage() {
       ...prev,
       [key]: !prev[key]
     }))
+  }
+
+  // Fonction pour ajouter une prescription et mettre à jour la conclusion
+  const addPrescription = (prescriptionName: string) => {
+    if (!prescriptionsList.includes(prescriptionName)) {
+      const newList = [...prescriptionsList, prescriptionName]
+      setPrescriptionsList(newList)
+
+      // Mettre à jour automatiquement la conclusion
+      updateConclusionWithPrescriptions(newList)
+    }
+  }
+
+  // Mettre à jour la conclusion avec les prescriptions
+  const updateConclusionWithPrescriptions = (prescriptions: string[]) => {
+    setFormData(prev => {
+      let conclusionText = prev.conclusion
+
+      // Retirer l'ancienne section prescriptions si elle existe
+      conclusionText = conclusionText.replace(/\n\n?PRESCRIPTIONS? :[\s\S]*$/, '')
+
+      // Ajouter la nouvelle section prescriptions
+      if (prescriptions.length > 0) {
+        const prescriptionsSection = `\n\nPRESCRIPTIONS :\n${prescriptions.map(p => `- ${p}`).join('\n')}`
+        conclusionText = conclusionText.trim() + prescriptionsSection
+      }
+
+      return {
+        ...prev,
+        conclusion: conclusionText,
+        prescriptions: prescriptions.join(', ')
+      }
+    })
   }
 
   const renderClickableText = (text: string, index: number) => {
@@ -308,8 +524,12 @@ export default function NewConsultationPage() {
         bdc: formData.bdc ? parseInt(formData.bdc) : undefined,
       }
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/consultations`, {
-        method: 'POST',
+      const url = isEditMode
+        ? `${import.meta.env.VITE_API_URL}/api/consultations/${consultationId}`
+        : `${import.meta.env.VITE_API_URL}/api/consultations`
+
+      const res = await fetch(url, {
+        method: isEditMode ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(payload),
@@ -322,9 +542,9 @@ export default function NewConsultationPage() {
         return
       }
 
-      navigate(`/consultations/${data.consultation.id}`)
+      navigate(`/consultations/${isEditMode ? consultationId : data.consultation.id}`)
     } catch {
-      setError('Erreur lors de la création de la consultation')
+      setError(isEditMode ? 'Erreur lors de la modification de la consultation' : 'Erreur lors de la création de la consultation')
     } finally {
       setIsLoading(false)
     }
@@ -383,8 +603,12 @@ export default function NewConsultationPage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Nouvelle consultation</h1>
-          <p className="text-slate-500 mt-1">Créer une nouvelle consultation</p>
+          <h1 className="text-2xl font-semibold text-slate-900">
+            {isEditMode ? 'Modifier la consultation' : 'Nouvelle consultation'}
+          </h1>
+          <p className="text-slate-500 mt-1">
+            {isEditMode ? 'Modifier les informations de la consultation' : 'Créer une nouvelle consultation'}
+          </p>
         </div>
       </div>
 
@@ -454,6 +678,27 @@ export default function NewConsultationPage() {
               </div>
             </div>
 
+            {formData.type === 'gyneco' && (
+              <div className="space-y-2">
+                <Label htmlFor="sousTypeGyneco">Type de consultation gynécologique</Label>
+                <Select
+                  value={formData.sousTypeGyneco}
+                  onValueChange={(v) => updateField('sousTypeGyneco', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir un type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="instauration">Instauration de contraception</SelectItem>
+                    <SelectItem value="suivi">Suivi de contraception</SelectItem>
+                    <SelectItem value="depistage">Dépistage / Bilan</SelectItem>
+                    <SelectItem value="infection">Infection / Pathologie</SelectItem>
+                    <SelectItem value="autre">Autre motif gynécologique</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {formData.type === 'prenatale' && grossesses.length > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="grossesseId">Grossesse</Label>
@@ -468,6 +713,31 @@ export default function NewConsultationPage() {
                     {grossesses.map((g: any) => (
                       <SelectItem key={g.id} value={g.id}>
                         DDR: {new Date(g.ddr).toLocaleDateString('fr-FR')} - DPA: {new Date(g.dpa).toLocaleDateString('fr-FR')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {formData.type === 'postnatale' && bebes.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="bebeId">Bébé à suivre</Label>
+                <Select
+                  value={formData.bebeId}
+                  onValueChange={(v) => {
+                    updateField('bebeId', v)
+                    const bebe = bebes.find((b: any) => b.id === v)
+                    setSelectedBebe(bebe)
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionnez le bébé" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bebes.map((bebe: any) => (
+                      <SelectItem key={bebe.id} value={bebe.id}>
+                        {bebe.prenom || 'Bébé'} - Né(e) le {new Date(bebe.dateNaissance).toLocaleDateString('fr-FR')} ({bebe.sexe})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -554,6 +824,21 @@ export default function NewConsultationPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Historique et comparaison */}
+        {formData.patientId && !isEditMode && (
+          <HistoriqueConsultation
+            patientId={formData.patientId}
+            currentType={formData.type}
+            currentData={formData}
+            onReprendre={(data) => {
+              setFormData(prev => ({
+                ...prev,
+                ...data
+              }))
+            }}
+          />
+        )}
 
         {/* Calendar Recommendations Card */}
         {calendarRecommendations && currentSA && (
@@ -742,6 +1027,9 @@ export default function NewConsultationPage() {
                       size="sm"
                       variant="outline"
                       onClick={() => {
+                        // Ajouter la prescription à la conclusion
+                        addPrescription(ordonnance.nom)
+
                         // Naviguer vers création ordonnance avec le template pré-rempli
                         const consultationIdParam = formData.id ? `&consultationId=${formData.id}` : ''
                         window.open(
@@ -762,6 +1050,7 @@ export default function NewConsultationPage() {
         )}
 
         {/* Ordonnances suggérées - Gynécologie */}
+        {console.log('[Gyneco Render] gynecologyRecommendations:', gynecologyRecommendations)}
         {gynecologyRecommendations?.ordonnancesSuggerees && gynecologyRecommendations.ordonnancesSuggerees.length > 0 && (
           <Card className="border-pink-200 bg-pink-50">
             <CardHeader>
@@ -803,6 +1092,9 @@ export default function NewConsultationPage() {
                       size="sm"
                       variant="outline"
                       onClick={() => {
+                        // Ajouter la prescription à la conclusion
+                        addPrescription(ordonnance.nom)
+
                         // Naviguer vers création ordonnance avec le template pré-rempli
                         const consultationIdParam = formData.id ? `&consultationId=${formData.id}` : ''
                         window.open(
@@ -828,6 +1120,36 @@ export default function NewConsultationPage() {
           suggestions={suggestions}
           onApplySuggestion={applySuggestion}
         />
+
+        {/* Calculs automatiques et alertes cliniques */}
+        <AlertesCliniques
+          type={formData.type}
+          poids={formData.poids}
+          tensionSystolique={formData.tensionSystolique}
+          tensionDiastolique={formData.tensionDiastolique}
+          hauteurUterine={formData.hauteurUterine}
+          saTerm={formData.saTerm}
+          bdc={formData.bdc}
+          taillePatiente={patientData?.taille}
+          poidsInitial={grossesseData?.poidsInitial}
+          lastPoids={lastConsultation?.poids}
+          lastDate={lastConsultation?.date}
+        />
+
+        {/* Suggestions automatiques d'ordonnances */}
+        {formData.patientId && (formData.motif || formData.examenClinique || formData.conclusion) && (
+          <SuggestionsOrdonnances
+            patientId={formData.patientId}
+            grossesseId={formData.grossesseId}
+            type={formData.type}
+            motif={formData.motif}
+            examenClinique={formData.examenClinique}
+            conclusion={formData.conclusion}
+            saTerm={formData.saTerm}
+            tensionSystolique={formData.tensionSystolique}
+            tensionDiastolique={formData.tensionDiastolique}
+          />
+        )}
 
         <Card>
           <CardHeader>
@@ -894,38 +1216,28 @@ export default function NewConsultationPage() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="examenClinique">Examen clinique</Label>
-                <div className="flex gap-2">
-                  <TextTemplateSelector
-                    templates={EXAMEN_CLINIQUE_TEMPLATES}
-                    onSelect={(text) => setFormData(prev => ({
-                      ...prev,
-                      examenClinique: prev.examenClinique ? `${prev.examenClinique}\n\n${text}` : text
-                    }))}
-                    label="Phrases types"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={applyObservationTemplate}
-                    className="text-xs"
-                  >
-                    <FileText className="h-3 w-3 mr-1" />
-                    Template complet
-                  </Button>
-                </div>
-              </div>
-              <Textarea
-                id="examenClinique"
-                rows={12}
-                value={formData.examenClinique}
-                onChange={(e) => updateField('examenClinique', e.target.value)}
-                placeholder="Description de l'examen... (Utilisez 'Phrases types' pour des sections pré-écrites ou 'Template complet' pour tout pré-remplir)"
-                className="font-mono text-sm"
+              <Label htmlFor="examenClinique" className="text-base font-semibold mb-2">
+                Examen clinique
+              </Label>
+              <ExamenCliniqueAdapte
+                type={formData.type}
+                motif={formData.motif}
+                defaultValue={formData.examenClinique}
+                onChange={(text) => updateField('examenClinique', text)}
               />
             </div>
+
+            {formData.type === 'postnatale' && selectedBebe && (
+              <SuiviBebe
+                bebeId={selectedBebe.id}
+                sexe={selectedBebe.sexe as 'M' | 'F'}
+                dateNaissance={selectedBebe.dateNaissance}
+                onMeasurementsChange={(measurements) => {
+                  console.log('Mensurations mises à jour:', measurements)
+                }}
+                showPreviousMeasurements={true}
+              />
+            )}
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -938,7 +1250,7 @@ export default function NewConsultationPage() {
               </div>
               <Textarea
                 id="conclusion"
-                rows={3}
+                rows={10}
                 value={formData.conclusion}
                 onChange={(e) => updateField('conclusion', e.target.value)}
               />

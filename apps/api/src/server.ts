@@ -7,6 +7,7 @@ import patientsRoutes from './routes/patients.js'
 import grossessesRoutes from './routes/grossesses.js'
 import consultationsRoutes from './routes/consultations.js'
 import accouchementsRoutes from './routes/accouchements.js'
+import bebesRoutes from './routes/bebes.js'
 import invoicesRoutes from './routes/invoices.js'
 import protocolsRoutes from './routes/protocols.js'
 import chatRoutes from './routes/chat.js'
@@ -20,6 +21,8 @@ import documentTemplatesRoutes from './routes/documentTemplates.js'
 import practitionerRoutes from './routes/practitioner.js'
 import templatesRoutes from './routes/templates.js'
 import agendaRoutes from './routes/agenda.js'
+import ordonnanceTemplatesRoutes from './routes/ordonnance-templates.js'
+import calendarIntegrationRoutes from './routes/calendar-integration.js'
 import { auditMiddleware } from './middleware/audit.js'
 
 dotenv.config()
@@ -36,11 +39,28 @@ app.use(express.json({ limit: '400mb' }))
 app.use(express.urlencoded({ limit: '400mb', extended: true }))
 app.use(cookieParser())
 
+// Cache control middleware for API responses
+app.use('/api', (req, res, next) => {
+  // Enable caching for GET requests only
+  if (req.method === 'GET') {
+    // Cache for 5 minutes for most GET requests
+    res.set('Cache-Control', 'private, max-age=300')
+  } else {
+    // No cache for mutations
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+  }
+  next()
+})
+
 // Audit middleware (pour conformité HDS/RGPD)
 app.use(auditMiddleware)
 
-// Serve uploaded files
-app.use('/uploads', express.static('./uploads'))
+// Serve uploaded files with caching headers
+app.use('/uploads', express.static('./uploads', {
+  maxAge: '1y',
+  immutable: true,
+  etag: true,
+}))
 
 // Health check
 app.get('/health', (req, res) => {
@@ -99,6 +119,7 @@ app.use('/api/patients', patientsRoutes)
 app.use('/api/grossesses', grossessesRoutes)
 app.use('/api/consultations', consultationsRoutes)
 app.use('/api/accouchements', accouchementsRoutes)
+app.use('/api/bebes', bebesRoutes)
 app.use('/api/invoices', invoicesRoutes)
 app.use('/api/protocols', protocolsRoutes)
 app.use('/api/chat', chatRoutes)
@@ -111,6 +132,8 @@ app.use('/api/document-templates', documentTemplatesRoutes)
 app.use('/api/practitioner', practitionerRoutes)
 app.use('/api/templates', templatesRoutes)
 app.use('/api/agenda', agendaRoutes)
+app.use('/api/ordonnance-templates', ordonnanceTemplatesRoutes)
+app.use('/api/calendar-integration', calendarIntegrationRoutes)
 
 // Global error handler for Multer errors
 app.use((error: any, req: any, res: any, next: any) => {
