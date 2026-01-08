@@ -50,6 +50,13 @@
       "when": 1767561325689,
       "tag": "0006_equal_maverick",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1767887074408,
+      "tag": "0007_dizzy_butterfly",
+      "breakpoints": true
     }
   ]
 }

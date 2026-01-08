@@ -1,0 +1,541 @@
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
+import {
+  Check,
+  X,
+  AlertCircle,
+  Edit,
+  Droplet,
+  Syringe,
+  TestTube,
+  Activity,
+  Pill
+} from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog'
+import { Label } from './ui/label'
+import { Input } from './ui/input'
+import { Checkbox } from './ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+
+interface RecapGrossesseProps {
+  grossesseId: string
+  patientId: string
+}
+
+interface RecapData {
+  // Sérologies
+  groupeSanguin?: string
+  rhesus?: string
+  toxoplasmose?: 'immune' | 'non_immune' | 'nc'
+  rubeole?: 'immune' | 'non_immune' | 'nc'
+  syphilis?: 'negatif' | 'positif' | 'nc'
+  vhb?: 'negatif' | 'positif' | 'nc'
+  vhc?: 'negatif' | 'positif' | 'nc'
+  vih?: 'negatif' | 'positif' | 'nc'
+
+  // Examens
+  gaj?: string // Glycémie à jeun
+  hgpo?: 'normal' | 'patho' | 'nc'
+  echoT1?: boolean
+  echoT2?: boolean
+  echoT3?: boolean
+  rai?: 'negatif' | 'positif' | 'nc'
+  nfs6mois?: 'normal' | 'anemie' | 'nc'
+
+  // À cocher
+  vitD?: boolean
+  vaccinCoqueluche?: boolean
+  pvStreptoB?: 'negatif' | 'positif' | 'nc'
+}
+
+export function RecapGrossesse({ grossesseId, patientId }: RecapGrossesseProps) {
+  const [data, setData] = useState<RecapData>({})
+  const [isLoading, setIsLoading] = useState(true)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editData, setEditData] = useState<RecapData>({})
+
+  useEffect(() => {
+    fetchData()
+  }, [grossesseId, patientId])
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true)
+      // Fetch from patient and grossesse data
+      const [patientRes, grossesseRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL}/api/patients/${patientId}`, {
+          credentials: 'include'
+        }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/grossesses/${grossesseId}`, {
+          credentials: 'include'
+        })
+      ])
+
+      const patientData = await patientRes.json()
+      const grossesseData = await grossesseRes.json()
+
+      if (patientData.success && grossesseData.success) {
+        const patient = patientData.patient
+        const grossesse = grossesseData.grossesse
+
+        setData({
+          groupeSanguin: patient.bloodType,
+          rhesus: patient.rhesus,
+          // Les autres données viendront des examens prénataux
+          // Pour l'instant on les met depuis la grossesse si elles existent
+          ...grossesse.recapMedical,
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching recap data:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      // Save to grossesse
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/grossesses/${grossesseId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            recapMedical: editData
+          })
+        }
+      )
+
+      if (res.ok) {
+        setData(editData)
+        setIsEditOpen(false)
+        alert('Récapitulatif mis à jour !')
+      }
+    } catch (error) {
+      console.error('Error saving recap:', error)
+      alert('Erreur lors de la sauvegarde')
+    }
+  }
+
+  const openEdit = () => {
+    setEditData({ ...data })
+    setIsEditOpen(true)
+  }
+
+  const getStatusBadge = (
+    value: string | boolean | undefined,
+    type: 'serologie' | 'exam' | 'checkbox'
+  ) => {
+    if (type === 'checkbox') {
+      return value ? (
+        <Badge className="bg-green-100 text-green-800 border-green-300">
+          <Check className="h-3 w-3 mr-1" />
+          Fait
+        </Badge>
+      ) : (
+        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          À faire
+        </Badge>
+      )
+    }
+
+    if (type === 'exam') {
+      if (value === true) {
+        return <Badge className="bg-green-100 text-green-800 border-green-300">
+          <Check className="h-3 w-3 mr-1" />
+          Réalisée
+        </Badge>
+      }
+      return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300">
+        <AlertCircle className="h-3 w-3 mr-1" />
+        À faire
+      </Badge>
+    }
+
+    // Sérologie
+    if (!value || value === 'nc') {
+      return (
+        <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-300">
+          <X className="h-3 w-3 mr-1" />
+          Non renseigné
+        </Badge>
+      )
+    }
+
+    if (value === 'immune' || value === 'negatif' || value === 'normal') {
+      return (
+        <Badge className="bg-green-100 text-green-800 border-green-300">
+          <Check className="h-3 w-3 mr-1" />
+          {value === 'immune' ? 'Immune' : value === 'negatif' ? 'Négatif' : 'Normal'}
+        </Badge>
+      )
+    }
+
+    if (value === 'non_immune' || value === 'positif' || value === 'anemie' || value === 'patho') {
+      return (
+        <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-300">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          {value === 'non_immune' ? 'Non immune' :
+           value === 'positif' ? 'Positif' :
+           value === 'anemie' ? 'Anémie' : 'Pathologique'}
+        </Badge>
+      )
+    }
+
+    return <Badge variant="outline">{value}</Badge>
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center text-slate-500">
+          Chargement...
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <>
+      <Card className="border-pink-200 bg-pink-50/30">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Activity className="h-4 w-4 text-pink-600" />
+              Récapitulatif Grossesse
+            </CardTitle>
+            <Button size="sm" variant="outline" onClick={openEdit}>
+              <Edit className="h-3 w-3 mr-1" />
+              Modifier
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 text-xs">
+          {/* Groupe sanguin */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1 text-slate-600">
+                <Droplet className="h-3 w-3" />
+                Groupe
+              </span>
+              {data.groupeSanguin ? (
+                <Badge variant="outline" className="font-mono">
+                  {data.groupeSanguin}
+                </Badge>
+              ) : (
+                getStatusBadge(undefined, 'serologie')
+              )}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">Rhésus</span>
+              {data.rhesus ? (
+                <Badge
+                  variant="outline"
+                  className={data.rhesus === 'negatif' ? 'bg-orange-50 border-orange-300' : ''}
+                >
+                  {data.rhesus}
+                </Badge>
+              ) : (
+                getStatusBadge(undefined, 'serologie')
+              )}
+            </div>
+          </div>
+
+          {/* Sérologies */}
+          <div className="border-t pt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">Toxoplasmose</span>
+              {getStatusBadge(data.toxoplasmose, 'serologie')}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">Rubéole</span>
+              {getStatusBadge(data.rubeole, 'serologie')}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">Syphilis</span>
+              {getStatusBadge(data.syphilis, 'serologie')}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">VHB</span>
+              {getStatusBadge(data.vhb, 'serologie')}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">VHC</span>
+              {getStatusBadge(data.vhc, 'serologie')}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">VIH</span>
+              {getStatusBadge(data.vih, 'serologie')}
+            </div>
+          </div>
+
+          {/* Examens */}
+          <div className="border-t pt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">GàJ</span>
+              {data.gaj ? (
+                <Badge variant="outline" className="font-mono">{data.gaj} g/L</Badge>
+              ) : (
+                getStatusBadge(undefined, 'serologie')
+              )}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">HGPO</span>
+              {getStatusBadge(data.hgpo, 'serologie')}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">RAI</span>
+              {getStatusBadge(data.rai, 'serologie')}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">NFS 6ème mois</span>
+              {getStatusBadge(data.nfs6mois, 'serologie')}
+            </div>
+          </div>
+
+          {/* Échographies */}
+          <div className="border-t pt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">Écho T1</span>
+              {getStatusBadge(data.echoT1, 'exam')}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">Écho T2</span>
+              {getStatusBadge(data.echoT2, 'exam')}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">Écho T3</span>
+              {getStatusBadge(data.echoT3, 'exam')}
+            </div>
+          </div>
+
+          {/* À cocher */}
+          <div className="border-t pt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1 text-slate-600">
+                <Pill className="h-3 w-3" />
+                Vit D
+              </span>
+              {getStatusBadge(data.vitD, 'checkbox')}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1 text-slate-600">
+                <Syringe className="h-3 w-3" />
+                Vaccin coqueluche
+              </span>
+              {getStatusBadge(data.vaccinCoqueluche, 'checkbox')}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1 text-slate-600">
+                <TestTube className="h-3 w-3" />
+                PV Strepto B
+              </span>
+              {getStatusBadge(data.pvStreptoB, 'serologie')}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dialog d'édition */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier le récapitulatif grossesse</DialogTitle>
+            <DialogDescription>
+              Mettez à jour les informations clés de la grossesse
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Groupe sanguin */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Groupe sanguin</Label>
+                <Input
+                  value={editData.groupeSanguin || ''}
+                  onChange={(e) => setEditData({ ...editData, groupeSanguin: e.target.value })}
+                  placeholder="A, B, AB, O"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Rhésus</Label>
+                <Select
+                  value={editData.rhesus || ''}
+                  onValueChange={(v) => setEditData({ ...editData, rhesus: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="positif">Positif</SelectItem>
+                    <SelectItem value="negatif">Négatif</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Sérologies */}
+            <div className="space-y-4 border-t pt-4">
+              <h4 className="font-medium text-sm">Sérologies</h4>
+
+              {[
+                { key: 'toxoplasmose', label: 'Toxoplasmose' },
+                { key: 'rubeole', label: 'Rubéole' },
+                { key: 'syphilis', label: 'Syphilis' },
+                { key: 'vhb', label: 'VHB' },
+                { key: 'vhc', label: 'VHC' },
+                { key: 'vih', label: 'VIH' },
+              ].map((item) => (
+                <div key={item.key} className="grid grid-cols-3 gap-2 items-center">
+                  <Label className="text-xs">{item.label}</Label>
+                  <Select
+                    value={(editData as any)[item.key] || 'nc'}
+                    onValueChange={(v) => setEditData({ ...editData, [item.key]: v })}
+                  >
+                    <SelectTrigger className="col-span-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nc">Non renseigné</SelectItem>
+                      {item.key === 'toxoplasmose' || item.key === 'rubeole' ? (
+                        <>
+                          <SelectItem value="immune">Immune</SelectItem>
+                          <SelectItem value="non_immune">Non immune</SelectItem>
+                        </>
+                      ) : (
+                        <>
+                          <SelectItem value="negatif">Négatif</SelectItem>
+                          <SelectItem value="positif">Positif</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+
+            {/* Examens */}
+            <div className="space-y-4 border-t pt-4">
+              <h4 className="font-medium text-sm">Examens</h4>
+
+              <div className="grid grid-cols-3 gap-2 items-center">
+                <Label className="text-xs">GàJ</Label>
+                <Input
+                  className="col-span-2"
+                  value={editData.gaj || ''}
+                  onChange={(e) => setEditData({ ...editData, gaj: e.target.value })}
+                  placeholder="0.85"
+                />
+              </div>
+
+              {[
+                { key: 'hgpo', label: 'HGPO' },
+                { key: 'rai', label: 'RAI' },
+                { key: 'nfs6mois', label: 'NFS 6ème mois' },
+                { key: 'pvStreptoB', label: 'PV Strepto B' },
+              ].map((item) => (
+                <div key={item.key} className="grid grid-cols-3 gap-2 items-center">
+                  <Label className="text-xs">{item.label}</Label>
+                  <Select
+                    value={(editData as any)[item.key] || 'nc'}
+                    onValueChange={(v) => setEditData({ ...editData, [item.key]: v })}
+                  >
+                    <SelectTrigger className="col-span-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nc">Non renseigné</SelectItem>
+                      {item.key === 'hgpo' ? (
+                        <>
+                          <SelectItem value="normal">Normal</SelectItem>
+                          <SelectItem value="patho">Pathologique</SelectItem>
+                        </>
+                      ) : item.key === 'nfs6mois' ? (
+                        <>
+                          <SelectItem value="normal">Normal</SelectItem>
+                          <SelectItem value="anemie">Anémie</SelectItem>
+                        </>
+                      ) : (
+                        <>
+                          <SelectItem value="negatif">Négatif</SelectItem>
+                          <SelectItem value="positif">Positif</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+
+            {/* Échographies */}
+            <div className="space-y-4 border-t pt-4">
+              <h4 className="font-medium text-sm">Échographies</h4>
+
+              {[
+                { key: 'echoT1', label: 'Écho T1' },
+                { key: 'echoT2', label: 'Écho T2' },
+                { key: 'echoT3', label: 'Écho T3' },
+              ].map((item) => (
+                <div key={item.key} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={item.key}
+                    checked={(editData as any)[item.key] || false}
+                    onCheckedChange={(checked) =>
+                      setEditData({ ...editData, [item.key]: checked })
+                    }
+                  />
+                  <Label htmlFor={item.key} className="text-sm cursor-pointer">
+                    {item.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+
+            {/* À cocher */}
+            <div className="space-y-4 border-t pt-4">
+              <h4 className="font-medium text-sm">Prévention</h4>
+
+              {[
+                { key: 'vitD', label: 'Vitamine D prescrite' },
+                { key: 'vaccinCoqueluche', label: 'Vaccin coqueluche fait' },
+              ].map((item) => (
+                <div key={item.key} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={item.key}
+                    checked={(editData as any)[item.key] || false}
+                    onCheckedChange={(checked) =>
+                      setEditData({ ...editData, [item.key]: checked })
+                    }
+                  />
+                  <Label htmlFor={item.key} className="text-sm cursor-pointer">
+                    {item.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSave}>
+              Enregistrer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}

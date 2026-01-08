@@ -27,6 +27,8 @@ import {
 } from 'lucide-react'
 import { formatDate, calculateSA } from '../../lib/utils'
 import { AccouchementForm } from '../../components/AccouchementForm'
+import { CalendrierGrossesse } from '../../components/CalendrierGrossesse'
+import { RecapGrossesse } from '../../components/RecapGrossesse'
 
 export default function GrosesseDetailPage() {
   const { id } = useParams()
@@ -35,9 +37,11 @@ export default function GrosesseDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [sa, setSa] = useState<any>(null)
   const [showAccouchementDialog, setShowAccouchementDialog] = useState(false)
+  const [calendrierData, setCalendrierData] = useState<any>(null)
 
   useEffect(() => {
     fetchGrossesse()
+    fetchCalendrier()
   }, [id])
 
   const fetchGrossesse = async () => {
@@ -58,6 +62,21 @@ export default function GrosesseDetailPage() {
       navigate('/grossesses')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchCalendrier = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/grossesses/${id}/calendrier`, {
+        credentials: 'include'
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setCalendrierData(data)
+      }
+    } catch (error) {
+      console.error('Error fetching calendrier:', error)
     }
   }
 
@@ -187,6 +206,11 @@ export default function GrosesseDetailPage() {
         </Card>
 
         <div className="space-y-4">
+          <RecapGrossesse
+            grossesseId={id!}
+            patientId={grossesse.patientId}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Informations</CardTitle>
@@ -205,12 +229,31 @@ export default function GrosesseDetailPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="consultations">
+      <Tabs defaultValue="calendrier">
         <TabsList>
+          <TabsTrigger value="calendrier">Calendrier</TabsTrigger>
           <TabsTrigger value="consultations">Consultations</TabsTrigger>
           <TabsTrigger value="examens">Examens</TabsTrigger>
           <TabsTrigger value="bebes">Bébés</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="calendrier">
+          {calendrierData && grossesse ? (
+            <CalendrierGrossesse
+              grossesseId={id!}
+              currentSA={calendrierData.currentSA}
+              ddr={grossesse.ddr}
+              dpa={grossesse.dpa}
+              calendrierEvents={calendrierData.calendrier || []}
+            />
+          ) : (
+            <Card>
+              <CardContent className="py-12">
+                <p className="text-center text-slate-600">Chargement du calendrier...</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
 
         <TabsContent value="consultations">
           <Card>

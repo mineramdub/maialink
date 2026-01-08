@@ -1,0 +1,1 @@
+ALTER TABLE "grossesses" ADD COLUMN "recap_medical" jsonb;

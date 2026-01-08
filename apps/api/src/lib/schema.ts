@@ -191,6 +191,28 @@ export const grossesses = pgTable('grossesses', {
   // Facteurs de risque
   facteursRisque: jsonb('facteurs_risque').$type<string[]>(),
 
+  // Récapitulatif médical grossesse
+  recapMedical: jsonb('recap_medical').$type<{
+    groupeSanguin?: string
+    rhesus?: string
+    toxoplasmose?: string
+    rubeole?: string
+    syphilis?: string
+    vhb?: string
+    vhc?: string
+    vih?: string
+    gaj?: string
+    hgpo?: string
+    echoT1?: boolean
+    echoT2?: boolean
+    echoT3?: boolean
+    rai?: string
+    nfs6mois?: string
+    vitD?: boolean
+    vaccinCoqueluche?: boolean
+    pvStreptoB?: string
+  }>(),
+
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
