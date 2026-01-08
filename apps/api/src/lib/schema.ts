@@ -1036,6 +1036,118 @@ export const calendarIntegrationsRelations = relations(calendarIntegrations, ({ 
   }),
 }))
 
+// Parcours de rééducation
+export const parcoursReeducation = pgTable('parcours_reeducation', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  // Informations générales
+  dateDebut: date('date_debut').notNull(),
+  dateFin: date('date_fin'),
+  status: text('status').notNull().default('en_cours'), // 'en_cours', 'termine', 'abandonne'
+  motif: text('motif').notNull(), // 'post_partum', 'incontinence', 'autre'
+
+  // Nombre de séances
+  nombreSeancesPrevues: integer('nombre_seances_prevues').default(5),
+  nombreSeancesRealisees: integer('nombre_seances_realisees').default(0),
+
+  // Notes générales
+  notes: text('notes'),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// Séances de rééducation
+export const seancesReeducation = pgTable('seances_reeducation', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  parcoursId: uuid('parcours_id').notNull().references(() => parcoursReeducation.id, { onDelete: 'cascade' }),
+  patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  // Informations séance
+  numeroSeance: integer('numero_seance').notNull(), // 1, 2, 3, 4, 5
+  date: date('date'),
+  status: text('status').notNull().default('planifiee'), // 'planifiee', 'realisee', 'annulee'
+
+  // Consultation 1 - Bilan initial
+  // Interrogatoire
+  atcdMedicaux: text('atcd_medicaux'),
+  atcdChirurgicaux: text('atcd_chirurgicaux'),
+  facteursRisque: jsonb('facteurs_risque').$type<string[]>(),
+  symptomes: text('symptomes'),
+
+  // Testing périnéal
+  testingScore: integer('testing_score'), // Score 0-5
+  testingNotes: text('testing_notes'),
+
+  // Examen clinique
+  examenClinique: text('examen_clinique'),
+
+  // Objectifs
+  objectifs: text('objectifs'),
+
+  // Consultations 2-5 - Séances d'exercices
+  // Exercices périnéaux
+  exercicesPerineaux: jsonb('exercices_perineaux').$type<{
+    nom: string
+    series?: number
+    repetitions?: number
+    duree?: string
+    notes?: string
+  }[]>(),
+
+  // Exercices abdominaux
+  exercicesAbdominaux: jsonb('exercices_abdominaux').$type<{
+    nom: string
+    series?: number
+    repetitions?: number
+    duree?: string
+    notes?: string
+  }[]>(),
+
+  // Testing de contrôle (évolution)
+  testingControle: integer('testing_controle'), // Score lors des séances suivantes
+
+  // Notes de séance
+  notesSeance: text('notes_seance'),
+
+  // Commentaire pour la prochaine séance
+  commentairePourProchaine: text('commentaire_pour_prochaine'),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// Relations
+export const parcoursReeducationRelations = relations(parcoursReeducation, ({ one, many }) => ({
+  patient: one(patients, {
+    fields: [parcoursReeducation.patientId],
+    references: [patients.id],
+  }),
+  user: one(users, {
+    fields: [parcoursReeducation.userId],
+    references: [users.id],
+  }),
+  seances: many(seancesReeducation),
+}))
+
+export const seancesReeducationRelations = relations(seancesReeducation, ({ one }) => ({
+  parcours: one(parcoursReeducation, {
+    fields: [seancesReeducation.parcoursId],
+    references: [parcoursReeducation.id],
+  }),
+  patient: one(patients, {
+    fields: [seancesReeducation.patientId],
+    references: [patients.id],
+  }),
+  user: one(users, {
+    fields: [seancesReeducation.userId],
+    references: [users.id],
+  }),
+}))
+
 // Types exports
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -1057,3 +1169,7 @@ export type OrdonnanceTemplate = typeof ordonnanceTemplates.$inferSelect
 export type NewOrdonnanceTemplate = typeof ordonnanceTemplates.$inferInsert
 export type CalendarIntegration = typeof calendarIntegrations.$inferSelect
 export type NewCalendarIntegration = typeof calendarIntegrations.$inferInsert
+export type ParcoursReeducation = typeof parcoursReeducation.$inferSelect
+export type NewParcoursReeducation = typeof parcoursReeducation.$inferInsert
+export type SeanceReeducation = typeof seancesReeducation.$inferSelect
+export type NewSeanceReeducation = typeof seancesReeducation.$inferInsert

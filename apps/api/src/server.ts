@@ -23,6 +23,7 @@ import templatesRoutes from './routes/templates.js'
 import agendaRoutes from './routes/agenda.js'
 import ordonnanceTemplatesRoutes from './routes/ordonnance-templates.js'
 import calendarIntegrationRoutes from './routes/calendar-integration.js'
+import reeducationRoutes from './routes/reeducation.js'
 import { auditMiddleware } from './middleware/audit.js'
 
 dotenv.config()
@@ -134,6 +135,7 @@ app.use('/api/templates', templatesRoutes)
 app.use('/api/agenda', agendaRoutes)
 app.use('/api/ordonnance-templates', ordonnanceTemplatesRoutes)
 app.use('/api/calendar-integration', calendarIntegrationRoutes)
+app.use('/api/reeducation', reeducationRoutes)
 
 // Global error handler for Multer errors
 app.use((error: any, req: any, res: any, next: any) => {

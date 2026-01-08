@@ -1,48 +1,70 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { DashboardLayout } from './layouts/DashboardLayout'
 import { AuthLayout } from './layouts/AuthLayout'
+import { Loader2 } from 'lucide-react'
 
-// Pages
-import LoginPage from './pages/auth/LoginPage'
-import DashboardPage from './pages/dashboard/DashboardPage'
-import PatientsPage from './pages/patients/PatientsPage'
-import NewPatientPage from './pages/patients/NewPatientPage'
-import PatientDetailPage from './pages/patients/PatientDetailPage'
-import PatientEditPage from './pages/patients/PatientEditPage'
-import GrossessesPage from './pages/grossesses/GrossessesPage'
-import NewGrossessePage from './pages/grossesses/NewGrossessePage'
-import GrosesseDetailPage from './pages/grossesses/GrosesseDetailPage'
-import ConsultationsPage from './pages/consultations/ConsultationsPage'
-import NewConsultationPage from './pages/consultations/NewConsultationPage'
-import ConsultationDetailPage from './pages/consultations/ConsultationDetailPage'
-import FacturationPage from './pages/facturation/FacturationPage'
-import NewFacturationPage from './pages/facturation/NewFacturationPage'
-import FacturationDetailPage from './pages/facturation/FacturationDetailPage'
-import ProtocolesPage from './pages/protocoles/ProtocolesPage'
-import ProtocolDetailPage from './pages/protocoles/ProtocolDetailPage'
-import ProtocolUploadWizard from './pages/protocoles/ProtocolUploadWizard'
-import DocumentsPage from './pages/documents/DocumentsPage'
-import DocumentGeneratorPage from './pages/documents/DocumentGeneratorPage'
-import AgendaPage from './pages/agenda/AgendaPage'
-import StatistiquesPage from './pages/statistiques/StatistiquesPage'
-import ParametresPage from './pages/parametres/ParametresPage'
-import PractitionerSettingsPage from './pages/parametres/PractitionerSettingsPage'
-import GynecologiePage from './pages/gynecologie/GynecologiePage'
-import ReeducationPage from './pages/reeducation/ReeducationPage'
-import OrdonnanceDetailPage from './pages/ordonnances/OrdonnanceDetailPage'
-import NewOrdonnancePage from './pages/ordonnances/NewOrdonnancePage'
-import RoulettePage from './pages/roulette/RoulettePage'
-import AlertesPage from './pages/alertes/AlertesPage'
-import TemplatesPage from './pages/templates/TemplatesPage'
-import TemplateEditorPage from './pages/templates/TemplateEditorPage'
+// Loading fallback component
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+  </div>
+)
+
+// Lazy load pages for better performance
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
+const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'))
+const PatientsPage = lazy(() => import('./pages/patients/PatientsPage'))
+const NewPatientPage = lazy(() => import('./pages/patients/NewPatientPage'))
+const PatientDetailPage = lazy(() => import('./pages/patients/PatientDetailPage'))
+const PatientEditPage = lazy(() => import('./pages/patients/PatientEditPage'))
+const GrossessesPage = lazy(() => import('./pages/grossesses/GrossessesPage'))
+const NewGrossessePage = lazy(() => import('./pages/grossesses/NewGrossessePage'))
+const GrosesseDetailPage = lazy(() => import('./pages/grossesses/GrosesseDetailPage'))
+const ConsultationsPage = lazy(() => import('./pages/consultations/ConsultationsPage'))
+const NewConsultationPage = lazy(() => import('./pages/consultations/NewConsultationPage'))
+const ConsultationDetailPage = lazy(() => import('./pages/consultations/ConsultationDetailPage'))
+const FacturationPage = lazy(() => import('./pages/facturation/FacturationPage'))
+const NewFacturationPage = lazy(() => import('./pages/facturation/NewFacturationPage'))
+const FacturationDetailPage = lazy(() => import('./pages/facturation/FacturationDetailPage'))
+const ProtocolesPage = lazy(() => import('./pages/protocoles/ProtocolesPage'))
+const ProtocolDetailPage = lazy(() => import('./pages/protocoles/ProtocolDetailPage'))
+const ProtocolUploadWizard = lazy(() => import('./pages/protocoles/ProtocolUploadWizard'))
+const DocumentsPage = lazy(() => import('./pages/documents/DocumentsPage'))
+const DocumentGeneratorPage = lazy(() => import('./pages/documents/DocumentGeneratorPage'))
+const AgendaPage = lazy(() => import('./pages/agenda/AgendaPage'))
+const StatistiquesPage = lazy(() => import('./pages/statistiques/StatistiquesPage'))
+const ParametresPage = lazy(() => import('./pages/parametres/ParametresPage'))
+const PractitionerSettingsPage = lazy(() => import('./pages/parametres/PractitionerSettingsPage'))
+const GynecologiePage = lazy(() => import('./pages/gynecologie/GynecologiePage'))
+const ReeducationPage = lazy(() => import('./pages/reeducation/ReeducationPage'))
+const NewReeducationPage = lazy(() => import('./pages/reeducation/NewReeducationPage'))
+const ReeducationDetailPage = lazy(() => import('./pages/reeducation/ReeducationDetailPage'))
+const SeanceEditPage = lazy(() => import('./pages/reeducation/SeanceEditPage'))
+const OrdonnanceDetailPage = lazy(() => import('./pages/ordonnances/OrdonnanceDetailPage'))
+const NewOrdonnancePage = lazy(() => import('./pages/ordonnances/NewOrdonnancePage'))
+const RoulettePage = lazy(() => import('./pages/roulette/RoulettePage'))
+const AlertesPage = lazy(() => import('./pages/alertes/AlertesPage'))
+const TemplatesPage = lazy(() => import('./pages/templates/TemplatesPage'))
+const TemplateEditorPage = lazy(() => import('./pages/templates/TemplateEditorPage'))
+const OrdonnanceTemplatesPage = lazy(() => import('./pages/admin/OrdonnanceTemplatesPage').then(m => ({ default: m.OrdonnanceTemplatesPage })))
+
+// Wrapper component to add Suspense to lazy loaded routes
+const withSuspense = (Component: React.LazyExoticComponent<any>) => (
+  <Suspense fallback={<PageLoader />}>
+    <Component />
+  </Suspense>
+)
 
 export const router = createBrowserRouter([
   // Public routes
   {
     element: <AuthLayout />,
     children: [
-      { path: '/login', element: <LoginPage /> },
+      { path: '/login', element: withSuspense(LoginPage) },
+      { path: '/register', element: withSuspense(RegisterPage) },
     ]
   },
 
@@ -54,39 +76,43 @@ export const router = createBrowserRouter([
         element: <DashboardLayout />,
         children: [
           { path: '/', element: <Navigate to="/dashboard" replace /> },
-          { path: '/dashboard', element: <DashboardPage /> },
-          { path: '/patients', element: <PatientsPage /> },
-          { path: '/patients/new', element: <NewPatientPage /> },
-          { path: '/patients/:id', element: <PatientDetailPage /> },
-          { path: '/patients/:id/edit', element: <PatientEditPage /> },
-          { path: '/grossesses', element: <GrossessesPage /> },
-          { path: '/grossesses/new', element: <NewGrossessePage /> },
-          { path: '/grossesses/:id', element: <GrosesseDetailPage /> },
-          { path: '/consultations', element: <ConsultationsPage /> },
-          { path: '/consultations/new', element: <NewConsultationPage /> },
-          { path: '/consultations/:id', element: <ConsultationDetailPage /> },
-          { path: '/reeducation', element: <ReeducationPage /> },
-          { path: '/reeducation/new', element: <div>Reeducation New - TODO</div> },
-          { path: '/gynecologie', element: <GynecologiePage /> },
-          { path: '/documents', element: <DocumentsPage /> },
-          { path: '/documents/generate', element: <DocumentGeneratorPage /> },
-          { path: '/facturation', element: <FacturationPage /> },
-          { path: '/facturation/new', element: <NewFacturationPage /> },
-          { path: '/facturation/:id', element: <FacturationDetailPage /> },
-          { path: '/agenda', element: <AgendaPage /> },
-          { path: '/statistiques', element: <StatistiquesPage /> },
-          { path: '/protocoles', element: <ProtocolesPage /> },
-          { path: '/protocoles/new', element: <ProtocolUploadWizard /> },
-          { path: '/protocoles/:id', element: <ProtocolDetailPage /> },
-          { path: '/alertes', element: <AlertesPage /> },
-          { path: '/ordonnances/new', element: <NewOrdonnancePage /> },
-          { path: '/ordonnances/:id', element: <OrdonnanceDetailPage /> },
-          { path: '/roulette', element: <RoulettePage /> },
-          { path: '/templates', element: <TemplatesPage /> },
-          { path: '/templates/new', element: <TemplateEditorPage /> },
-          { path: '/templates/:id/edit', element: <TemplateEditorPage /> },
-          { path: '/parametres', element: <ParametresPage /> },
-          { path: '/parametres/praticien', element: <PractitionerSettingsPage /> },
+          { path: '/dashboard', element: withSuspense(DashboardPage) },
+          { path: '/patients', element: withSuspense(PatientsPage) },
+          { path: '/patients/new', element: withSuspense(NewPatientPage) },
+          { path: '/patients/:id', element: withSuspense(PatientDetailPage) },
+          { path: '/patients/:id/edit', element: withSuspense(PatientEditPage) },
+          { path: '/grossesses', element: withSuspense(GrossessesPage) },
+          { path: '/grossesses/new', element: withSuspense(NewGrossessePage) },
+          { path: '/grossesses/:id', element: withSuspense(GrosesseDetailPage) },
+          { path: '/consultations', element: withSuspense(ConsultationsPage) },
+          { path: '/consultations/new', element: withSuspense(NewConsultationPage) },
+          { path: '/consultations/edit/:id', element: withSuspense(NewConsultationPage) },
+          { path: '/consultations/:id', element: withSuspense(ConsultationDetailPage) },
+          { path: '/reeducation', element: withSuspense(ReeducationPage) },
+          { path: '/reeducation/new', element: withSuspense(NewReeducationPage) },
+          { path: '/reeducation/:id', element: withSuspense(ReeducationDetailPage) },
+          { path: '/reeducation/:parcoursId/seance/:seanceId', element: withSuspense(SeanceEditPage) },
+          { path: '/gynecologie', element: withSuspense(GynecologiePage) },
+          { path: '/documents', element: withSuspense(DocumentsPage) },
+          { path: '/documents/generate', element: withSuspense(DocumentGeneratorPage) },
+          { path: '/facturation', element: withSuspense(FacturationPage) },
+          { path: '/facturation/new', element: withSuspense(NewFacturationPage) },
+          { path: '/facturation/:id', element: withSuspense(FacturationDetailPage) },
+          { path: '/agenda', element: withSuspense(AgendaPage) },
+          { path: '/statistiques', element: withSuspense(StatistiquesPage) },
+          { path: '/protocoles', element: withSuspense(ProtocolesPage) },
+          { path: '/protocoles/new', element: withSuspense(ProtocolUploadWizard) },
+          { path: '/protocoles/:id', element: withSuspense(ProtocolDetailPage) },
+          { path: '/alertes', element: withSuspense(AlertesPage) },
+          { path: '/ordonnances/new', element: withSuspense(NewOrdonnancePage) },
+          { path: '/ordonnances/:id', element: withSuspense(OrdonnanceDetailPage) },
+          { path: '/roulette', element: withSuspense(RoulettePage) },
+          { path: '/templates', element: withSuspense(TemplatesPage) },
+          { path: '/templates/new', element: withSuspense(TemplateEditorPage) },
+          { path: '/templates/:id/edit', element: withSuspense(TemplateEditorPage) },
+          { path: '/admin/ordonnance-templates', element: withSuspense(OrdonnanceTemplatesPage) },
+          { path: '/parametres', element: withSuspense(ParametresPage) },
+          { path: '/parametres/praticien', element: withSuspense(PractitionerSettingsPage) },
         ]
       }
     ]

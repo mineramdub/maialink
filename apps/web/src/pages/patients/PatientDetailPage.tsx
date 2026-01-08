@@ -30,6 +30,7 @@ import { formatDate, calculateAge } from '../../lib/utils'
 import { useAppointments } from '../../hooks/useAppointments'
 import { NewAppointmentDialog } from '../../components/NewAppointmentDialog'
 import { CalendrierGrossesse } from '../../components/CalendrierGrossesse'
+import { ReeducationTab } from '../../components/ReeducationTab'
 import { format, parseISO, isFuture, isPast } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -443,6 +444,10 @@ export default function PatientDetailPage() {
             <Stethoscope className="h-4 w-4 mr-2" />
             Consultations
           </TabsTrigger>
+          <TabsTrigger value="reeducation">
+            <Activity className="h-4 w-4 mr-2" />
+            Rééducation
+          </TabsTrigger>
           <TabsTrigger value="appointments">
             <Calendar className="h-4 w-4 mr-2" />
             Rendez-vous
@@ -543,6 +548,10 @@ export default function PatientDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="reeducation">
+          <ReeducationTab patientId={id!} />
         </TabsContent>
 
         <TabsContent value="appointments">
