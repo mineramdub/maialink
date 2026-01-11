@@ -18,6 +18,8 @@ import {
   BookOpen,
   Bell,
   FileStack,
+  HeartPulse,
+  Eye,
 } from 'lucide-react'
 
 interface NavigationItem {
@@ -64,6 +66,7 @@ export function Sidebar() {
       items: [
         { name: 'Patientes', href: '/patients', icon: Users },
         { name: 'Grossesses', href: '/grossesses', icon: Baby },
+        { name: 'Surveillance', href: '/surveillance', icon: Eye },
         { name: 'Alertes', href: '/alertes', icon: Bell, badge: alertCount }
       ]
     },
@@ -72,7 +75,7 @@ export function Sidebar() {
       items: [
         { name: 'Agenda', href: '/agenda', icon: Calendar },
         { name: 'Consultations', href: '/consultations', icon: Stethoscope },
-        { name: 'Rééducation', href: '/reeducation', icon: Activity },
+        { name: 'Orga Rappels', href: '/suivi-gyneco', icon: HeartPulse },
         { name: 'Gynécologie', href: '/gynecologie', icon: ClipboardList }
       ]
     },
@@ -96,14 +99,17 @@ export function Sidebar() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
   return (
-    <aside className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
-      <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-slate-200 bg-white px-6 pb-4">
+    <aside className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+      <div className="flex grow flex-col gap-y-6 overflow-y-auto border-r border-purple-100/50 bg-gradient-to-br from-white via-purple-50/30 to-pink-50/30 backdrop-blur-xl px-6 pb-4">
         {/* Logo */}
-        <div className="flex h-16 shrink-0 items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900">
-            <Heart className="h-5 w-5 text-white" />
+        <div className="flex h-20 shrink-0 items-center gap-3 pt-4">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 shadow-lg shadow-purple-500/30 animate-glow">
+            <Heart className="h-6 w-6 text-white" fill="white" />
           </div>
-          <span className="text-xl font-semibold text-slate-900">MaiaLink</span>
+          <div className="flex flex-col">
+            <span className="text-xl font-bold gradient-text-artistic">MaiaLink</span>
+            <span className="text-xs text-purple-600/70 font-medium">Suivi sage-femme</span>
+          </div>
         </div>
 
         {/* Navigation */}
@@ -111,31 +117,38 @@ export function Sidebar() {
           <div className="flex flex-1 flex-col gap-y-6">
             {/* Grouped Navigation */}
             {navigationGroups.map((group) => (
-              <div key={group.title}>
-                <h3 className="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <div key={group.title} className="animate-slide-up">
+                <h3 className="px-3 mb-3 text-xs font-bold text-purple-900/60 uppercase tracking-widest">
                   {group.title}
                 </h3>
-                <ul role="list" className="-mx-2 space-y-1">
+                <ul role="list" className="space-y-1.5">
                   {group.items.map((item) => (
                     <li key={item.name}>
                       <Link
                         to={item.href}
                         className={cn(
-                          'group flex items-center gap-x-3 rounded-lg p-2 text-sm font-medium leading-6 transition-colors',
+                          'group flex items-center gap-x-3 rounded-xl px-3 py-2.5 text-sm font-semibold leading-6 transition-all duration-200',
                           isActive(item.href)
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30 scale-[1.02]'
+                            : 'text-slate-700 hover:bg-white/80 hover:shadow-md hover:scale-[1.01] hover:text-purple-700'
                         )}
                       >
-                        <item.icon
-                          className={cn(
-                            'h-5 w-5 shrink-0',
-                            isActive(item.href) ? 'text-blue-700' : 'text-slate-400 group-hover:text-slate-900'
-                          )}
-                        />
+                        <div className={cn(
+                          'flex h-9 w-9 items-center justify-center rounded-lg transition-all',
+                          isActive(item.href)
+                            ? 'bg-white/20'
+                            : 'bg-purple-100/50 group-hover:bg-purple-200/70'
+                        )}>
+                          <item.icon
+                            className={cn(
+                              'h-5 w-5 shrink-0 transition-all',
+                              isActive(item.href) ? 'text-white' : 'text-purple-600 group-hover:text-purple-700'
+                            )}
+                          />
+                        </div>
                         <span className="flex-1">{item.name}</span>
                         {item.badge && item.badge > 0 && (
-                          <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center text-xs">
+                          <Badge variant="destructive" className="h-6 w-6 p-0 flex items-center justify-center text-xs font-bold animate-pulse">
                             {item.badge}
                           </Badge>
                         )}
@@ -147,25 +160,32 @@ export function Sidebar() {
             ))}
 
             {/* Paramètres at bottom */}
-            <div className="mt-auto">
-              <ul role="list" className="-mx-2 space-y-1">
+            <div className="mt-auto pt-4 border-t border-purple-100">
+              <ul role="list" className="space-y-1.5">
                 <li>
                   <Link
                     to="/parametres"
                     className={cn(
-                      'group flex gap-x-3 rounded-lg p-2 text-sm font-medium leading-6 transition-colors',
+                      'group flex items-center gap-x-3 rounded-xl px-3 py-2.5 text-sm font-semibold leading-6 transition-all duration-200',
                       isActive('/parametres')
-                        ? 'bg-slate-100 text-slate-900'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        ? 'bg-gradient-to-r from-slate-700 to-slate-900 text-white shadow-lg shadow-slate-500/30'
+                        : 'text-slate-600 hover:bg-white/80 hover:shadow-md hover:scale-[1.01] hover:text-slate-900'
                     )}
                   >
-                    <Settings
-                      className={cn(
-                        'h-5 w-5 shrink-0',
-                        isActive('/parametres') ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-900'
-                      )}
-                    />
-                    Paramètres
+                    <div className={cn(
+                      'flex h-9 w-9 items-center justify-center rounded-lg transition-all',
+                      isActive('/parametres')
+                        ? 'bg-white/20'
+                        : 'bg-slate-100/50 group-hover:bg-slate-200/70'
+                    )}>
+                      <Settings
+                        className={cn(
+                          'h-5 w-5 shrink-0 transition-all',
+                          isActive('/parametres') ? 'text-white' : 'text-slate-600 group-hover:text-slate-900'
+                        )}
+                      />
+                    </div>
+                    <span className="flex-1">Paramètres</span>
                   </Link>
                 </li>
               </ul>

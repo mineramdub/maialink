@@ -52,45 +52,51 @@ export default function FacturationPage() {
       </div>
 
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="border-0 bg-gradient-to-br from-blue-50 via-white to-blue-50/50 shadow-lg card-premium animate-slide-up">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-600">Total HT</p>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">
+                  <p className="text-sm font-semibold text-blue-600/80 uppercase tracking-wide mb-2">Total HT</p>
+                  <p className="text-3xl font-bold text-blue-900">
                     {parseFloat(stats.totalHT || 0).toFixed(2)} €
                   </p>
                 </div>
-                <Euro className="h-8 w-8 text-blue-500" />
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                  <Euro className="h-7 w-7 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-0 bg-gradient-to-br from-green-50 via-white to-green-50/50 shadow-lg card-premium animate-slide-up" style={{animationDelay: '50ms'}}>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-600">Total payé</p>
-                  <p className="text-2xl font-bold text-green-600 mt-1">
+                  <p className="text-sm font-semibold text-green-600/80 uppercase tracking-wide mb-2">Total payé</p>
+                  <p className="text-3xl font-bold text-green-900">
                     {parseFloat(stats.totalPaye || 0).toFixed(2)} €
                   </p>
                 </div>
-                <Euro className="h-8 w-8 text-green-500" />
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/30">
+                  <Euro className="h-7 w-7 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-0 bg-gradient-to-br from-purple-50 via-white to-purple-50/50 shadow-lg card-premium animate-slide-up" style={{animationDelay: '100ms'}}>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-600">Nombre</p>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">
+                  <p className="text-sm font-semibold text-purple-600/80 uppercase tracking-wide mb-2">Factures</p>
+                  <p className="text-3xl font-bold text-purple-900">
                     {stats.count || 0}
                   </p>
                 </div>
-                <Receipt className="h-8 w-8 text-purple-500" />
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                  <Receipt className="h-7 w-7 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -132,31 +138,33 @@ export default function FacturationPage() {
       )}
 
       {!isLoading && !error && invoices.length > 0 && (
-        <div className="space-y-4">
-          {invoices.map((invoice: any) => (
+        <div className="space-y-3">
+          {invoices.map((invoice: any, index: number) => (
             <Link
               key={invoice.id}
               to={`/facturation/${invoice.id}`}
               onMouseEnter={() => prefetchInvoice(invoice.id)}
               onFocus={() => prefetchInvoice(invoice.id)}
+              className="block animate-slide-up"
+              style={{animationDelay: `${index * 30}ms`}}
             >
-              <Card className="card-hover hover:border-slate-300 cursor-pointer">
+              <Card className="card-premium border-0 bg-gradient-to-r from-white via-purple-50/20 to-pink-50/20 hover:shadow-xl cursor-pointer transition-all duration-300 hover:scale-[1.01]">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
-                        <Receipt className="h-6 w-6 text-purple-600" />
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-400 to-pink-500 shadow-lg shadow-purple-500/30">
+                        <Receipt className="h-7 w-7 text-white" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium text-slate-900">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-bold text-slate-900 text-base">
                             {invoice.numero}
                           </h3>
                           {getStatusBadge(invoice.status)}
                         </div>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-slate-600">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" />
+                        <div className="flex items-center gap-4 text-sm text-slate-600 font-medium">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="h-4 w-4" />
                             {formatDate(invoice.date)}
                           </div>
                           <span>
@@ -166,11 +174,11 @@ export default function FacturationPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-semibold text-slate-900">
+                      <div className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                         {parseFloat(invoice.montantTTC).toFixed(2)} €
                       </div>
                       {invoice.cotations && invoice.cotations.length > 0 && (
-                        <div className="text-sm text-slate-600">
+                        <div className="text-sm text-slate-600 font-medium mt-1">
                           {invoice.cotations.length} cotation{invoice.cotations.length > 1 ? 's' : ''}
                         </div>
                       )}

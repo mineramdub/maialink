@@ -248,59 +248,67 @@ export default function ExportComptablePage() {
       {!isLoading && exportData && (
         <>
           {/* Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="card-hover">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card className="border-0 bg-gradient-to-br from-blue-50 via-white to-blue-50/50 shadow-lg card-premium animate-slide-up">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-slate-600">Factures</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">
+                    <p className="text-sm font-semibold text-blue-600/80 uppercase tracking-wide mb-2">Factures</p>
+                    <p className="text-3xl font-bold text-blue-900">
                       {exportData.summary.totalFactures}
                     </p>
                   </div>
-                  <Receipt className="h-8 w-8 text-blue-500" />
+                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                    <Receipt className="h-7 w-7 text-white" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="card-hover">
+            <Card className="border-0 bg-gradient-to-br from-purple-50 via-white to-purple-50/50 shadow-lg card-premium animate-slide-up" style={{animationDelay: '50ms'}}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-slate-600">Total HT</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">
+                    <p className="text-sm font-semibold text-purple-600/80 uppercase tracking-wide mb-2">Total HT</p>
+                    <p className="text-3xl font-bold text-purple-900">
                       {exportData.summary.montantTotalHT.toFixed(2)} €
                     </p>
                   </div>
-                  <Euro className="h-8 w-8 text-purple-500" />
+                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <Euro className="h-7 w-7 text-white" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="card-hover">
+            <Card className="border-0 bg-gradient-to-br from-green-50 via-white to-green-50/50 shadow-lg card-premium animate-slide-up" style={{animationDelay: '100ms'}}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-slate-600">Payé</p>
-                    <p className="text-2xl font-bold text-green-600 mt-1">
+                    <p className="text-sm font-semibold text-green-600/80 uppercase tracking-wide mb-2">Payé</p>
+                    <p className="text-3xl font-bold text-green-900">
                       {exportData.summary.montantTotalPaye.toFixed(2)} €
                     </p>
                   </div>
-                  <TrendingUp className="h-8 w-8 text-green-500" />
+                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/30">
+                    <TrendingUp className="h-7 w-7 text-white" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="card-hover">
+            <Card className="border-0 bg-gradient-to-br from-orange-50 via-white to-orange-50/50 shadow-lg card-premium animate-slide-up" style={{animationDelay: '150ms'}}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-slate-600">En attente</p>
-                    <p className="text-2xl font-bold text-orange-600 mt-1">
+                    <p className="text-sm font-semibold text-orange-600/80 uppercase tracking-wide mb-2">En attente</p>
+                    <p className="text-3xl font-bold text-orange-900">
                       {exportData.summary.montantEnAttente.toFixed(2)} €
                     </p>
                   </div>
-                  <Euro className="h-8 w-8 text-orange-500" />
+                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                    <Euro className="h-7 w-7 text-white" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
