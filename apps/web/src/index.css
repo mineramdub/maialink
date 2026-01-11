@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import './styles/design-system.css';
 
 :root {
   --font-inter: "Inter", system-ui, -apple-system, sans-serif;
@@ -6,26 +7,10 @@
 
 body {
   font-family: var(--font-inter);
-}
-
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Print styles */
@@ -33,45 +18,4 @@ body {
   .no-print {
     display: none !important;
   }
-}
-
-/* Focus styles */
-*:focus-visible {
-  outline: 2px solid #475569;
-  outline-offset: 2px;
-}
-
-/* Selection */
-::selection {
-  background: #fce7f3;
-  color: #831843;
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.2s ease-out;
-}
-
-.animate-slide-up {
-  animation: slideUp 0.3s ease-out;
 }

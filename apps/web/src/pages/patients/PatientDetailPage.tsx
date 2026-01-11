@@ -25,12 +25,18 @@ import {
   StickyNote,
   Save,
   X,
+  ChevronRight,
+  Eye,
+  Pill,
 } from 'lucide-react'
-import { formatDate, calculateAge } from '../../lib/utils'
+import { formatDate, calculateAge, calculateSA } from '../../lib/utils'
 import { useAppointments } from '../../hooks/useAppointments'
 import { NewAppointmentDialog } from '../../components/NewAppointmentDialog'
-import { CalendrierGrossesse } from '../../components/CalendrierGrossesse'
 import { ReeducationTab } from '../../components/ReeducationTab'
+import { PatientDocuments } from '../../components/PatientDocuments'
+import { SurveillanceBadge } from '../../components/surveillance/SurveillanceBadge'
+import { SurveillanceModal } from '../../components/surveillance/SurveillanceModal'
+import { TraitementsHabituels } from '../../components/TraitementsHabituels'
 import { format, parseISO, isFuture, isPast } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -43,8 +49,8 @@ export default function PatientDetailPage() {
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [notesValue, setNotesValue] = useState('')
   const [isSavingNotes, setIsSavingNotes] = useState(false)
-  const [calendrierData, setCalendrierData] = useState<any>(null)
-  const [isLoadingCalendrier, setIsLoadingCalendrier] = useState(false)
+  const [surveillance, setSurveillance] = useState<any>(null)
+  const [surveillanceModalOpen, setSurveillanceModalOpen] = useState(false)
 
   // Fetch appointments for this patient
   const { data: appointments = [], isLoading: appointmentsLoading } = useAppointments({
@@ -54,17 +60,8 @@ export default function PatientDetailPage() {
   useEffect(() => {
     fetchPatient()
     fetchAlertes()
+    fetchSurveillance()
   }, [id])
-
-  useEffect(() => {
-    // Fetch calendar for active pregnancy
-    if (patient?.grossesses) {
-      const activeGrossesse = patient.grossesses.find((g: any) => g.status === 'en_cours')
-      if (activeGrossesse) {
-        fetchCalendrier(activeGrossesse.id)
-      }
-    }
-  }, [patient])
 
   const fetchPatient = async () => {
     try {
@@ -102,21 +99,18 @@ export default function PatientDetailPage() {
     }
   }
 
-  const fetchCalendrier = async (grossesseId: string) => {
-    setIsLoadingCalendrier(true)
+  const fetchSurveillance = async () => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/grossesses/${grossesseId}/calendrier`,
+        `${import.meta.env.VITE_API_URL}/api/surveillance/patient/${id}`,
         { credentials: 'include' }
       )
       const data = await res.json()
       if (data.success) {
-        setCalendrierData(data)
+        setSurveillance(data.surveillance)
       }
     } catch (error) {
-      console.error('Error fetching calendrier:', error)
-    } finally {
-      setIsLoadingCalendrier(false)
+      console.error('Error fetching surveillance:', error)
     }
   }
 
@@ -444,6 +438,10 @@ export default function PatientDetailPage() {
             <Stethoscope className="h-4 w-4 mr-2" />
             Consultations
           </TabsTrigger>
+          <TabsTrigger value="traitements">
+            <Pill className="h-4 w-4 mr-2" />
+            Traitements
+          </TabsTrigger>
           <TabsTrigger value="reeducation">
             <Activity className="h-4 w-4 mr-2" />
             Rééducation
@@ -459,58 +457,96 @@ export default function PatientDetailPage() {
         </TabsList>
 
         <TabsContent value="grossesses">
-          <div className="space-y-6">
-            {/* Active pregnancy calendar */}
-            {patient.grossesses && patient.grossesses.find((g: any) => g.status === 'en_cours') && calendrierData && (
-              <CalendrierGrossesse
-                grossesseId={patient.grossesses.find((g: any) => g.status === 'en_cours').id}
-                currentSA={calendrierData.currentSA}
-                ddr={patient.grossesses.find((g: any) => g.status === 'en_cours').ddr}
-                dpa={patient.grossesses.find((g: any) => g.status === 'en_cours').dpa}
-                calendrierEvents={calendrierData.calendrier || []}
-              />
-            )}
-
-            {/* Pregnancies list */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Toutes les grossesses</CardTitle>
-                <Button size="sm" asChild>
-                  <Link to={`/grossesses/new?patientId=${id}`}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nouvelle grossesse
-                  </Link>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle>Grossesse en cours</CardTitle>
+              {patient.grossesses && patient.grossesses.find((g: any) => g.status === 'en_cours') && (
+                <Button
+                  size="sm"
+                  variant={surveillance ? "outline" : "default"}
+                  onClick={() => setSurveillanceModalOpen(true)}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  {surveillance ? "Modifier surveillance" : "Ajouter surveillance"}
                 </Button>
-              </CardHeader>
-              <CardContent>
-                {patient.grossesses && patient.grossesses.length > 0 ? (
-                  <div className="space-y-4">
-                    {patient.grossesses.map((g: any) => (
-                      <Link key={g.id} to={`/grossesses/${g.id}`}>
-                        <div className="p-4 border rounded-lg hover:bg-slate-50 transition-colors">
+              )}
+            </CardHeader>
+            <CardContent>
+              {patient.grossesses && patient.grossesses.find((g: any) => g.status === 'en_cours') ? (
+                (() => {
+                  const activeGrossesse = patient.grossesses.find((g: any) => g.status === 'en_cours')
+                  return (
+                    <div className="space-y-4">
+                      {surveillance && (
+                        <div className="p-4 border border-blue-200 bg-blue-50/50 rounded-lg">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <SurveillanceBadge
+                                niveau={surveillance.niveau}
+                                raison={surveillance.raison}
+                              />
+                              {surveillance.dateProchainControle && (
+                                <div className="mt-2 text-sm text-slate-700">
+                                  <span className="font-medium">Prochain contrôle:</span>{' '}
+                                  {formatDate(surveillance.dateProchainControle)}
+                                </div>
+                              )}
+                              {surveillance.notesSurveillance && (
+                                <div className="mt-2 text-sm text-slate-600">
+                                  {surveillance.notesSurveillance}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <Link to={`/grossesses/${activeGrossesse.id}`}>
+                        <div className="p-6 border-2 border-blue-200 bg-blue-50 rounded-lg hover:border-blue-300 transition-all hover:shadow-md cursor-pointer">
                           <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-medium">DDR: {formatDate(g.ddr)}</div>
-                              <div className="text-sm text-slate-600 mt-1">
-                                DPA: {formatDate(g.dpa)}
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Badge className="bg-blue-600">En cours</Badge>
+                                {activeGrossesse.ddr && (() => {
+                                  const sa = calculateSA(activeGrossesse.ddr)
+                                  return (
+                                    <span className="text-sm text-slate-600">
+                                      {sa.weeks} SA + {sa.days}j
+                                    </span>
+                                  )
+                                })()}
+                              </div>
+                              <div className="text-sm text-slate-700 space-y-1">
+                                <div>
+                                  <span className="font-medium">DDR:</span> {formatDate(activeGrossesse.ddr)}
+                                </div>
+                                <div>
+                                  <span className="font-medium">DPA:</span> {formatDate(activeGrossesse.dpa)}
+                                </div>
                               </div>
                             </div>
-                            <Badge variant={g.status === 'en_cours' ? 'default' : 'outline'}>
-                              {g.status}
-                            </Badge>
+                            <div className="text-blue-600">
+                              <ChevronRight className="h-8 w-8" />
+                            </div>
                           </div>
                         </div>
                       </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-slate-600 py-8">
-                    Aucune grossesse enregistree
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                    </div>
+                  )
+                })()
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-slate-600 mb-4">Aucune grossesse en cours</p>
+                  <Button asChild>
+                    <Link to={`/grossesses/new?patientId=${id}`}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Déclarer une grossesse
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="consultations">
@@ -548,6 +584,13 @@ export default function PatientDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="traitements">
+          <TraitementsHabituels
+            patientId={id!}
+            patientName={`${patient.firstName} ${patient.lastName}`}
+          />
         </TabsContent>
 
         <TabsContent value="reeducation">
@@ -634,18 +677,25 @@ export default function PatientDetailPage() {
         </TabsContent>
 
         <TabsContent value="documents">
-          <Card>
-            <CardHeader>
-              <CardTitle>Documents</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-center text-slate-600 py-8">
-                Aucun document
-              </p>
-            </CardContent>
-          </Card>
+          <PatientDocuments patientId={id!} />
         </TabsContent>
       </Tabs>
+
+      {/* Surveillance Modal */}
+      {patient.grossesses && patient.grossesses.find((g: any) => g.status === 'en_cours') && (
+        <SurveillanceModal
+          open={surveillanceModalOpen}
+          onClose={() => setSurveillanceModalOpen(false)}
+          patientId={id!}
+          patientName={`${patient.firstName} ${patient.lastName}`}
+          grossesseId={patient.grossesses.find((g: any) => g.status === 'en_cours')?.id}
+          existingSurveillance={surveillance}
+          onSuccess={() => {
+            fetchSurveillance()
+            setSurveillanceModalOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }

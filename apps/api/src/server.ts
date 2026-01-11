@@ -24,6 +24,13 @@ import agendaRoutes from './routes/agenda.js'
 import ordonnanceTemplatesRoutes from './routes/ordonnance-templates.js'
 import calendarIntegrationRoutes from './routes/calendar-integration.js'
 import reeducationRoutes from './routes/reeducation.js'
+import patientDocumentsRoutes from './routes/patient-documents.js'
+import suiviGynecoRoutes from './routes/suivi-gyneco.js'
+import consultationTemplatesRoutes from './routes/consultation-templates.js'
+import surveillanceRoutes from './routes/surveillance.js'
+import searchRoutes from './routes/search.js'
+import notificationsRoutes from './routes/notifications.js'
+import traitementsHabituelsRoutes from './routes/traitements-habituels.js'
 import { auditMiddleware } from './middleware/audit.js'
 
 dotenv.config()
@@ -119,6 +126,8 @@ app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/patients', patientsRoutes)
 app.use('/api/grossesses', grossessesRoutes)
 app.use('/api/consultations', consultationsRoutes)
+app.use('/api/consultation-templates', consultationTemplatesRoutes)
+app.use('/api/surveillance', surveillanceRoutes)
 app.use('/api/accouchements', accouchementsRoutes)
 app.use('/api/bebes', bebesRoutes)
 app.use('/api/invoices', invoicesRoutes)
@@ -136,6 +145,11 @@ app.use('/api/agenda', agendaRoutes)
 app.use('/api/ordonnance-templates', ordonnanceTemplatesRoutes)
 app.use('/api/calendar-integration', calendarIntegrationRoutes)
 app.use('/api/reeducation', reeducationRoutes)
+app.use('/api/patient-documents', patientDocumentsRoutes)
+app.use('/api/suivi-gyneco', suiviGynecoRoutes)
+app.use('/api/search', searchRoutes)
+app.use('/api/notifications', notificationsRoutes)
+app.use('/api/traitements-habituels', traitementsHabituelsRoutes)
 
 // Global error handler for Multer errors
 app.use((error: any, req: any, res: any, next: any) => {

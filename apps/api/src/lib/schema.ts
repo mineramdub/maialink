@@ -15,8 +15,80 @@ export const alertSeverityEnum = pgEnum('alert_severity', ['info', 'warning', 'c
 export const auditActionEnum = pgEnum('audit_action', ['create', 'read', 'update', 'delete', 'login', 'logout', 'export'])
 export const ordonnanceTypeEnum = pgEnum('ordonnance_type', ['medicament', 'biologie', 'echographie', 'autre'])
 export const ordonnancePrioriteEnum = pgEnum('ordonnance_priorite', ['urgent', 'recommande', 'optionnel'])
+export const frottisResultatEnum = pgEnum('frottis_resultat', ['normal', 'ascus', 'lsil', 'hsil', 'agc', 'carcinome', 'autre', 'en_attente'])
+export const contraceptifTypeEnum = pgEnum('contraceptif_type', ['sterilet_cuivre', 'sterilet_hormonal', 'implant'])
+export const resultatStatutEnum = pgEnum('resultat_statut', ['en_attente', 'recupere', 'transmis'])
+export const surveillanceNiveauEnum = pgEnum('surveillance_niveau', ['normal', 'vigilance', 'rapprochee'])
+export const surveillanceRaisonEnum = pgEnum('surveillance_raison', ['hta', 'diabete', 'rciu', 'macrosomie', 'map', 'antecedents', 'age_maternel', 'grossesse_multiple', 'autre'])
 
 // Tables
+export const patientsSurveillance = pgTable('patients_surveillance', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  grossesseId: uuid('grossesse_id').references(() => grossesses.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  // Surveillance
+  niveau: surveillanceNiveauEnum('niveau').notNull().default('vigilance'),
+  raison: surveillanceRaisonEnum('raison').notNull(),
+  raisonDetail: text('raison_detail'), // Détail supplémentaire
+
+  // Dates
+  dateDebut: timestamp('date_debut').notNull().defaultNow(),
+  dateFin: timestamp('date_fin'), // Si surveillance terminée
+  dateProchainControle: timestamp('date_prochain_controle').notNull(),
+
+  // Suivi
+  frequenceControle: integer('frequence_controle'), // En jours
+  notesSurveillance: text('notes_surveillance'),
+  parametresSuivre: jsonb('parametres_suivre').$type<string[]>(), // ['TA', 'HU', 'Glycémie']
+
+  // Status
+  isActive: boolean('is_active').default(true).notNull(),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  patientIdIdx: index('patients_surveillance_patient_id_idx').on(table.patientId),
+  userIdIdx: index('patients_surveillance_user_id_idx').on(table.userId),
+  niveauIdx: index('patients_surveillance_niveau_idx').on(table.niveau),
+  dateProchainControleIdx: index('patients_surveillance_date_prochain_controle_idx').on(table.dateProchainControle),
+  isActiveIdx: index('patients_surveillance_is_active_idx').on(table.isActive),
+}))
+
+export const consultationTemplates = pgTable('consultation_templates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  // Identification du template
+  templateId: text('template_id').notNull(), // ex: "prenatal-t1"
+  name: text('name').notNull(),
+  description: text('description'),
+  type: consultationTypeEnum('type').notNull(),
+
+  // Plages SA pour templates prénataux
+  saMin: integer('sa_min'),
+  saMax: integer('sa_max'),
+
+  // Contenu du template
+  data: jsonb('data').notNull().$type<{
+    motif?: string
+    examenClinique?: string
+    conclusion?: string
+  }>(),
+
+  // Métadonnées
+  isCustom: boolean('is_custom').default(true).notNull(), // true = personnalisé par l'utilisateur
+  isActive: boolean('is_active').default(true).notNull(),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('consultation_templates_user_id_idx').on(table.userId),
+  templateIdIdx: index('consultation_templates_template_id_idx').on(table.templateId),
+  typeIdx: index('consultation_templates_type_idx').on(table.type),
+}))
+
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   email: text('email').notNull().unique(),
@@ -362,6 +434,7 @@ export const consultations = pgTable('consultations', {
   type: consultationTypeEnum('type').notNull(),
   date: timestamp('date').notNull(),
   duree: integer('duree'), // en minutes
+  templateId: text('template_id'), // ID du template utilisé (ex: "prenatal-t1")
 
   // Données cliniques
   poids: decimal('poids', { precision: 5, scale: 2 }),
@@ -1120,6 +1193,118 @@ export const seancesReeducation = pgTable('seances_reeducation', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+// Frottis
+export const frottis = pgTable('frottis', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  dateRealisation: date('date_realisation').notNull(),
+  dateResultat: date('date_resultat'),
+  resultat: frottisResultatEnum('resultat').default('en_attente'),
+  notes: text('notes'),
+
+  // Rappel automatique (3 ans après un frottis normal)
+  dateProchainFrottis: date('date_prochain_frottis'),
+  rappelEnvoye: boolean('rappel_envoye').default(false),
+
+  // Suivi du résultat
+  patientePrevenu: boolean('patiente_prevenu').default(false),
+  resultatRecupere: boolean('resultat_recupere').default(false),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// Contraceptifs (stérilets/implants)
+export const contraceptifs = pgTable('contraceptifs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  type: contraceptifTypeEnum('type').notNull(),
+  datePose: date('date_pose').notNull(),
+  dateExpiration: date('date_expiration').notNull(),
+
+  // Informations du dispositif
+  numeroLot: text('numero_lot'),
+  marque: text('marque'),
+  modele: text('modele'),
+
+  // Rappel automatique (2 semaines avant expiration)
+  rappelEnvoye: boolean('rappel_envoye').default(false),
+  dateRappel: date('date_rappel'), // Calculé automatiquement: dateExpiration - 14 jours
+
+  // Retrait
+  dateRetrait: date('date_retrait'),
+  raisonRetrait: text('raison_retrait'),
+
+  notes: text('notes'),
+  actif: boolean('actif').default(true),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// Résultats à récupérer
+export const resultatsARecuperer = pgTable('resultats_a_recuperer', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  typeExamen: text('type_examen').notNull(), // "Biologie", "Échographie", "Anatomopathologie", etc.
+  description: text('description').notNull(),
+  dateExamen: date('date_examen'),
+  laboratoire: text('laboratoire'),
+
+  statut: resultatStatutEnum('statut').default('en_attente'),
+  dateRecuperation: date('date_recuperation'),
+  notes: text('notes'),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// Traitements habituels du patient
+export const traitementsHabituels = pgTable('traitements_habituels', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  // Informations médicament
+  nom: text('nom').notNull(), // Nom commercial
+  dci: text('dci'), // Dénomination Commune Internationale
+  dosage: text('dosage'), // ex: "500mg", "1g"
+  forme: text('forme'), // ex: "comprimé", "gélule", "sirop"
+
+  // Posologie
+  posologie: text('posologie').notNull(), // ex: "1 comprimé matin et soir"
+  voieAdministration: text('voie_administration'), // ex: "orale", "injectable", "cutanée"
+
+  // Durée et renouvellement
+  dateDebut: date('date_debut'),
+  dateFin: date('date_fin'), // Si traitement limité dans le temps
+  renouvellementAuto: boolean('renouvellement_auto').default(false), // Pour traitement chronique
+
+  // Classification
+  categorie: text('categorie'), // ex: "Antihypertenseur", "Antidiabétique", "Supplémentation"
+  indication: text('indication'), // Raison de la prescription
+
+  // Statut
+  isActive: boolean('is_active').default(true).notNull(),
+  isChronique: boolean('is_chronique').default(false), // Traitement de fond vs ponctuel
+
+  // Notes
+  notes: text('notes'), // Instructions particulières, effets secondaires observés
+  prescripteur: text('prescripteur'), // Nom du praticien qui a initialement prescrit
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  patientIdIdx: index('traitements_habituels_patient_id_idx').on(table.patientId),
+  isActiveIdx: index('traitements_habituels_is_active_idx').on(table.isActive),
+}))
+
 // Relations
 export const parcoursReeducationRelations = relations(parcoursReeducation, ({ one, many }) => ({
   patient: one(patients, {
@@ -1144,6 +1329,50 @@ export const seancesReeducationRelations = relations(seancesReeducation, ({ one 
   }),
   user: one(users, {
     fields: [seancesReeducation.userId],
+    references: [users.id],
+  }),
+}))
+
+export const frottisRelations = relations(frottis, ({ one }) => ({
+  patient: one(patients, {
+    fields: [frottis.patientId],
+    references: [patients.id],
+  }),
+  user: one(users, {
+    fields: [frottis.userId],
+    references: [users.id],
+  }),
+}))
+
+export const contraceptifsRelations = relations(contraceptifs, ({ one }) => ({
+  patient: one(patients, {
+    fields: [contraceptifs.patientId],
+    references: [patients.id],
+  }),
+  user: one(users, {
+    fields: [contraceptifs.userId],
+    references: [users.id],
+  }),
+}))
+
+export const resultatsARecupererRelations = relations(resultatsARecuperer, ({ one }) => ({
+  patient: one(patients, {
+    fields: [resultatsARecuperer.patientId],
+    references: [patients.id],
+  }),
+  user: one(users, {
+    fields: [resultatsARecuperer.userId],
+    references: [users.id],
+  }),
+}))
+
+export const traitementsHabituelsRelations = relations(traitementsHabituels, ({ one }) => ({
+  patient: one(patients, {
+    fields: [traitementsHabituels.patientId],
+    references: [patients.id],
+  }),
+  user: one(users, {
+    fields: [traitementsHabituels.userId],
     references: [users.id],
   }),
 }))
@@ -1173,3 +1402,11 @@ export type ParcoursReeducation = typeof parcoursReeducation.$inferSelect
 export type NewParcoursReeducation = typeof parcoursReeducation.$inferInsert
 export type SeanceReeducation = typeof seancesReeducation.$inferSelect
 export type NewSeanceReeducation = typeof seancesReeducation.$inferInsert
+export type Frottis = typeof frottis.$inferSelect
+export type NewFrottis = typeof frottis.$inferInsert
+export type Contraceptif = typeof contraceptifs.$inferSelect
+export type NewContraceptif = typeof contraceptifs.$inferInsert
+export type ResultatARecuperer = typeof resultatsARecuperer.$inferSelect
+export type NewResultatARecuperer = typeof resultatsARecuperer.$inferInsert
+export type TraitementHabituel = typeof traitementsHabituels.$inferSelect
+export type NewTraitementHabituel = typeof traitementsHabituels.$inferInsert

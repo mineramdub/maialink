@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
-import { Plus, Receipt, Loader2, Calendar, Euro } from 'lucide-react'
+import { Plus, Receipt, Loader2, Calendar, Euro, FileSpreadsheet } from 'lucide-react'
 import { formatDate } from '../../lib/utils'
 import { useInvoices, usePrefetchInvoice } from '../../hooks/useInvoices'
 
@@ -35,12 +35,20 @@ export default function FacturationPage() {
             {invoices.length} facture{invoices.length > 1 ? 's' : ''}
           </p>
         </div>
-        <Button asChild>
-          <Link to="/facturation/new">
-            <Plus className="h-4 w-4 mr-1" />
-            Nouvelle facture
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/facturation/export">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Export comptable
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link to="/facturation/new">
+              <Plus className="h-4 w-4 mr-1" />
+              Nouvelle facture
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {stats && (
@@ -132,7 +140,7 @@ export default function FacturationPage() {
               onMouseEnter={() => prefetchInvoice(invoice.id)}
               onFocus={() => prefetchInvoice(invoice.id)}
             >
-              <Card className="hover:border-slate-300 hover:shadow-md transition-all cursor-pointer">
+              <Card className="card-hover hover:border-slate-300 cursor-pointer">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">

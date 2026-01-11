@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -23,10 +23,96 @@ import {
 import { formatDate, calculateAge } from '../../lib/utils'
 import { usePatients, usePrefetchPatient } from '../../hooks/usePatients'
 
+interface Patient {
+  id: string
+  firstName: string
+  lastName: string
+  birthDate: string
+  email?: string
+  phone?: string
+  mobilePhone?: string
+  gravida: number
+  para: number
+  status: string
+}
+
+const PatientCard = memo(({ patient, onPrefetch }: { patient: Patient; onPrefetch: (id: string) => void }) => (
+  <Link
+    key={patient.id}
+    to={`/patients/${patient.id}`}
+    onMouseEnter={() => onPrefetch(patient.id)}
+    onFocus={() => onPrefetch(patient.id)}
+  >
+    <Card className="card-hover hover:border-slate-300 cursor-pointer">
+      <CardContent className="p-5">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-semibold shrink-0">
+            {patient.firstName[0]}{patient.lastName[0]}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-medium text-slate-900 truncate">
+              {patient.firstName} {patient.lastName}
+            </h3>
+            <p className="text-sm text-slate-600 mt-1">
+              {calculateAge(patient.birthDate)} ans
+            </p>
+
+            {/* Contact Info */}
+            <div className="mt-3 space-y-1">
+              {patient.email && (
+                <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <Mail className="h-3.5 w-3.5" />
+                  <span className="truncate">{patient.email}</span>
+                </div>
+              )}
+              {(patient.phone || patient.mobilePhone) && (
+                <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <Phone className="h-3.5 w-3.5" />
+                  <span>{patient.mobilePhone || patient.phone}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Obstetric Info */}
+            {(patient.gravida > 0 || patient.para > 0) && (
+              <div className="flex items-center gap-2 mt-3">
+                <Baby className="h-3.5 w-3.5 text-slate-400" />
+                <span className="text-xs text-slate-600">
+                  G{patient.gravida} P{patient.para}
+                </span>
+              </div>
+            )}
+
+            {/* Status Badge */}
+            <div className="mt-3">
+              <Badge
+                variant={patient.status === 'active' ? 'default' : 'secondary'}
+              >
+                {patient.status === 'active' ? 'Active' : 'Inactive'}
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        {/* Birth Date */}
+        <div className="mt-4 pt-4 border-t text-xs text-slate-500">
+          Née le {formatDate(patient.birthDate)}
+        </div>
+      </CardContent>
+    </Card>
+  </Link>
+))
+
+PatientCard.displayName = 'PatientCard'
+
 export default function PatientsPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('active')
   const prefetchPatient = usePrefetchPatient()
+
+  const handlePrefetch = useCallback((id: string) => {
+    prefetchPatient(id)
+  }, [prefetchPatient])
 
   // Use React Query with caching - data will be fetched in background
   const { data: patients = [], isLoading, error } = usePatients({
@@ -116,70 +202,7 @@ export default function PatientsPage() {
       {!isLoading && !error && patients.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {patients.map((patient) => (
-            <Link
-              key={patient.id}
-              to={`/patients/${patient.id}`}
-              onMouseEnter={() => prefetchPatient(patient.id)}
-              onFocus={() => prefetchPatient(patient.id)}
-            >
-              <Card className="hover:border-slate-300 hover:shadow-md transition-all cursor-pointer">
-                <CardContent className="p-5">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-semibold shrink-0">
-                      {patient.firstName[0]}{patient.lastName[0]}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-slate-900 truncate">
-                        {patient.firstName} {patient.lastName}
-                      </h3>
-                      <p className="text-sm text-slate-600 mt-1">
-                        {calculateAge(patient.birthDate)} ans
-                      </p>
-
-                      {/* Contact Info */}
-                      <div className="mt-3 space-y-1">
-                        {patient.email && (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                            <Mail className="h-3.5 w-3.5" />
-                            <span className="truncate">{patient.email}</span>
-                          </div>
-                        )}
-                        {(patient.phone || patient.mobilePhone) && (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                            <Phone className="h-3.5 w-3.5" />
-                            <span>{patient.mobilePhone || patient.phone}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Obstetric Info */}
-                      {(patient.gravida > 0 || patient.para > 0) && (
-                        <div className="flex items-center gap-2 mt-3">
-                          <Baby className="h-3.5 w-3.5 text-slate-400" />
-                          <span className="text-xs text-slate-600">
-                            G{patient.gravida} P{patient.para}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Status Badge */}
-                      <div className="mt-3">
-                        <Badge
-                          variant={patient.status === 'active' ? 'default' : 'secondary'}
-                        >
-                          {patient.status === 'active' ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Birth Date */}
-                  <div className="mt-4 pt-4 border-t text-xs text-slate-500">
-                    Née le {formatDate(patient.birthDate)}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+            <PatientCard key={patient.id} patient={patient} onPrefetch={handlePrefetch} />
           ))}
         </div>
       )}

@@ -181,4 +181,139 @@ router.patch('/:id', async (req: AuthRequest, res) => {
   }
 })
 
+// GET /api/invoices/export/accounting - Export accounting data
+router.get('/export/accounting', async (req: AuthRequest, res) => {
+  try {
+    const { startDate, endDate, format = 'json' } = req.query
+
+    let whereClause = eq(invoices.userId, req.user!.id)
+
+    if (startDate) {
+      whereClause = and(whereClause, gte(invoices.date, startDate as string))!
+    }
+    if (endDate) {
+      whereClause = and(whereClause, lte(invoices.date, endDate as string))!
+    }
+
+    // Fetch all invoices in date range
+    const allInvoices = await db.query.invoices.findMany({
+      where: whereClause,
+      with: {
+        patient: {
+          columns: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          }
+        },
+      },
+      orderBy: [desc(invoices.date)],
+    })
+
+    // Calculate summary stats
+    const summary = {
+      periode: {
+        debut: startDate || 'Début',
+        fin: endDate || 'Maintenant',
+      },
+      totalFactures: allInvoices.length,
+      montantTotalHT: allInvoices.reduce((sum, inv) => sum + parseFloat(inv.montantHT || '0'), 0),
+      montantTotalTTC: allInvoices.reduce((sum, inv) => sum + parseFloat(inv.montantTTC || '0'), 0),
+      montantTotalPaye: allInvoices.reduce((sum, inv) => sum + parseFloat(inv.montantPaye || '0'), 0),
+      montantEnAttente: 0,
+      parStatut: {} as Record<string, number>,
+    }
+
+    summary.montantEnAttente = summary.montantTotalTTC - summary.montantTotalPaye
+
+    // Group by status
+    allInvoices.forEach(inv => {
+      if (!summary.parStatut[inv.status]) {
+        summary.parStatut[inv.status] = 0
+      }
+      summary.parStatut[inv.status] += parseFloat(inv.montantTTC || '0')
+    })
+
+    // Detailed breakdown by procedure (NGAP codes)
+    const proceduresMap = new Map<string, any>()
+
+    allInvoices.forEach(inv => {
+      const cotations = inv.cotations as any[] || []
+      cotations.forEach((cot: any) => {
+        const key = cot.code || 'AUTRE'
+        if (!proceduresMap.has(key)) {
+          proceduresMap.set(key, {
+            code: cot.code,
+            libelle: cot.libelle || cot.code,
+            quantite: 0,
+            montantUnitaire: cot.montant,
+            montantTotal: 0,
+          })
+        }
+        const proc = proceduresMap.get(key)!
+        proc.quantite += cot.quantity || 1
+        proc.montantTotal += (cot.montant || 0) * (cot.quantity || 1)
+      })
+    })
+
+    const detailProcedures = Array.from(proceduresMap.values())
+      .sort((a, b) => b.montantTotal - a.montantTotal)
+
+    // Revenue journal (livre de recettes)
+    const journalRecettes = allInvoices
+      .filter(inv => inv.status === 'payee')
+      .map(inv => ({
+        date: inv.date,
+        numeroFacture: inv.numero,
+        patient: `${inv.patient?.firstName || ''} ${inv.patient?.lastName || ''}`.trim(),
+        designation: (inv.cotations as any[] || [])
+          .map((c: any) => c.libelle || c.code)
+          .join(', '),
+        montantHT: parseFloat(inv.montantHT || '0'),
+        montantTTC: parseFloat(inv.montantTTC || '0'),
+        montantPaye: parseFloat(inv.montantPaye || '0'),
+        modePaiement: inv.paymentMethod || 'Non spécifié',
+      }))
+
+    const exportData = {
+      summary,
+      detailProcedures,
+      journalRecettes,
+      facturesDetaillees: allInvoices.map(inv => ({
+        id: inv.id,
+        numero: inv.numero,
+        date: inv.date,
+        patient: {
+          nom: `${inv.patient?.firstName || ''} ${inv.patient?.lastName || ''}`.trim(),
+          id: inv.patientId,
+        },
+        cotations: inv.cotations,
+        montantHT: parseFloat(inv.montantHT || '0'),
+        montantTTC: parseFloat(inv.montantTTC || '0'),
+        montantPaye: parseFloat(inv.montantPaye || '0'),
+        status: inv.status,
+        paymentMethod: inv.paymentMethod,
+        tiersPart: parseFloat(inv.tiersPart || '0'),
+        patientPart: parseFloat(inv.patientPart || '0'),
+      })),
+    }
+
+    if (format === 'csv') {
+      // TODO: Implement CSV export
+      res.setHeader('Content-Type', 'text/csv')
+      res.setHeader('Content-Disposition', `attachment; filename=export-comptable-${startDate || 'debut'}-${endDate || 'fin'}.csv`)
+      // For now, return JSON
+      res.json(exportData)
+    } else {
+      res.json({
+        success: true,
+        export: exportData,
+      })
+    }
+  } catch (error) {
+    console.error('Export accounting error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 export default router

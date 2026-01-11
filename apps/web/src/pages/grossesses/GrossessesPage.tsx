@@ -72,7 +72,7 @@ export default function GrossessesPage() {
               onMouseEnter={() => prefetchGrossesse(grossesse.id)}
               onFocus={() => prefetchGrossesse(grossesse.id)}
             >
-              <Card className="hover:border-slate-300 hover:shadow-md transition-all cursor-pointer">
+              <Card className="card-hover hover:border-slate-300 cursor-pointer">
                 <CardContent className="p-5">
                   <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-pink-100 shrink-0">

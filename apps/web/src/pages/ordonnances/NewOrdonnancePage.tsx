@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, FileText, Search, Plus, X, Save } from 'lucide-react'
+import { ArrowLeft, FileText, Search, Plus, X, Save, Pill, Check } from 'lucide-react'
 
 interface Medicament {
   nom: string
@@ -40,6 +40,7 @@ export default function NewOrdonnancePage() {
   const [patients, setPatients] = useState<any[]>([])
   const [medicaments, setMedicaments] = useState<Medicament[]>([])
   const [templates, setTemplates] = useState<OrdonnanceTemplate[]>([])
+  const [traitementsHabituels, setTraitementsHabituels] = useState<any[]>([])
 
   const [selectedPatientId, setSelectedPatientId] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState('')
@@ -69,6 +70,24 @@ export default function NewOrdonnancePage() {
       })
       .catch(err => console.error('Erreur chargement patients:', err))
   }, [])
+
+  // Charger les traitements habituels du patient sélectionné
+  useEffect(() => {
+    if (selectedPatientId) {
+      fetch(`${import.meta.env.VITE_API_URL}/api/traitements-habituels/patient/${selectedPatientId}/active`, {
+        credentials: 'include'
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setTraitementsHabituels(data.traitements || [])
+          }
+        })
+        .catch(err => console.error('Erreur chargement traitements habituels:', err))
+    } else {
+      setTraitementsHabituels([])
+    }
+  }, [selectedPatientId])
 
   // Charger les templates et médicaments depuis le backend
   useEffect(() => {
@@ -115,16 +134,16 @@ export default function NewOrdonnancePage() {
 
   // Filtrer templates selon recherche
   const filteredTemplates = templates.filter(template =>
-    template.nom.toLowerCase().includes(templateSearchQuery.toLowerCase()) ||
-    template.description.toLowerCase().includes(templateSearchQuery.toLowerCase()) ||
-    template.categorie.toLowerCase().includes(templateSearchQuery.toLowerCase())
+    template.nom?.toLowerCase().includes(templateSearchQuery.toLowerCase()) ||
+    template.description?.toLowerCase().includes(templateSearchQuery.toLowerCase()) ||
+    template.categorie?.toLowerCase().includes(templateSearchQuery.toLowerCase())
   )
 
   // Filtrer médicaments selon recherche
   const filteredMedicaments = medicaments.filter(med =>
-    med.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    med.dci.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    med.indications.some(ind => ind.toLowerCase().includes(searchQuery.toLowerCase()))
+    med.nom?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    med.dci?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    med.indications?.some(ind => ind?.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
   // Ajouter un médicament manuellement
@@ -133,6 +152,25 @@ export default function NewOrdonnancePage() {
       const newMeds = [...selectedMedicaments, { ...med, personnalise: false }]
       setSelectedMedicaments(newMeds)
       setSearchQuery('')
+      generatePreview(newMeds)
+    }
+  }
+
+  // Ajouter un traitement habituel
+  const addTraitementHabituel = (traitement: any) => {
+    const medFromTraitement: Medicament = {
+      nom: traitement.nom,
+      dci: traitement.dci || '',
+      dosage: traitement.dosage || '',
+      forme: traitement.forme || '',
+      posologie: traitement.posologie,
+      duree: '30 jours', // Valeur par défaut pour les traitements chroniques
+      indications: traitement.indication ? [traitement.indication] : []
+    }
+
+    if (!selectedMedicaments.find(m => m.nom === medFromTraitement.nom)) {
+      const newMeds = [...selectedMedicaments, { ...medFromTraitement, personnalise: false }]
+      setSelectedMedicaments(newMeds)
       generatePreview(newMeds)
     }
   }
@@ -391,6 +429,76 @@ export default function NewOrdonnancePage() {
               )}
             </div>
           </Card>
+
+          {/* Traitements habituels du patient */}
+          {selectedPatientId && traitementsHabituels.length > 0 && (
+            <Card className="p-6 border-blue-200 bg-blue-50/30">
+              <div className="flex items-center gap-2 mb-4">
+                <Pill className="h-5 w-5 text-blue-600" />
+                <h2 className="text-lg font-semibold">Traitements habituels de la patiente</h2>
+              </div>
+              <div className="space-y-2">
+                {traitementsHabituels.map((traitement) => {
+                  const isAlreadyAdded = selectedMedicaments.find(m => m.nom === traitement.nom)
+                  return (
+                    <div
+                      key={traitement.id}
+                      className={`p-3 rounded-lg border transition-all ${
+                        isAlreadyAdded
+                          ? 'bg-green-50 border-green-300'
+                          : 'bg-white border-blue-200 hover:border-blue-300 hover:shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-sm truncate">{traitement.nom}</span>
+                            {traitement.isChronique && (
+                              <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-300">
+                                Chronique
+                              </Badge>
+                            )}
+                            {isAlreadyAdded && (
+                              <Badge className="text-xs bg-green-100 text-green-700 border-green-300">
+                                <Check className="h-3 w-3 mr-1" />
+                                Ajouté
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-600">
+                            {traitement.dosage && `${traitement.dosage} • `}
+                            {traitement.forme && `${traitement.forme} • `}
+                            {traitement.posologie}
+                          </div>
+                          {traitement.indication && (
+                            <div className="text-xs text-slate-500 mt-1">
+                              {traitement.indication}
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={isAlreadyAdded ? "secondary" : "default"}
+                          onClick={() => addTraitementHabituel(traitement)}
+                          disabled={isAlreadyAdded}
+                          className="flex-shrink-0"
+                        >
+                          {isAlreadyAdded ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <p className="text-xs text-blue-600 mt-3">
+                💡 Ces médicaments sont issus du dossier de la patiente
+              </p>
+            </Card>
+          )}
 
           {/* Recherche médicaments */}
           <Card className="p-6">
