@@ -29,6 +29,7 @@ import { formatDate, calculateSA } from '../../lib/utils'
 import { AccouchementForm } from '../../components/AccouchementForm'
 import { CalendrierGrossesse } from '../../components/CalendrierGrossesse'
 import { RecapGrossesse } from '../../components/RecapGrossesse'
+import { ExportPDFButton } from '../../components/ExportPDFButton'
 
 export default function GrosesseDetailPage() {
   const { id } = useParams()
@@ -131,6 +132,13 @@ export default function GrosesseDetailPage() {
               Générer document
             </Link>
           </Button>
+          <ExportPDFButton
+            type="grossesse"
+            data={grossesse}
+            patient={grossesse.patient}
+            consultations={grossesse.consultations || []}
+            variant="outline"
+          />
           <Button asChild>
             <Link to={`/consultations/new?grossesseId=${id}&patientId=${grossesse.patientId}`}>
               <Plus className="h-4 w-4 mr-2" />
@@ -145,6 +153,12 @@ export default function GrosesseDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Carte récapitulatif médical */}
+      <RecapGrossesse
+        grossesseId={id!}
+        patientId={grossesse.patientId}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
@@ -206,11 +220,6 @@ export default function GrosesseDetailPage() {
         </Card>
 
         <div className="space-y-4">
-          <RecapGrossesse
-            grossesseId={id!}
-            patientId={grossesse.patientId}
-          />
-
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Informations</CardTitle>
@@ -231,54 +240,40 @@ export default function GrosesseDetailPage() {
 
       <Tabs defaultValue="calendrier">
         <TabsList>
-          <TabsTrigger value="calendrier">Calendrier</TabsTrigger>
-          <TabsTrigger value="consultations">Consultations</TabsTrigger>
+          <TabsTrigger value="calendrier">Calendrier & Consultations</TabsTrigger>
           <TabsTrigger value="examens">Examens</TabsTrigger>
           <TabsTrigger value="bebes">Bébés</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendrier">
-          {calendrierData && grossesse ? (
-            <CalendrierGrossesse
-              grossesseId={id!}
-              currentSA={calendrierData.currentSA}
-              ddr={grossesse.ddr}
-              dpa={grossesse.dpa}
-              calendrierEvents={calendrierData.calendrier || []}
-            />
-          ) : (
-            <Card>
-              <CardContent className="py-12">
-                <p className="text-center text-slate-600">Chargement du calendrier...</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+          <div className="space-y-6">
+            {/* Button to create consultation */}
+            <div className="flex justify-end">
+              <Button asChild>
+                <Link to={`/consultations/new?patientId=${grossesse.patientId}&grossesseId=${id}`}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nouvelle consultation de grossesse
+                </Link>
+              </Button>
+            </div>
 
-        <TabsContent value="consultations">
-          <Card>
-            <CardHeader>
-              <CardTitle>Consultations</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {grossesse.consultations && grossesse.consultations.length > 0 ? (
-                <div className="space-y-4">
-                  {grossesse.consultations.map((c: any) => (
-                    <Link key={c.id} to={`/consultations/${c.id}`}>
-                      <div className="p-4 border rounded-lg hover:bg-slate-50">
-                        <div className="font-medium">{formatDate(c.date)}</div>
-                        <div className="text-sm text-slate-600 mt-1">{c.type}</div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-slate-600 py-8">
-                  Aucune consultation
-                </p>
-              )}
-            </CardContent>
-          </Card>
+            {calendrierData && grossesse ? (
+              <CalendrierGrossesse
+                grossesseId={id!}
+                currentSA={calendrierData.currentSA}
+                ddr={grossesse.ddr}
+                dpa={grossesse.dpa}
+                calendrierEvents={calendrierData.calendrier || []}
+                consultations={grossesse.consultations || []}
+              />
+            ) : (
+              <Card>
+                <CardContent className="py-12">
+                  <p className="text-center text-slate-600">Chargement du calendrier...</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="examens">
