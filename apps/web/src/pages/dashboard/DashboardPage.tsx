@@ -93,13 +93,13 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Hero Header with Gradient */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 p-8 shadow-2xl shadow-purple-500/30 animate-gradient-shift">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE0YzMuMzEgMCA2IDIuNjkgNiA2cy0yLjY5IDYtNiA2LTYtMi42OS02LTYgMi42OS02IDYtNk0wIDE0YzMuMzEgMCA2IDIuNjkgNiA2cy0yLjY5IDYtNiA2LTYtMi42OS02LTYgMi42OS02IDYtNiIvPjwvZz48L2c+PC9zdmc+')] opacity-30"></div>
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-200 via-pink-200 to-purple-300 p-8 shadow-xl shadow-purple-200/30 animate-gradient-shift">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMTRjMy4zMSAwIDYgMi42OSA2IDZzLTIuNjkgNi02IDYtNi0yLjY5LTYtNiAyLjY5LTYgNi02TTAgMTRjMy4zMSAwIDYgMi42OSA2IDZzLTIuNjkgNi02IDYtNi0yLjY5LTYtNiAyLjY5LTYgNi02Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-40"></div>
         <div className="relative z-10">
-          <h1 className="text-4xl font-bold text-white drop-shadow-lg">
+          <h1 className="text-4xl font-bold text-white drop-shadow-md">
             Bonjour {user?.firstName} 👋
           </h1>
-          <p className="mt-3 text-lg text-white/90 font-medium">
+          <p className="mt-3 text-lg text-white/95 font-medium drop-shadow-sm">
             Bienvenue sur votre tableau de bord MaiaLink
           </p>
         </div>
@@ -111,10 +111,10 @@ export default function DashboardPage() {
         <Card className="p-6 card-premium border-0 bg-gradient-to-br from-blue-50 via-white to-blue-50/50 hover:shadow-xl transition-all duration-300 animate-slide-up">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-blue-600/80 uppercase tracking-wide mb-2">Patientes</p>
-              <p className="text-3xl font-bold text-blue-900">{stats.patients}</p>
+              <p className="text-sm font-semibold text-blue-500/80 uppercase tracking-wide mb-2">Patientes</p>
+              <p className="text-3xl font-bold text-blue-700">{stats.patients}</p>
             </div>
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30 animate-float">
+            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-200 to-blue-400 flex items-center justify-center shadow-lg shadow-blue-300/25 animate-float">
               <Users className="h-7 w-7 text-white" />
             </div>
           </div>
@@ -124,23 +124,23 @@ export default function DashboardPage() {
         <Card className="p-6 card-premium border-0 bg-gradient-to-br from-pink-50 via-white to-pink-50/50 hover:shadow-xl transition-all duration-300 animate-slide-up" style={{animationDelay: '50ms'}}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-pink-600/80 uppercase tracking-wide mb-2">Grossesses</p>
-              <p className="text-3xl font-bold text-pink-900">{stats.grossesses}</p>
+              <p className="text-sm font-semibold text-pink-500/80 uppercase tracking-wide mb-2">Grossesses</p>
+              <p className="text-3xl font-bold text-pink-700">{stats.grossesses}</p>
             </div>
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center shadow-lg shadow-pink-500/30 animate-float" style={{animationDelay: '200ms'}}>
+            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-pink-200 to-pink-400 flex items-center justify-center shadow-lg shadow-pink-300/25 animate-float" style={{animationDelay: '200ms'}}>
               <Baby className="h-7 w-7 text-white" />
             </div>
           </div>
         </Card>
 
         {/* Card RDV */}
-        <Card className="p-6 card-premium border-0 bg-gradient-to-br from-green-50 via-white to-green-50/50 hover:shadow-xl transition-all duration-300 animate-slide-up" style={{animationDelay: '100ms'}}>
+        <Card className="p-6 card-premium border-0 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 hover:shadow-xl transition-all duration-300 animate-slide-up" style={{animationDelay: '100ms'}}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-green-600/80 uppercase tracking-wide mb-2">RDV aujourd'hui</p>
-              <p className="text-3xl font-bold text-green-900">{stats.consultationsToday}</p>
+              <p className="text-sm font-semibold text-emerald-500/80 uppercase tracking-wide mb-2">RDV aujourd'hui</p>
+              <p className="text-3xl font-bold text-emerald-700">{stats.consultationsToday}</p>
             </div>
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/30 animate-float" style={{animationDelay: '400ms'}}>
+            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-200 to-emerald-400 flex items-center justify-center shadow-lg shadow-emerald-300/25 animate-float" style={{animationDelay: '400ms'}}>
               <Calendar className="h-7 w-7 text-white" />
             </div>
           </div>
@@ -150,10 +150,10 @@ export default function DashboardPage() {
         <Card className="p-6 card-premium border-0 bg-gradient-to-br from-purple-50 via-white to-purple-50/50 hover:shadow-xl transition-all duration-300 animate-slide-up" style={{animationDelay: '150ms'}}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-purple-600/80 uppercase tracking-wide mb-2">CA du mois</p>
-              <p className="text-3xl font-bold text-purple-900">{stats.monthlyRevenue.toFixed(2)} €</p>
+              <p className="text-sm font-semibold text-purple-500/80 uppercase tracking-wide mb-2">CA du mois</p>
+              <p className="text-3xl font-bold text-purple-700">{stats.monthlyRevenue.toFixed(2)} €</p>
             </div>
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30 animate-float" style={{animationDelay: '600ms'}}>
+            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-200 to-purple-400 flex items-center justify-center shadow-lg shadow-purple-300/25 animate-float" style={{animationDelay: '600ms'}}>
               <Receipt className="h-7 w-7 text-white" />
             </div>
           </div>

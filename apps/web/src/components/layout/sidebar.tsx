@@ -100,15 +100,15 @@ export function Sidebar() {
 
   return (
     <aside className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
-      <div className="flex grow flex-col gap-y-6 overflow-y-auto border-r border-purple-100/50 bg-gradient-to-br from-white via-purple-50/30 to-pink-50/30 backdrop-blur-xl px-6 pb-4">
+      <div className="flex grow flex-col gap-y-6 overflow-y-auto border-r border-purple-200/40 bg-gradient-to-br from-white via-purple-50/50 to-pink-50/50 backdrop-blur-xl px-6 pb-4">
         {/* Logo */}
         <div className="flex h-20 shrink-0 items-center gap-3 pt-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 shadow-lg shadow-purple-500/30 animate-glow">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-300 via-pink-300 to-purple-400 shadow-lg shadow-purple-300/25 animate-glow">
             <Heart className="h-6 w-6 text-white" fill="white" />
           </div>
           <div className="flex flex-col">
             <span className="text-xl font-bold gradient-text-artistic">MaiaLink</span>
-            <span className="text-xs text-purple-600/70 font-medium">Suivi sage-femme</span>
+            <span className="text-xs text-purple-500/70 font-medium">Suivi sage-femme</span>
           </div>
         </div>
 
@@ -129,20 +129,20 @@ export function Sidebar() {
                         className={cn(
                           'group flex items-center gap-x-3 rounded-xl px-3 py-2.5 text-sm font-semibold leading-6 transition-all duration-200',
                           isActive(item.href)
-                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30 scale-[1.02]'
-                            : 'text-slate-700 hover:bg-white/80 hover:shadow-md hover:scale-[1.01] hover:text-purple-700'
+                            ? 'bg-gradient-to-r from-purple-300 to-pink-300 text-white shadow-lg shadow-purple-300/25 scale-[1.02]'
+                            : 'text-slate-700 hover:bg-white/80 hover:shadow-md hover:scale-[1.01] hover:text-purple-600'
                         )}
                       >
                         <div className={cn(
                           'flex h-9 w-9 items-center justify-center rounded-lg transition-all',
                           isActive(item.href)
-                            ? 'bg-white/20'
-                            : 'bg-purple-100/50 group-hover:bg-purple-200/70'
+                            ? 'bg-white/25'
+                            : 'bg-purple-100/60 group-hover:bg-purple-200/80'
                         )}>
                           <item.icon
                             className={cn(
                               'h-5 w-5 shrink-0 transition-all',
-                              isActive(item.href) ? 'text-white' : 'text-purple-600 group-hover:text-purple-700'
+                              isActive(item.href) ? 'text-white' : 'text-purple-500 group-hover:text-purple-600'
                             )}
                           />
                         </div>

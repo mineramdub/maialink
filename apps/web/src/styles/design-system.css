@@ -4,54 +4,57 @@
    ============================================================================ */
 
 :root {
-  /* === Palette de couleurs artistique === */
-  /* Violet lavande élégant */
-  --color-primary-50: #faf5ff;
-  --color-primary-100: #f3e8ff;
-  --color-primary-200: #e9d5ff;
-  --color-primary-300: #d8b4fe;
-  --color-primary-400: #c084fc;
-  --color-primary-500: #a855f7;
-  --color-primary-600: #9333ea;
-  --color-primary-700: #7e22ce;
-  --color-primary-800: #6b21a8;
-  --color-primary-900: #581c87;
+  /* === Palette de couleurs pastel === */
+  /* Lavande pastel doux */
+  --color-primary-50: #faf9ff;
+  --color-primary-100: #f4f2ff;
+  --color-primary-200: #ede9fe;
+  --color-primary-300: #ddd6fe;
+  --color-primary-400: #c4b5fd;
+  --color-primary-500: #a78bfa;
+  --color-primary-600: #8b7fda;
+  --color-primary-700: #7c70c4;
+  --color-primary-800: #6d63a8;
+  --color-primary-900: #5e5890;
 
-  /* Rose doux sophistiqué */
-  --color-secondary-50: #fdf2f8;
-  --color-secondary-100: #fce7f3;
-  --color-secondary-200: #fbcfe8;
-  --color-secondary-300: #f9a8d4;
-  --color-secondary-400: #f472b6;
-  --color-secondary-500: #ec4899;
-  --color-secondary-600: #db2777;
-  --color-secondary-700: #be185d;
-  --color-secondary-800: #9f1239;
-  --color-secondary-900: #831843;
+  /* Rose pastel tendre */
+  --color-secondary-50: #fef8fb;
+  --color-secondary-100: #fdf2f8;
+  --color-secondary-200: #fce7f3;
+  --color-secondary-300: #fbcfe8;
+  --color-secondary-400: #f9a8d4;
+  --color-secondary-500: #f093c6;
+  --color-secondary-600: #e07db0;
+  --color-secondary-700: #c96b9b;
+  --color-secondary-800: #b25987;
+  --color-secondary-900: #9b4a73;
 
-  /* Accent or/champagne */
-  --color-accent-50: #fffbeb;
-  --color-accent-100: #fef3c7;
-  --color-accent-200: #fde68a;
-  --color-accent-300: #fcd34d;
-  --color-accent-400: #fbbf24;
-  --color-accent-500: #f59e0b;
-  --color-accent-600: #d97706;
-  --color-accent-700: #b45309;
-  --color-accent-800: #92400e;
-  --color-accent-900: #78350f;
+  /* Pêche pastel lumineux */
+  --color-accent-50: #fffcf5;
+  --color-accent-100: #fff8e8;
+  --color-accent-200: #fef0d1;
+  --color-accent-300: #fde4b3;
+  --color-accent-400: #fcd495;
+  --color-accent-500: #fbc077;
+  --color-accent-600: #f5a864;
+  --color-accent-700: #e89451;
+  --color-accent-800: #d67f3f;
+  --color-accent-900: #c46b2d;
 
-  --color-success-50: #f0fdf4;
-  --color-success-500: #22c55e;
-  --color-success-600: #16a34a;
+  /* Vert menthe pastel */
+  --color-success-50: #f0fdf7;
+  --color-success-500: #6ee7b7;
+  --color-success-600: #4ade80;
 
-  --color-warning-50: #fffbeb;
-  --color-warning-500: #f59e0b;
-  --color-warning-600: #d97706;
+  /* Orange pastel doux */
+  --color-warning-50: #fffbf0;
+  --color-warning-500: #fbbf77;
+  --color-warning-600: #f5a864;
 
-  --color-error-50: #fef2f2;
-  --color-error-500: #ef4444;
-  --color-error-600: #dc2626;
+  /* Rose corail pastel */
+  --color-error-50: #fef5f5;
+  --color-error-500: #f5a5a5;
+  --color-error-600: #ef8585;
 
   /* === Espacements === */
   --spacing-xs: 0.25rem;
@@ -70,17 +73,17 @@
   --radius-2xl: 1.5rem;
   --radius-full: 9999px;
 
-  /* === Ombres artistiques === */
-  --shadow-xs: 0 1px 2px 0 rgb(139 92 246 / 0.05);
-  --shadow-sm: 0 2px 4px 0 rgb(139 92 246 / 0.08), 0 1px 2px -1px rgb(139 92 246 / 0.08);
-  --shadow-md: 0 4px 6px -1px rgb(139 92 246 / 0.1), 0 2px 4px -2px rgb(139 92 246 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(139 92 246 / 0.15), 0 4px 6px -4px rgb(139 92 246 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(139 92 246 / 0.2), 0 8px 10px -6px rgb(139 92 246 / 0.15);
-  --shadow-2xl: 0 25px 50px -12px rgb(139 92 246 / 0.3);
-  --shadow-inner: inset 0 2px 4px 0 rgb(139 92 246 / 0.06);
-  --shadow-colored-purple: 0 8px 16px -4px rgb(168 85 247 / 0.3);
-  --shadow-colored-pink: 0 8px 16px -4px rgb(236 72 153 / 0.3);
-  --shadow-colored-gold: 0 8px 16px -4px rgb(245 158 11 / 0.3);
+  /* === Ombres douces pastel === */
+  --shadow-xs: 0 1px 2px 0 rgb(167 139 250 / 0.04);
+  --shadow-sm: 0 2px 4px 0 rgb(167 139 250 / 0.06), 0 1px 2px -1px rgb(167 139 250 / 0.06);
+  --shadow-md: 0 4px 6px -1px rgb(167 139 250 / 0.08), 0 2px 4px -2px rgb(167 139 250 / 0.08);
+  --shadow-lg: 0 10px 15px -3px rgb(167 139 250 / 0.1), 0 4px 6px -4px rgb(167 139 250 / 0.08);
+  --shadow-xl: 0 20px 25px -5px rgb(167 139 250 / 0.12), 0 8px 10px -6px rgb(167 139 250 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(167 139 250 / 0.15);
+  --shadow-inner: inset 0 2px 4px 0 rgb(167 139 250 / 0.05);
+  --shadow-colored-purple: 0 8px 16px -4px rgb(196 181 253 / 0.2);
+  --shadow-colored-pink: 0 8px 16px -4px rgb(249 168 212 / 0.2);
+  --shadow-colored-peach: 0 8px 16px -4px rgb(252 212 149 / 0.2);
 
   /* === Transitions === */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -301,10 +304,10 @@ textarea,
 
 @keyframes glow {
   0%, 100% {
-    box-shadow: 0 0 20px rgb(168 85 247 / 0.3);
+    box-shadow: 0 0 20px rgb(196 181 253 / 0.25);
   }
   50% {
-    box-shadow: 0 0 30px rgb(168 85 247 / 0.6), 0 0 40px rgb(236 72 153 / 0.4);
+    box-shadow: 0 0 30px rgb(196 181 253 / 0.4), 0 0 40px rgb(249 168 212 / 0.3);
   }
 }
 
@@ -514,8 +517,8 @@ textarea,
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(
     135deg,
-    var(--color-primary-400),
-    var(--color-secondary-400)
+    var(--color-primary-300),
+    var(--color-secondary-300)
   );
   border-radius: var(--radius-full);
   border: 2px solid transparent;
@@ -526,10 +529,10 @@ textarea,
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(
     135deg,
-    var(--color-primary-500),
-    var(--color-secondary-500)
+    var(--color-primary-400),
+    var(--color-secondary-400)
   );
-  box-shadow: 0 0 6px var(--color-primary-300);
+  box-shadow: 0 0 8px var(--color-primary-200);
 }
 
 /* ============================================================================
