@@ -1,0 +1,1 @@
+ALTER TABLE "resultats_laboratoire" ADD COLUMN "highlights" jsonb;

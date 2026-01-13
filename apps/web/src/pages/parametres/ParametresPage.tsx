@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Label } from '../../components/ui/label'
 import { Input } from '../../components/ui/input'
 import { CalendarIntegrationSettings } from '../../components/CalendarIntegrationSettings'
+import { PracticeLearningSettings } from '../../components/PracticeLearningSettings'
 import { Settings } from 'lucide-react'
 
 export default function ParametresPage() {
@@ -44,6 +45,8 @@ export default function ParametresPage() {
       </Card>
 
       <CalendarIntegrationSettings />
+
+      <PracticeLearningSettings />
 
       <Card>
         <CardHeader>

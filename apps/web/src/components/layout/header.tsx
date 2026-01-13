@@ -83,17 +83,6 @@ export function Header({ user }: HeaderProps) {
 
           {/* Right side */}
           <div className="flex items-center gap-2 sm:gap-4">
-            {/* Doctolib link */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="hidden sm:flex"
-              onClick={() => window.open('https://pro.doctolib.fr', '_blank')}
-            >
-              <ExternalLink className="h-4 w-4 mr-1" />
-              Doctolib
-            </Button>
-
             {/* Notifications */}
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />

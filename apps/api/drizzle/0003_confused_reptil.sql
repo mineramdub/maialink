@@ -1,0 +1,1 @@
+ALTER TABLE "consultations" ADD COLUMN "sous_type_gyneco" text;

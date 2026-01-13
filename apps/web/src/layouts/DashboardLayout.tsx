@@ -1,18 +1,60 @@
 import { Outlet } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { Sidebar } from '../components/layout/sidebar'
 import { Header } from '../components/layout/header'
 import { ChatBubble } from '../components/chat-bubble'
 import { FloatingActionButton } from '../components/FloatingActionButton'
-import { CommandPalette } from '../components/CommandPalette'
+import { EnhancedCommandPalette } from '../components/EnhancedCommandPalette'
 import { ShortcutsDialog } from '../components/ShortcutsDialog'
 import { QuickConsultationModal } from '../components/QuickConsultationModal'
+import { SmartNotifications } from '../components/SmartNotifications'
 import { MobileNav } from '../components/layout/MobileNav'
+import { Toaster } from '../components/ui/toaster'
+import { Breadcrumbs } from '../components/Breadcrumbs'
+import { FloatingWidget } from '../components/FloatingWidget'
+import { Button } from '../components/ui/button'
+import { Wrench } from 'lucide-react'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useQuery } from '@tanstack/react-query'
 
 export function DashboardLayout() {
   const { user } = useAuth()
+  const [showWidget, setShowWidget] = useState(false)
+  const [sidebarWidth, setSidebarWidth] = useState(288) // Default w-72
+
+  // Load widget visibility from localStorage
+  useEffect(() => {
+    const savedVisibility = localStorage.getItem('maialink_widget_visible')
+    if (savedVisibility === 'true') {
+      setShowWidget(true)
+    }
+
+    // Load sidebar width
+    const savedWidth = localStorage.getItem('maialink_sidebar_width')
+    if (savedWidth) {
+      const width = parseInt(savedWidth)
+      if (!isNaN(width)) {
+        setSidebarWidth(width)
+      }
+    }
+
+    // Listen for sidebar resize events
+    const handleSidebarResize = (e: CustomEvent) => {
+      setSidebarWidth(e.detail.width)
+    }
+    window.addEventListener('sidebar-resize', handleSidebarResize as EventListener)
+    return () => {
+      window.removeEventListener('sidebar-resize', handleSidebarResize as EventListener)
+    }
+  }, [])
+
+  // Save widget visibility to localStorage
+  const toggleWidget = () => {
+    const newState = !showWidget
+    setShowWidget(newState)
+    localStorage.setItem('maialink_widget_visible', String(newState))
+  }
 
   // Enable keyboard shortcuts globally
   useKeyboardShortcuts()
@@ -33,16 +75,22 @@ export function DashboardLayout() {
 
   return (
     <>
-      {/* Global Dialogs */}
-      <CommandPalette />
+      {/* Global Dialogs & Notifications */}
+      <EnhancedCommandPalette />
       <ShortcutsDialog />
       <QuickConsultationModal />
+      <SmartNotifications />
+      <Toaster />
 
       <div className="flex h-screen bg-gray-50 pb-16 md:pb-0">
         <Sidebar />
-        <div className="flex-1 flex flex-col overflow-hidden lg:pl-64">
+        <div
+          className="flex-1 flex flex-col overflow-hidden transition-all duration-150"
+          style={{ paddingLeft: `${sidebarWidth}px` }}
+        >
           <Header user={user!} />
           <main className="flex-1 overflow-y-auto p-6">
+            <Breadcrumbs />
             <Outlet />
           </main>
         </div>
@@ -54,6 +102,21 @@ export function DashboardLayout() {
       {/* Global Components */}
       <FloatingActionButton />
       <ChatBubble />
+
+      {/* Widget toggle button */}
+      {!showWidget && (
+        <Button
+          onClick={toggleWidget}
+          className="fixed bottom-20 right-6 z-50 h-14 w-14 rounded-full shadow-lg"
+          size="icon"
+          title="Ouvrir les outils"
+        >
+          <Wrench className="h-6 w-6" />
+        </Button>
+      )}
+
+      {/* Floating Widget */}
+      {showWidget && <FloatingWidget onClose={() => toggleWidget()} />}
     </>
   )
 }

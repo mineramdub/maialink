@@ -20,6 +20,10 @@ export const contraceptifTypeEnum = pgEnum('contraceptif_type', ['sterilet_cuivr
 export const resultatStatutEnum = pgEnum('resultat_statut', ['en_attente', 'recupere', 'transmis'])
 export const surveillanceNiveauEnum = pgEnum('surveillance_niveau', ['normal', 'vigilance', 'rapprochee'])
 export const surveillanceRaisonEnum = pgEnum('surveillance_raison', ['hta', 'diabete', 'rciu', 'macrosomie', 'map', 'antecedents', 'age_maternel', 'grossesse_multiple', 'autre'])
+export const shareTypeEnum = pgEnum('share_type', ['patient', 'grossesse', 'documents', 'synthetic_pdf'])
+export const shareActionEnum = pgEnum('share_action', ['access_granted', 'access_denied', 'data_read', 'data_modified', 'revoked'])
+export const practiceActionTypeEnum = pgEnum('practice_action_type', ['prescription', 'examen', 'conseil', 'diagnostic', 'orientation'])
+export const practiceContextTypeEnum = pgEnum('practice_context_type', ['consultation_prenatale', 'consultation_postnatale', 'consultation_gyneco', 'reeducation', 'monitoring'])
 
 // Tables
 export const patientsSurveillance = pgTable('patients_surveillance', {
@@ -262,6 +266,10 @@ export const grossesses = pgTable('grossesses', {
 
   // Facteurs de risque
   facteursRisque: jsonb('facteurs_risque').$type<string[]>(),
+
+  // Suivi partagé
+  suiviPartageGyneco: boolean('suivi_partage_gyneco').default(false).notNull(),
+  nomGyneco: text('nom_gyneco'),
 
   // Récapitulatif médical grossesse
   recapMedical: jsonb('recap_medical').$type<{
@@ -1305,6 +1313,293 @@ export const traitementsHabituels = pgTable('traitements_habituels', {
   isActiveIdx: index('traitements_habituels_is_active_idx').on(table.isActive),
 }))
 
+// Résultats de laboratoire avec PDF et extraction automatique
+export const resultatsLaboratoire = pgTable('resultats_laboratoire', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  grossesseId: uuid('grossesse_id').references(() => grossesses.id, { onDelete: 'set null' }),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  // Métadonnées fichier
+  fichierUrl: text('fichier_url').notNull(),
+  fichierName: text('fichier_name').notNull(),
+  fichierSize: integer('fichier_size'),
+  mimeType: text('mime_type').default('application/pdf'),
+
+  // Métadonnées examen
+  dateExamen: date('date_examen').notNull(),
+  laboratoire: text('laboratoire'),
+  prescripteur: text('prescripteur'),
+
+  // Données extraites structurées par catégorie
+  donneesExtraites: jsonb('donnees_extraites').$type<{
+    hematologie?: Array<{
+      nom: string
+      valeur: string
+      unite?: string
+      reference?: string
+      statut: 'normal' | 'anormal' | 'critique'
+    }>
+    biochimie?: Array<{
+      nom: string
+      valeur: string
+      unite?: string
+      reference?: string
+      statut: 'normal' | 'anormal' | 'critique'
+    }>
+    serologies?: Array<{
+      nom: string
+      valeur: string
+      unite?: string
+      reference?: string
+      statut: 'normal' | 'anormal' | 'critique'
+    }>
+    hormones?: Array<{
+      nom: string
+      valeur: string
+      unite?: string
+      reference?: string
+      statut: 'normal' | 'anormal' | 'critique'
+    }>
+    autres?: Array<{
+      nom: string
+      valeur: string
+      unite?: string
+      reference?: string
+      statut: 'normal' | 'anormal' | 'critique'
+    }>
+  }>(),
+
+  // Statut de traitement
+  isProcessed: boolean('is_processed').default(false).notNull(),
+  processingError: text('processing_error'),
+
+  // Notes et validation
+  notes: text('notes'),
+  isValidated: boolean('is_validated').default(false).notNull(),
+
+  // Surlignages personnalisés (catégorie + index du test + couleur)
+  highlights: jsonb('highlights').$type<Array<{
+    category: string // hematologie, biochimie, etc.
+    testIndex: number // index du test dans la catégorie
+    color: string // couleur hex comme #FFFF00
+  }>>(),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  patientIdIdx: index('resultats_laboratoire_patient_id_idx').on(table.patientId),
+  dateExamenIdx: index('resultats_laboratoire_date_examen_idx').on(table.dateExamen),
+  isProcessedIdx: index('resultats_laboratoire_is_processed_idx').on(table.isProcessed),
+}))
+
+export const sharedAccess = pgTable('shared_access', {
+  id: uuid('id').defaultRandom().primaryKey(),
+
+  // Propriétaire du partage
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  // Type et ressources partagées (relation polymorphique)
+  shareType: shareTypeEnum('share_type').notNull(),
+  patientId: uuid('patient_id').references(() => patients.id, { onDelete: 'cascade' }),
+  grossesseId: uuid('grossesse_id').references(() => grossesses.id, { onDelete: 'cascade' }),
+  documentIds: jsonb('document_ids').$type<string[]>(),
+
+  // Sécurité d'accès
+  shareToken: text('share_token').notNull().unique(),        // Token long (32 bytes, 43 chars)
+  accessCodeHash: text('access_code_hash').notNull(),        // Hash bcrypt du PIN 6 chiffres
+
+  // Permissions
+  permissions: jsonb('permissions').notNull().$type<{
+    read: boolean
+    write: boolean
+    download: boolean
+  }>(),
+
+  // Informations destinataire (optionnel)
+  recipientName: text('recipient_name'),
+  recipientEmail: text('recipient_email'),
+  recipientNote: text('recipient_note'),           // Note interne
+
+  // Gestion du cycle de vie
+  isActive: boolean('is_active').default(true).notNull(),
+  revokedAt: timestamp('revoked_at'),
+  revokedBy: uuid('revoked_by').references(() => users.id),
+  revocationReason: text('revocation_reason'),
+
+  // Contraintes de sécurité
+  expiresAt: timestamp('expires_at'),                       // NULL = permanent
+  maxAccessCount: integer('max_access_count'),              // NULL = illimité
+  currentAccessCount: integer('current_access_count').default(0).notNull(),
+
+  // Protection anti brute-force
+  lastAccessAt: timestamp('last_access_at'),
+  failedAttemptsCount: integer('failed_attempts_count').default(0).notNull(),
+  lockedUntil: timestamp('locked_until'),                   // Verrouillage temporaire
+
+  // Métadonnées
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  tokenIdx: index('shared_access_token_idx').on(table.shareToken),
+  userIdIdx: index('shared_access_user_id_idx').on(table.userId),
+  patientIdIdx: index('shared_access_patient_id_idx').on(table.patientId),
+  isActiveIdx: index('shared_access_is_active_idx').on(table.isActive),
+}))
+
+export const sharedAccessLogs = pgTable('shared_access_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sharedAccessId: uuid('shared_access_id').notNull().references(() => sharedAccess.id, { onDelete: 'cascade' }),
+
+  action: shareActionEnum('action').notNull(),
+
+  // Ressource accédée/modifiée
+  resourceType: text('resource_type'),              // 'patient', 'consultation', 'document'
+  resourceId: text('resource_id'),
+
+  // Suivi des modifications (pour write)
+  oldData: jsonb('old_data'),
+  newData: jsonb('new_data'),
+
+  // Contexte de la requête
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  sharedAccessIdIdx: index('shared_access_logs_shared_access_id_idx').on(table.sharedAccessId),
+  actionIdx: index('shared_access_logs_action_idx').on(table.action),
+  createdAtIdx: index('shared_access_logs_created_at_idx').on(table.createdAt),
+}))
+
+// Tables d'apprentissage de la pratique
+export const practicePatterns = pgTable('practice_patterns', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  // Type d'action pratiquée
+  actionType: practiceActionTypeEnum('action_type').notNull(),
+
+  // Contexte anonymisé (sans données d'identification patient)
+  context: jsonb('context').notNull().$type<{
+    consultationType?: string    // Type de consultation
+    sa?: number                  // Semaines d'aménorrhée (si applicable)
+    motif?: string              // Motif anonymisé
+    ageGroupe?: string          // Tranche d'âge patient (ex: "20-30", "30-40")
+    parite?: number             // Parité
+    antecedents?: string[]      // Liste antécédents génériques
+    trimestre?: number          // Si grossesse
+  }>(),
+
+  // Données de l'action (anonymisées)
+  actionData: jsonb('action_data').notNull().$type<{
+    prescription?: {
+      medicament?: string
+      dosage?: string
+      duree?: string
+    }
+    examen?: {
+      type?: string
+      libelle?: string
+    }
+    conseil?: string
+    autre?: any
+  }>(),
+
+  // Statistiques d'utilisation
+  frequency: integer('frequency').default(1).notNull(),
+  lastUsed: timestamp('last_used').defaultNow().notNull(),
+
+  // Pattern associés (co-occurrences)
+  associatedActions: jsonb('associated_actions').$type<Array<{
+    actionType: string
+    actionData: any
+    cooccurrenceRate: number
+  }>>(),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('practice_patterns_user_id_idx').on(table.userId),
+  actionTypeIdx: index('practice_patterns_action_type_idx').on(table.actionType),
+  frequencyIdx: index('practice_patterns_frequency_idx').on(table.frequency),
+  lastUsedIdx: index('practice_patterns_last_used_idx').on(table.lastUsed),
+}))
+
+export const smartSuggestions = pgTable('smart_suggestions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  patternId: uuid('pattern_id').references(() => practicePatterns.id, { onDelete: 'cascade' }),
+
+  // Type de suggestion
+  suggestionType: text('suggestion_type').notNull(), // 'prescription', 'examen', 'conseil', 'template'
+
+  // Contexte déclencheur de la suggestion
+  triggerContext: jsonb('trigger_context').notNull().$type<{
+    consultationType?: string
+    sa?: number
+    motif?: string
+    patientProfile?: any
+  }>(),
+
+  // Contenu de la suggestion
+  suggestedAction: jsonb('suggested_action').notNull().$type<{
+    type: string
+    data: any
+    confidence: number    // Score de confiance (0-1)
+    explanation?: string  // Explication pour l'utilisateur
+  }>(),
+
+  // Métriques d'acceptation
+  timesShown: integer('times_shown').default(0).notNull(),
+  timesAccepted: integer('times_accepted').default(0).notNull(),
+  timesRejected: integer('times_rejected').default(0).notNull(),
+  acceptanceRate: decimal('acceptance_rate', { precision: 5, scale: 2 }).default('0'),
+
+  // Gestion
+  isActive: boolean('is_active').default(true).notNull(),
+  lastShownAt: timestamp('last_shown_at'),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('smart_suggestions_user_id_idx').on(table.userId),
+  patternIdIdx: index('smart_suggestions_pattern_id_idx').on(table.patternId),
+  suggestionTypeIdx: index('smart_suggestions_suggestion_type_idx').on(table.suggestionType),
+  acceptanceRateIdx: index('smart_suggestions_acceptance_rate_idx').on(table.acceptanceRate),
+  isActiveIdx: index('smart_suggestions_is_active_idx').on(table.isActive),
+}))
+
+export const practiceLearningEvents = pgTable('practice_learning_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  suggestionId: uuid('suggestion_id').references(() => smartSuggestions.id, { onDelete: 'set null' }),
+
+  // Événement
+  eventType: text('event_type').notNull(), // 'suggestion_shown', 'suggestion_accepted', 'suggestion_rejected', 'pattern_detected'
+
+  // Contexte de l'événement (anonymisé)
+  context: jsonb('context').$type<{
+    consultationType?: string
+    sa?: number
+    actionType?: string
+  }>(),
+
+  // Métadonnées
+  metadata: jsonb('metadata').$type<{
+    confidence?: number
+    alternativeActions?: any[]
+    userFeedback?: string
+  }>(),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('practice_learning_events_user_id_idx').on(table.userId),
+  suggestionIdIdx: index('practice_learning_events_suggestion_id_idx').on(table.suggestionId),
+  eventTypeIdx: index('practice_learning_events_event_type_idx').on(table.eventType),
+  createdAtIdx: index('practice_learning_events_created_at_idx').on(table.createdAt),
+}))
+
 // Relations
 export const parcoursReeducationRelations = relations(parcoursReeducation, ({ one, many }) => ({
   patient: one(patients, {
@@ -1377,6 +1672,79 @@ export const traitementsHabituelsRelations = relations(traitementsHabituels, ({ 
   }),
 }))
 
+export const resultatsLaboratoireRelations = relations(resultatsLaboratoire, ({ one }) => ({
+  patient: one(patients, {
+    fields: [resultatsLaboratoire.patientId],
+    references: [patients.id],
+  }),
+  grossesse: one(grossesses, {
+    fields: [resultatsLaboratoire.grossesseId],
+    references: [grossesses.id],
+  }),
+  user: one(users, {
+    fields: [resultatsLaboratoire.userId],
+    references: [users.id],
+  }),
+}))
+
+export const sharedAccessRelations = relations(sharedAccess, ({ one, many }) => ({
+  user: one(users, {
+    fields: [sharedAccess.userId],
+    references: [users.id],
+  }),
+  patient: one(patients, {
+    fields: [sharedAccess.patientId],
+    references: [patients.id],
+  }),
+  grossesse: one(grossesses, {
+    fields: [sharedAccess.grossesseId],
+    references: [grossesses.id],
+  }),
+  revokedByUser: one(users, {
+    fields: [sharedAccess.revokedBy],
+    references: [users.id],
+  }),
+  logs: many(sharedAccessLogs),
+}))
+
+export const sharedAccessLogsRelations = relations(sharedAccessLogs, ({ one }) => ({
+  sharedAccess: one(sharedAccess, {
+    fields: [sharedAccessLogs.sharedAccessId],
+    references: [sharedAccess.id],
+  }),
+}))
+
+export const practicePatternsRelations = relations(practicePatterns, ({ one, many }) => ({
+  user: one(users, {
+    fields: [practicePatterns.userId],
+    references: [users.id],
+  }),
+  suggestions: many(smartSuggestions),
+}))
+
+export const smartSuggestionsRelations = relations(smartSuggestions, ({ one, many }) => ({
+  user: one(users, {
+    fields: [smartSuggestions.userId],
+    references: [users.id],
+  }),
+  pattern: one(practicePatterns, {
+    fields: [smartSuggestions.patternId],
+    references: [practicePatterns.id],
+  }),
+  events: many(practiceLearningEvents),
+}))
+
+export const practiceLearningEventsRelations = relations(practiceLearningEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [practiceLearningEvents.userId],
+    references: [users.id],
+  }),
+  suggestion: one(smartSuggestions, {
+    fields: [practiceLearningEvents.suggestionId],
+    references: [smartSuggestions.id],
+  }),
+}))
+
 // Types exports
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -1410,3 +1778,15 @@ export type ResultatARecuperer = typeof resultatsARecuperer.$inferSelect
 export type NewResultatARecuperer = typeof resultatsARecuperer.$inferInsert
 export type TraitementHabituel = typeof traitementsHabituels.$inferSelect
 export type NewTraitementHabituel = typeof traitementsHabituels.$inferInsert
+export type ResultatLaboratoire = typeof resultatsLaboratoire.$inferSelect
+export type NewResultatLaboratoire = typeof resultatsLaboratoire.$inferInsert
+export type SharedAccess = typeof sharedAccess.$inferSelect
+export type NewSharedAccess = typeof sharedAccess.$inferInsert
+export type SharedAccessLog = typeof sharedAccessLogs.$inferSelect
+export type NewSharedAccessLog = typeof sharedAccessLogs.$inferInsert
+export type PracticePattern = typeof practicePatterns.$inferSelect
+export type NewPracticePattern = typeof practicePatterns.$inferInsert
+export type SmartSuggestion = typeof smartSuggestions.$inferSelect
+export type NewSmartSuggestion = typeof smartSuggestions.$inferInsert
+export type PracticeLearningEvent = typeof practiceLearningEvents.$inferSelect
+export type NewPracticeLearningEvent = typeof practiceLearningEvents.$inferInsert

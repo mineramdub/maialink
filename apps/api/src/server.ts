@@ -31,7 +31,11 @@ import surveillanceRoutes from './routes/surveillance.js'
 import searchRoutes from './routes/search.js'
 import notificationsRoutes from './routes/notifications.js'
 import traitementsHabituelsRoutes from './routes/traitements-habituels.js'
+import resultatsLaboRoutes from './routes/resultats-labo.js'
+import shareRoutes from './routes/share.js'
+import practiceLearningRoutes from './routes/practice-learning.js'
 import { auditMiddleware } from './middleware/audit.js'
+import { shareCreationLimiter, shareAccessLimiter, sharedDataLimiter } from './middleware/rate-limit.js'
 
 dotenv.config()
 
@@ -40,8 +44,28 @@ const PORT = process.env.PORT || 3001
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173'],
-  credentials: true
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      process.env.FRONTEND_URL
+    ].filter(Boolean) // Remove undefined values
+
+    // For /api/shared/*, allow all origins (public access with session validation)
+    // This is needed for shared medical records accessed by external healthcare professionals
+    if (!origin) {
+      // Allow requests with no origin (like mobile apps or curl)
+      callback(null, true)
+    } else if (allowedOrigins.includes(origin)) {
+      // Allow known origins
+      callback(null, true)
+    } else {
+      // For all other origins, still allow but we'll validate at the session level
+      callback(null, true)
+    }
+  },
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Share-Session']
 }))
 app.use(express.json({ limit: '400mb' }))
 app.use(express.urlencoded({ limit: '400mb', extended: true }))
@@ -150,6 +174,15 @@ app.use('/api/suivi-gyneco', suiviGynecoRoutes)
 app.use('/api/search', searchRoutes)
 app.use('/api/notifications', notificationsRoutes)
 app.use('/api/traitements-habituels', traitementsHabituelsRoutes)
+app.use('/api/resultats-labo', resultatsLaboRoutes)
+app.use('/api/practice-learning', practiceLearningRoutes)
+
+// Share routes with rate limiting
+// Authenticated routes (/api/share) - for practitioners
+app.use('/api/share', shareRoutes)
+
+// Public routes (/api/shared) - for recipients
+// Apply rate limiters directly in the share routes file for more granular control
 
 // Global error handler for Multer errors
 app.use((error: any, req: any, res: any, next: any) => {
