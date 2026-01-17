@@ -15,7 +15,7 @@ const PageLoader = () => (
 // Lazy load pages for better performance
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
-const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'))
+const DashboardPage = lazy(() => import('./pages/dashboard/EnhancedDashboardPage'))
 const PatientsPage = lazy(() => import('./pages/patients/PatientsPage'))
 const NewPatientPage = lazy(() => import('./pages/patients/NewPatientPage'))
 const PatientDetailPage = lazy(() => import('./pages/patients/PatientDetailPage'))
@@ -43,6 +43,8 @@ const ReeducationPage = lazy(() => import('./pages/reeducation/ReeducationPage')
 const NewReeducationPage = lazy(() => import('./pages/reeducation/NewReeducationPage'))
 const ReeducationDetailPage = lazy(() => import('./pages/reeducation/ReeducationDetailPage'))
 const SeanceEditPage = lazy(() => import('./pages/reeducation/SeanceEditPage'))
+const SuiviGynecoPage = lazy(() => import('./pages/suivi-gyneco/SuiviGynecoPage'))
+const SurveillancePage = lazy(() => import('./pages/surveillance/SurveillancePage'))
 const OrdonnanceDetailPage = lazy(() => import('./pages/ordonnances/OrdonnanceDetailPage'))
 const NewOrdonnancePage = lazy(() => import('./pages/ordonnances/NewOrdonnancePage'))
 const RoulettePage = lazy(() => import('./pages/roulette/RoulettePage'))
@@ -50,6 +52,7 @@ const AlertesPage = lazy(() => import('./pages/alertes/AlertesPage'))
 const TemplatesPage = lazy(() => import('./pages/templates/TemplatesPage'))
 const TemplateEditorPage = lazy(() => import('./pages/templates/TemplateEditorPage'))
 const OrdonnanceTemplatesPage = lazy(() => import('./pages/admin/OrdonnanceTemplatesPage').then(m => ({ default: m.OrdonnanceTemplatesPage })))
+const RessourcesMedicalesPage = lazy(() => import('./pages/RessourcesMedicalesPage'))
 
 // Wrapper component to add Suspense to lazy loaded routes
 const withSuspense = (Component: React.LazyExoticComponent<any>) => (
@@ -92,6 +95,8 @@ export const router = createBrowserRouter([
           { path: '/reeducation/new', element: withSuspense(NewReeducationPage) },
           { path: '/reeducation/:id', element: withSuspense(ReeducationDetailPage) },
           { path: '/reeducation/:parcoursId/seance/:seanceId', element: withSuspense(SeanceEditPage) },
+          { path: '/suivi-gyneco', element: withSuspense(SuiviGynecoPage) },
+          { path: '/surveillance', element: withSuspense(SurveillancePage) },
           { path: '/gynecologie', element: withSuspense(GynecologiePage) },
           { path: '/documents', element: withSuspense(DocumentsPage) },
           { path: '/documents/generate', element: withSuspense(DocumentGeneratorPage) },
@@ -110,6 +115,7 @@ export const router = createBrowserRouter([
           { path: '/templates', element: withSuspense(TemplatesPage) },
           { path: '/templates/new', element: withSuspense(TemplateEditorPage) },
           { path: '/templates/:id/edit', element: withSuspense(TemplateEditorPage) },
+          { path: '/ressources-medicales', element: withSuspense(RessourcesMedicalesPage) },
           { path: '/admin/ordonnance-templates', element: withSuspense(OrdonnanceTemplatesPage) },
           { path: '/parametres', element: withSuspense(ParametresPage) },
           { path: '/parametres/praticien', element: withSuspense(PractitionerSettingsPage) },

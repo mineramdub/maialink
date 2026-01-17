@@ -211,6 +211,7 @@ export const patients = pgTable('patients', {
   // Obstétrique
   gravida: integer('gravida').default(0),
   para: integer('para').default(0),
+  antecedentsObstetricaux: text('antecedents_obstetricaux'), // Détails des grossesses précédentes
 
   // Assurance
   mutuelle: text('mutuelle'),
@@ -466,6 +467,7 @@ export const consultations = pgTable('consultations', {
   examenClinique: text('examen_clinique'),
   conclusion: text('conclusion'),
   prescriptions: text('prescriptions'),
+  resumeCourt: text('resume_court'), // Résumé succinct pour affichage dans listes
 
   // Bandelette urinaire
   proteineUrinaire: text('proteine_urinaire'),
@@ -1743,6 +1745,26 @@ export const practiceLearningEventsRelations = relations(practiceLearningEvents,
     fields: [practiceLearningEvents.suggestionId],
     references: [smartSuggestions.id],
   }),
+}))
+
+// Ressources médicales
+export const ressourcesMedicales = pgTable('ressources_medicales', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  titre: text('titre').notNull(),
+  description: text('description'),
+  categorie: text('categorie').notNull(), // protocoles, references, scores, urgences, medicaments, autres
+  type: text('type').notNull(), // lien, fichier, calculateur, memo
+  url: text('url'),
+  contenu: text('contenu'),
+  tags: jsonb('tags').$type<string[]>().default([]),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('ressources_medicales_user_id_idx').on(table.userId),
+  categorieIdx: index('ressources_medicales_categorie_idx').on(table.categorie),
 }))
 
 // Types exports

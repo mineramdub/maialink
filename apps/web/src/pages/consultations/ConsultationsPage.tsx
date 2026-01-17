@@ -12,6 +12,7 @@ interface Consultation {
   type: string
   saTerm?: number
   saJours?: number
+  resumeCourt?: string
   patient: {
     firstName: string
     lastName: string
@@ -35,11 +36,11 @@ const ConsultationCard = memo(({ consultation }: { consultation: Consultation })
     <Card className="card-hover hover:border-slate-300 cursor-pointer">
       <CardContent className="p-5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-1">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
               <Stethoscope className="h-6 w-6 text-blue-600" />
             </div>
-            <div>
+            <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="font-medium text-slate-900">
                   {consultation.patient.firstName} {consultation.patient.lastName}
@@ -57,6 +58,11 @@ const ConsultationCard = memo(({ consultation }: { consultation: Consultation })
                   </div>
                 )}
               </div>
+              {consultation.resumeCourt && (
+                <div className="mt-2 text-sm text-slate-700 font-medium">
+                  {consultation.resumeCourt}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Badge } from '../../components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import { Textarea } from '../../components/ui/textarea'
+import { Input } from '../../components/ui/input'
+import { Label } from '../../components/ui/label'
 import {
   ArrowLeft,
   Loader2,
@@ -18,7 +20,6 @@ import {
   Mail,
   MapPin,
   Calendar,
-  Activity,
   Plus,
   Trash2,
   Bell,
@@ -27,16 +28,19 @@ import {
   X,
   ChevronRight,
   Eye,
-  Pill,
+  FlaskConical,
+  UserCheck,
+  Share2,
 } from 'lucide-react'
 import { formatDate, calculateAge, calculateSA } from '../../lib/utils'
 import { useAppointments } from '../../hooks/useAppointments'
 import { NewAppointmentDialog } from '../../components/NewAppointmentDialog'
-import { ReeducationTab } from '../../components/ReeducationTab'
 import { PatientDocuments } from '../../components/PatientDocuments'
 import { SurveillanceBadge } from '../../components/surveillance/SurveillanceBadge'
 import { SurveillanceModal } from '../../components/surveillance/SurveillanceModal'
-import { TraitementsHabituels } from '../../components/TraitementsHabituels'
+import { ResultatsLaboTab } from '../../components/ResultatsLaboTab'
+import { ShareDialog } from '../../components/ShareDialog'
+import { AntecedentsEditor } from '../../components/AntecedentsEditor'
 import { format, parseISO, isFuture, isPast } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -51,6 +55,24 @@ export default function PatientDetailPage() {
   const [isSavingNotes, setIsSavingNotes] = useState(false)
   const [surveillance, setSurveillance] = useState<any>(null)
   const [surveillanceModalOpen, setSurveillanceModalOpen] = useState(false)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [isEditingContact, setIsEditingContact] = useState(false)
+  const [isEditingMedical, setIsEditingMedical] = useState(false)
+  const [isSavingContact, setIsSavingContact] = useState(false)
+  const [isSavingMedical, setIsSavingMedical] = useState(false)
+  const [contactData, setContactData] = useState({
+    email: '',
+    phone: '',
+    mobilePhone: '',
+    address: '',
+    postalCode: '',
+    city: '',
+  })
+  const [medicalData, setMedicalData] = useState({
+    bloodType: '',
+    rhesus: '',
+    allergies: '',
+  })
 
   // Fetch appointments for this patient
   const { data: appointments = [], isLoading: appointmentsLoading } = useAppointments({
@@ -62,6 +84,24 @@ export default function PatientDetailPage() {
     fetchAlertes()
     fetchSurveillance()
   }, [id])
+
+  useEffect(() => {
+    if (patient) {
+      setContactData({
+        email: patient.email || '',
+        phone: patient.phone || '',
+        mobilePhone: patient.mobilePhone || '',
+        address: patient.address || '',
+        postalCode: patient.postalCode || '',
+        city: patient.city || '',
+      })
+      setMedicalData({
+        bloodType: patient.bloodType || '',
+        rhesus: patient.rhesus || '',
+        allergies: patient.allergies || '',
+      })
+    }
+  }, [patient])
 
   const fetchPatient = async () => {
     try {
@@ -140,6 +180,58 @@ export default function PatientDetailPage() {
     }
   }
 
+  const handleSaveContact = async () => {
+    setIsSavingContact(true)
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/patients/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(contactData)
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setPatient({ ...patient, ...contactData })
+        setIsEditingContact(false)
+      } else {
+        alert(data.error || 'Erreur lors de la sauvegarde')
+      }
+    } catch (error) {
+      console.error('Error saving contact:', error)
+      alert('Erreur lors de la sauvegarde')
+    } finally {
+      setIsSavingContact(false)
+    }
+  }
+
+  const handleSaveMedical = async () => {
+    setIsSavingMedical(true)
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/patients/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(medicalData)
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setPatient({ ...patient, ...medicalData })
+        setIsEditingMedical(false)
+      } else {
+        alert(data.error || 'Erreur lors de la sauvegarde')
+      }
+    } catch (error) {
+      console.error('Error saving medical data:', error)
+      alert('Erreur lors de la sauvegarde')
+    } finally {
+      setIsSavingMedical(false)
+    }
+  }
+
   const handleDelete = async () => {
     const patientName = `${patient.firstName} ${patient.lastName}`
 
@@ -201,6 +293,10 @@ export default function PatientDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShareDialogOpen(true)}>
+            <Share2 className="h-4 w-4 mr-2" />
+            Partager
+          </Button>
           <Button asChild>
             <Link to={`/patients/${id}/edit`}>
               <Edit className="h-4 w-4 mr-2" />
@@ -218,17 +314,17 @@ export default function PatientDetailPage() {
       </div>
 
       {/* Alertes & Tâches */}
-      {alertes.length > 0 && (
+      {alertes.filter((a: any) => a.type === 'tache_manuelle').length > 0 && (
         <Card className="border-blue-200 bg-blue-50">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
               <Bell className="h-5 w-5 text-blue-600 mt-0.5" />
               <div className="flex-1">
                 <h3 className="font-medium text-blue-900 mb-3">
-                  Alertes & Tâches ({alertes.length})
+                  Alertes & Tâches ({alertes.filter((a: any) => a.type === 'tache_manuelle').length})
                 </h3>
                 <div className="space-y-2">
-                  {alertes.map((alerte: any) => (
+                  {alertes.filter((alerte: any) => alerte.type === 'tache_manuelle').map((alerte: any) => (
                     <div
                       key={alerte.id}
                       className={`p-3 rounded-lg ${
@@ -285,27 +381,22 @@ export default function PatientDetailPage() {
       )}
 
       {/* Notes - Pense-bête */}
-      <Card className="border-slate-200">
+      <Card
+        className={!isEditingNotes ? "border-slate-200 cursor-pointer hover:shadow-md transition-shadow" : "border-slate-200"}
+        onClick={() => !isEditingNotes && setIsEditingNotes(true)}
+      >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <div className="flex items-center gap-2">
             <StickyNote className="h-5 w-5 text-slate-600" />
             <CardTitle className="text-base">Notes & Pense-bête</CardTitle>
           </div>
-          {!isEditingNotes ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsEditingNotes(true)}
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Modifier
-            </Button>
-          ) : (
+          {isEditingNotes && (
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation()
                   setIsEditingNotes(false)
                   setNotesValue(patient.notes || '')
                 }}
@@ -316,7 +407,10 @@ export default function PatientDetailPage() {
               </Button>
               <Button
                 size="sm"
-                onClick={handleSaveNotes}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleSaveNotes()
+                }}
                 disabled={isSavingNotes}
               >
                 {isSavingNotes ? (
@@ -342,12 +436,13 @@ export default function PatientDetailPage() {
               placeholder="Ajoutez des notes pour vos prochaines consultations : antécédents importants, préférences de la patiente, points à surveiller..."
               rows={6}
               className="w-full"
+              onClick={(e) => e.stopPropagation()}
             />
           ) : (
             <div className="text-sm text-slate-700 whitespace-pre-wrap min-h-[80px]">
               {patient.notes || (
                 <span className="text-slate-400 italic">
-                  Aucune note. Cliquez sur "Modifier" pour ajouter un pense-bête.
+                  Aucune note. Cliquez pour ajouter un pense-bête.
                 </span>
               )}
             </div>
@@ -355,75 +450,189 @@ export default function PatientDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card
+          className={!isEditingContact ? "cursor-pointer hover:shadow-md transition-shadow" : ""}
+          onClick={() => !isEditingContact && setIsEditingContact(true)}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <CardTitle className="text-sm">Informations de contact</CardTitle>
+            {isEditingContact && (
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setIsEditingContact(false)
+                    setContactData({
+                      email: patient.email || '',
+                      phone: patient.phone || '',
+                      mobilePhone: patient.mobilePhone || '',
+                      address: patient.address || '',
+                      postalCode: patient.postalCode || '',
+                      city: patient.city || '',
+                    })
+                  }}
+                  disabled={isSavingContact}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleSaveContact()
+                  }}
+                  disabled={isSavingContact}
+                >
+                  {isSavingContact ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            )}
           </CardHeader>
-          <CardContent className="space-y-3">
-            {patient.email && (
-              <div className="flex items-center gap-2 text-sm">
-                <Mail className="h-4 w-4 text-slate-400" />
-                <span>{patient.email}</span>
-              </div>
-            )}
-            {(patient.phone || patient.mobilePhone) && (
-              <div className="flex items-center gap-2 text-sm">
-                <Phone className="h-4 w-4 text-slate-400" />
-                <span>{patient.mobilePhone || patient.phone}</span>
-              </div>
-            )}
-            {patient.address && (
-              <div className="flex items-center gap-2 text-sm">
-                <MapPin className="h-4 w-4 text-slate-400" />
+          <CardContent className="space-y-3" onClick={(e) => isEditingContact && e.stopPropagation()}>
+            {isEditingContact ? (
+              <>
                 <div>
-                  <div>{patient.address}</div>
-                  <div>{patient.postalCode} {patient.city}</div>
+                  <Label htmlFor="email" className="text-xs text-slate-600">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={contactData.email}
+                    onChange={(e) => setContactData({ ...contactData, email: e.target.value })}
+                    placeholder="email@exemple.com"
+                    className="mt-1"
+                  />
                 </div>
-              </div>
+                <div>
+                  <Label htmlFor="mobilePhone" className="text-xs text-slate-600">Téléphone mobile</Label>
+                  <Input
+                    id="mobilePhone"
+                    type="tel"
+                    value={contactData.mobilePhone}
+                    onChange={(e) => setContactData({ ...contactData, mobilePhone: e.target.value })}
+                    placeholder="06 12 34 56 78"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone" className="text-xs text-slate-600">Téléphone fixe</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={contactData.phone}
+                    onChange={(e) => setContactData({ ...contactData, phone: e.target.value })}
+                    placeholder="01 23 45 67 89"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="address" className="text-xs text-slate-600">Adresse</Label>
+                  <Input
+                    id="address"
+                    type="text"
+                    value={contactData.address}
+                    onChange={(e) => setContactData({ ...contactData, address: e.target.value })}
+                    placeholder="12 rue de la Paix"
+                    className="mt-1"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label htmlFor="postalCode" className="text-xs text-slate-600">Code postal</Label>
+                    <Input
+                      id="postalCode"
+                      type="text"
+                      value={contactData.postalCode}
+                      onChange={(e) => setContactData({ ...contactData, postalCode: e.target.value })}
+                      placeholder="75001"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="city" className="text-xs text-slate-600">Ville</Label>
+                    <Input
+                      id="city"
+                      type="text"
+                      value={contactData.city}
+                      onChange={(e) => setContactData({ ...contactData, city: e.target.value })}
+                      placeholder="Paris"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {patient.email && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-slate-400" />
+                    <span>{patient.email}</span>
+                  </div>
+                )}
+                {(patient.phone || patient.mobilePhone) && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-slate-400" />
+                    <span>{patient.mobilePhone || patient.phone}</span>
+                  </div>
+                )}
+                {patient.address && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="h-4 w-4 text-slate-400" />
+                    <div>
+                      <div>{patient.address}</div>
+                      <div>{patient.postalCode} {patient.city}</div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Informations medicales</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm">Informations médicales</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsEditingMedical(!isEditingMedical)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {patient.bloodType && (
-              <div>
-                <span className="text-slate-600">Groupe sanguin:</span>
-                <span className="ml-2 font-medium">{patient.bloodType} {patient.rhesus}</span>
-              </div>
-            )}
-            {patient.gravida > 0 && (
-              <div>
-                <span className="text-slate-600">Parite:</span>
-                <span className="ml-2 font-medium">G{patient.gravida}P{patient.para}</span>
-              </div>
-            )}
-            {patient.allergies && (
-              <div>
-                <span className="text-slate-600">Allergies:</span>
-                <div className="mt-1 text-sm">{patient.allergies}</div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Activite recente</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div>
-              <span className="text-slate-600">Grossesses:</span>
-              <span className="ml-2 font-medium">{patient.grossesses?.length || 0}</span>
-            </div>
-            <div>
-              <span className="text-slate-600">Consultations:</span>
-              <span className="ml-2 font-medium">{patient.consultations?.length || 0}</span>
-            </div>
+          <CardContent>
+            <AntecedentsEditor
+              patientId={id!}
+              data={{
+                antecedentsMedicaux: patient.antecedentsMedicaux,
+                antecedentsChirurgicaux: patient.antecedentsChirurgicaux,
+                antecedentsGynecologiques: patient.antecedentsGynecologiques,
+                antecedentsFamiliaux: patient.antecedentsFamiliaux,
+                antecedentsObstetricaux: patient.antecedentsObstetricaux,
+                traitementEnCours: patient.traitementEnCours,
+              }}
+              onSave={async (data) => {
+                const res = await fetch(`${import.meta.env.VITE_API_URL}/api/patients/${id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify(data)
+                })
+                const result = await res.json()
+                if (result.success) {
+                  setPatient({ ...patient, ...data })
+                } else {
+                  throw new Error(result.error)
+                }
+              }}
+              compact={true}
+            />
           </CardContent>
         </Card>
       </div>
@@ -438,14 +647,6 @@ export default function PatientDetailPage() {
             <Stethoscope className="h-4 w-4 mr-2" />
             Consultations
           </TabsTrigger>
-          <TabsTrigger value="traitements">
-            <Pill className="h-4 w-4 mr-2" />
-            Traitements
-          </TabsTrigger>
-          <TabsTrigger value="reeducation">
-            <Activity className="h-4 w-4 mr-2" />
-            Rééducation
-          </TabsTrigger>
           <TabsTrigger value="appointments">
             <Calendar className="h-4 w-4 mr-2" />
             Rendez-vous
@@ -453,6 +654,10 @@ export default function PatientDetailPage() {
           <TabsTrigger value="documents">
             <FileText className="h-4 w-4 mr-2" />
             Documents
+          </TabsTrigger>
+          <TabsTrigger value="resultats-labo">
+            <FlaskConical className="h-4 w-4 mr-2" />
+            Résultats de labo
           </TabsTrigger>
         </TabsList>
 
@@ -507,6 +712,12 @@ export default function PatientDetailPage() {
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
                                 <Badge className="bg-blue-600">En cours</Badge>
+                                {activeGrossesse.suiviPartageGyneco && (
+                                  <Badge className="bg-purple-600 flex items-center gap-1">
+                                    <UserCheck className="h-3 w-3" />
+                                    Suivi partagé
+                                  </Badge>
+                                )}
                                 {activeGrossesse.ddr && (() => {
                                   const sa = calculateSA(activeGrossesse.ddr)
                                   return (
@@ -523,6 +734,11 @@ export default function PatientDetailPage() {
                                 <div>
                                   <span className="font-medium">DPA:</span> {formatDate(activeGrossesse.dpa)}
                                 </div>
+                                {activeGrossesse.suiviPartageGyneco && activeGrossesse.nomGyneco && (
+                                  <div className="text-purple-700">
+                                    <span className="font-medium">Gynécologue:</span> {activeGrossesse.nomGyneco}
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="text-blue-600">
@@ -567,8 +783,11 @@ export default function PatientDetailPage() {
                     <Link key={c.id} to={`/consultations/${c.id}`}>
                       <div className="p-4 border rounded-lg hover:bg-slate-50 transition-colors">
                         <div className="flex items-center justify-between">
-                          <div>
+                          <div className="flex-1">
                             <div className="font-medium">{formatDate(c.date)}</div>
+                            {c.resumeCourt && (
+                              <div className="text-sm text-slate-700 mt-1 font-medium">{c.resumeCourt}</div>
+                            )}
                             <div className="text-sm text-slate-600 mt-1">{c.type}</div>
                           </div>
                           <Badge variant="outline">{c.type}</Badge>
@@ -584,17 +803,6 @@ export default function PatientDetailPage() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="traitements">
-          <TraitementsHabituels
-            patientId={id!}
-            patientName={`${patient.firstName} ${patient.lastName}`}
-          />
-        </TabsContent>
-
-        <TabsContent value="reeducation">
-          <ReeducationTab patientId={id!} />
         </TabsContent>
 
         <TabsContent value="appointments">
@@ -679,6 +887,10 @@ export default function PatientDetailPage() {
         <TabsContent value="documents">
           <PatientDocuments patientId={id!} />
         </TabsContent>
+
+        <TabsContent value="resultats-labo">
+          <ResultatsLaboTab patientId={id!} />
+        </TabsContent>
       </Tabs>
 
       {/* Surveillance Modal */}
@@ -696,6 +908,15 @@ export default function PatientDetailPage() {
           }}
         />
       )}
+
+      {/* Share Dialog */}
+      <ShareDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        patientId={id!}
+        patientName={`${patient.firstName} ${patient.lastName}`}
+        grossesses={patient.grossesses || []}
+      />
     </div>
   )
 }

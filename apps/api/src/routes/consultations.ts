@@ -8,6 +8,7 @@ import { checkClinicalAlerts } from '../lib/pregnancy-utils.js'
 import { getTemplateForSA, generateConsultationFromTemplate, generateReminders } from '../lib/consultationTemplates.js'
 import { getGynecologyRecommendations, getGynecologyRecommendationsAsync } from '../lib/pregnancy-calendar.js'
 import { getOrdonnanceSuggestions } from '../lib/ordonnanceTemplates.js'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const router = Router()
 router.use(authMiddleware)
@@ -107,6 +108,7 @@ router.post('/', async (req: AuthRequest, res) => {
       examenClinique: body.examenClinique,
       conclusion: body.conclusion,
       prescriptions: body.prescriptions,
+      resumeCourt: body.resumeCourt || null,
       proteineUrinaire: body.proteineUrinaire,
       glucoseUrinaire: body.glucoseUrinaire,
       leucocytesUrinaires: body.leucocytesUrinaires,
@@ -326,6 +328,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
         examenClinique: body.examenClinique,
         conclusion: body.conclusion,
         prescriptions: body.prescriptions,
+        resumeCourt: body.resumeCourt || null,
         proteineUrinaire: body.proteineUrinaire,
         glucoseUrinaire: body.glucoseUrinaire,
         leucocytesUrinaires: body.leucocytesUrinaires,
@@ -492,6 +495,86 @@ router.get('/:id/ordonnance-suggestions', async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Get ordonnance suggestions error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// POST /api/consultations/:id/generate-summary - Generate AI summary for consultation
+router.post('/:id/generate-summary', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    // Get consultation
+    const consultation = await db.query.consultations.findFirst({
+      where: and(
+        eq(consultations.id, id),
+        eq(consultations.userId, req.user!.id)
+      ),
+      with: {
+        patient: true,
+        grossesse: true,
+      }
+    })
+
+    if (!consultation) {
+      return res.status(404).json({ error: 'Consultation non trouvée' })
+    }
+
+    // Build context for AI
+    const context = {
+      type: consultation.type,
+      motif: consultation.motif || '',
+      examenClinique: consultation.examenClinique || '',
+      conclusion: consultation.conclusion || '',
+      saTerm: consultation.saTerm,
+      saJours: consultation.saJours,
+      tensionSystolique: consultation.tensionSystolique,
+      tensionDiastolique: consultation.tensionDiastolique,
+      poids: consultation.poids,
+      hauteurUterine: consultation.hauteurUterine,
+      bdc: consultation.bdc,
+    }
+
+    // Generate summary using Gemini
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+    const prompt = `Tu es une sage-femme expérimentée. Génère un résumé TRÈS COURT (maximum 50 caractères) de cette consultation pour affichage dans une liste.
+
+Type de consultation: ${context.type}
+Motif: ${context.motif}
+Examen clinique: ${context.examenClinique ? context.examenClinique.substring(0, 200) : ''}
+Conclusion: ${context.conclusion ? context.conclusion.substring(0, 200) : ''}
+${context.saTerm ? `SA: ${context.saTerm}+${context.saJours}` : ''}
+${context.tensionSystolique ? `TA: ${context.tensionSystolique}/${context.tensionDiastolique}` : ''}
+${context.poids ? `Poids: ${context.poids}kg` : ''}
+
+Le résumé doit être:
+- TRÈS COURT: maximum 50 caractères
+- Informatif: mentionner l'essentiel (ex: "Cslt T2 - TA normale, RAS" ou "Cslt prénatal 32SA - Tout va bien")
+- Professionnel mais concis
+- Sans ponctuation finale
+
+Exemples de bons résumés:
+- "Cslt prénatal 28SA - RAS"
+- "Suivi post-natal J7 - Allaitement OK"
+- "Gynéco contraception - Pose DIU"
+- "Prénatal 34SA - TA élevée surveillance"
+
+Réponds UNIQUEMENT avec le résumé, sans guillemets ni explications.`
+
+    const result = await model.generateContent(prompt)
+    const summary = result.response.text().trim()
+
+    // Truncate to 100 chars max as safety
+    const finalSummary = summary.substring(0, 100)
+
+    res.json({
+      success: true,
+      resume: finalSummary
+    })
+  } catch (error) {
+    console.error('Generate summary error:', error)
+    res.status(500).json({ error: 'Erreur lors de la génération du résumé' })
   }
 })
 

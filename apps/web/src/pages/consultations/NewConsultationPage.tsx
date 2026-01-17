@@ -6,7 +6,7 @@ import { Label } from '../../components/ui/label'
 import { Textarea } from '../../components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
-import { ArrowLeft, Loader2, Save, FileText, Calendar, AlertTriangle, CheckCircle2, Plus } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, FileText, Calendar, AlertTriangle, CheckCircle2, Plus, Sparkles } from 'lucide-react'
 import { Badge } from '../../components/ui/badge'
 import { getTemplatesByType, getTemplateById, type ConsultationTemplate } from '../../lib/consultationTemplates'
 import { getObservationTemplate, generateObservationFromData } from '../../lib/observationTemplates'
@@ -17,12 +17,14 @@ import { ExamenCliniqueAdapte } from '../../components/ExamenCliniqueAdapte'
 import { SuiviBebe } from '../../components/SuiviBebe'
 import { HistoriqueConsultation } from '../../components/HistoriqueConsultation'
 import { AlertesCliniques } from '../../components/AlertesCliniques'
-import { SuggestionsOrdonnances } from '../../components/SuggestionsOrdonnances'
+import { TemplateEditor } from '../../components/TemplateEditor'
 import {
   EXAMEN_CLINIQUE_TEMPLATES,
   CONCLUSION_TEMPLATES,
   MOTIF_TEMPLATES
 } from '../../lib/consultationTextTemplates'
+import { AutofillService } from '../../services/autofillService'
+import { showNotification } from '../../components/SmartNotifications'
 
 export default function NewConsultationPage() {
   const navigate = useNavigate()
@@ -63,13 +65,227 @@ export default function NewConsultationPage() {
     motif: '',
     examenClinique: '',
     conclusion: '',
+    resumeCourt: '', // Résumé court pour affichage dans les listes
     saTerm: '',
     saJours: '',
     sousTypeGyneco: '', // 'instauration' ou 'suivi' pour les consultations gynéco
     prescriptions: '', // Liste des prescriptions créées
+    templateId: '', // ID du template utilisé
   })
 
   const [prescriptionsList, setPrescriptionsList] = useState<string[]>([])
+  const [aiSuggestions, setAiSuggestions] = useState<any[]>([])
+  const [autofillSuggestions, setAutofillSuggestions] = useState<any>(null)
+  const [autofillApplied, setAutofillApplied] = useState(false)
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
+
+  // Autofill suggestions basées sur l'historique du patient
+  useEffect(() => {
+    // Ne pas appliquer l'autofill en mode édition ou si déjà appliqué
+    if (isEditMode || autofillApplied || !patientData) {
+      return
+    }
+
+    // Attendre que toutes les données soient chargées
+    if (!patientData) return
+
+    // Récupérer l'historique des consultations
+    const fetchConsultationHistory = async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/consultations/patient/${patientData.id}?limit=10`,
+          { credentials: 'include' }
+        )
+        const data = await res.json()
+        const previousConsultations = data.success ? data.consultations : []
+
+        // Générer les suggestions d'autofill
+        const suggestions = AutofillService.suggestConsultationData(
+          patientData,
+          grossesseData,
+          previousConsultations
+        )
+
+        setAutofillSuggestions(suggestions)
+
+        // Afficher une notification si des suggestions sont disponibles
+        if (suggestions && Object.keys(suggestions).length > 0) {
+          showNotification({
+            type: 'suggestion',
+            title: 'Suggestions de pré-remplissage disponibles',
+            message: 'Des suggestions basées sur l\'historique de la patiente sont disponibles.',
+            action: {
+              label: 'Appliquer',
+              onClick: () => applyAutofillSuggestions(suggestions)
+            },
+            dismissible: true
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching consultation history for autofill:', error)
+      }
+    }
+
+    fetchConsultationHistory()
+  }, [patientData, grossesseData, isEditMode, autofillApplied])
+
+  // Fonction pour appliquer les suggestions d'autofill
+  const applyAutofillSuggestions = (suggestions: any) => {
+    const updates: any = {}
+
+    // Appliquer le type de consultation suggéré
+    if (suggestions.type && !formData.type) {
+      updates.type = suggestions.type
+    }
+
+    // Pré-remplir l'examen clinique avec le template
+    if (suggestions.examenCliniqueTemplate && !formData.examenClinique) {
+      updates.examenClinique = suggestions.examenCliniqueTemplate
+    }
+
+    // Appliquer les mises à jour au formulaire
+    if (Object.keys(updates).length > 0) {
+      setFormData(prev => ({ ...prev, ...updates }))
+      setAutofillApplied(true)
+
+      showNotification({
+        type: 'success',
+        title: 'Suggestions appliquées',
+        message: 'Les suggestions de pré-remplissage ont été appliquées au formulaire.',
+        autoClose: 3000
+      })
+    }
+  }
+
+  // Suggestions IA automatiques basées sur le texte
+  useEffect(() => {
+    if (!formData.patientId || (!formData.motif && !formData.examenClinique && !formData.conclusion)) {
+      setAiSuggestions([])
+      return
+    }
+
+    const newSuggestions: any[] = []
+    const texteComplet = `${formData.motif} ${formData.examenClinique} ${formData.conclusion}`.toLowerCase()
+
+    // Mycose
+    if (
+      texteComplet.includes('mycose') ||
+      texteComplet.includes('candidose') ||
+      (texteComplet.includes('leucorrhées') && (texteComplet.includes('blanches') || texteComplet.includes('épaisses')))
+    ) {
+      newSuggestions.push({
+        nom: 'Traitement mycose vulvo-vaginale',
+        type: 'medicament',
+        priorite: 'urgent',
+        description: 'Econazole ou Miconazole ovules + crème',
+        raison: 'Mycose diagnostiquée',
+        templateNom: 'Mycose vulvo-vaginale'
+      })
+    }
+
+    // Vaginose
+    if (
+      texteComplet.includes('vaginose') ||
+      (texteComplet.includes('leucorrhées') && texteComplet.includes('malodorantes'))
+    ) {
+      newSuggestions.push({
+        nom: 'Traitement vaginose bactérienne',
+        type: 'medicament',
+        priorite: 'urgent',
+        description: 'Métronidazole 500mg x2/j pendant 7 jours',
+        raison: 'Vaginose bactérienne diagnostiquée',
+        templateNom: 'Vaginose bactérienne'
+      })
+    }
+
+    // HTA
+    const tas = formData.tensionSystolique ? parseInt(formData.tensionSystolique) : null
+    const tad = formData.tensionDiastolique ? parseInt(formData.tensionDiastolique) : null
+
+    if (
+      (tas && tas >= 140) ||
+      (tad && tad >= 90) ||
+      texteComplet.includes('hta') ||
+      texteComplet.includes('hypertension')
+    ) {
+      newSuggestions.push({
+        nom: 'Bilan HTA gravidique / Pré-éclampsie',
+        type: 'biologie',
+        priorite: 'urgent',
+        description: 'Protéinurie 24h, NFS plaquettes, bilan hépatique, créatinine, acide urique',
+        raison: 'HTA détectée ou suspectée',
+        templateNom: 'Bilan HTA gravidique'
+      })
+    }
+
+    // Diabète gestationnel
+    const sa = formData.saTerm ? parseInt(formData.saTerm) : null
+    if (
+      (formData.type === 'prenatale' && sa && sa >= 24 && sa <= 28) ||
+      texteComplet.includes('diabète') ||
+      texteComplet.includes('hgpo')
+    ) {
+      if (!texteComplet.includes('hgpo réalisée') && !texteComplet.includes('hgpo fait')) {
+        newSuggestions.push({
+          nom: 'Test diabète gestationnel (HGPO)',
+          type: 'biologie',
+          priorite: 'recommande',
+          description: 'HGPO 75g - Dépistage diabète gestationnel',
+          raison: sa ? `Terme optimal pour dépistage (${sa} SA)` : 'Dépistage diabète gestationnel',
+          templateNom: 'HGPO - Test diabète gestationnel'
+        })
+      }
+    }
+
+    // RCIU
+    if (
+      texteComplet.includes('rciu') ||
+      texteComplet.includes('retard de croissance') ||
+      texteComplet.includes('hu insuffisante')
+    ) {
+      newSuggestions.push({
+        nom: 'Échographie + Doppler (RCIU)',
+        type: 'echographie',
+        priorite: 'urgent',
+        description: 'Échographie biométrie + Doppler ombilical, utérins',
+        raison: 'Suspicion RCIU',
+        templateNom: 'Échographie Doppler RCIU'
+      })
+    }
+
+    // Streptocoque B
+    if (formData.type === 'prenatale' && sa && sa >= 35 && sa <= 37) {
+      if (!texteComplet.includes('streptocoque b') && !texteComplet.includes('strep b fait')) {
+        newSuggestions.push({
+          nom: 'Prélèvement vaginal Streptocoque B',
+          type: 'biologie',
+          priorite: 'recommande',
+          description: 'PV recherche Streptocoque B (35-37 SA)',
+          raison: `Terme optimal pour dépistage (${sa} SA)`,
+          templateNom: 'Prélèvement vaginal Streptocoque B'
+        })
+      }
+    }
+
+    // Rééducation périnéale
+    if (
+      (formData.type === 'postnatale' || formData.type === 'reeducation') &&
+      (texteComplet.includes('fuites') || texteComplet.includes('incontinence') || texteComplet.includes('périnée'))
+    ) {
+      if (!texteComplet.includes('rééducation prescrite')) {
+        newSuggestions.push({
+          nom: 'Ordonnance kinésithérapie - Rééducation périnéale',
+          type: 'autre',
+          priorite: 'recommande',
+          description: '10 séances de rééducation périnéale',
+          raison: 'Post-partum ou troubles périnéaux',
+          templateNom: 'Kinésithérapie - Rééducation périnéale post-partum'
+        })
+      }
+    }
+
+    setAiSuggestions(newSuggestions)
+  }, [formData.motif, formData.examenClinique, formData.conclusion, formData.type, formData.saTerm, formData.tensionSystolique, formData.tensionDiastolique, formData.patientId])
 
   useEffect(() => {
     fetchPatients()
@@ -504,6 +720,7 @@ export default function NewConsultationPage() {
       setFormData({
         ...formData,
         ...template.data,
+        templateId: templateId, // Sauvegarder l'ID du template utilisé
       })
       setSelectedTemplate(templateId)
     }
@@ -542,7 +759,14 @@ export default function NewConsultationPage() {
         return
       }
 
-      navigate(`/consultations/${isEditMode ? consultationId : data.consultation.id}`)
+      // Redirect to billing after creating a new consultation
+      if (!isEditMode) {
+        const consultationId = data.consultation.id
+        const patientId = formData.patientId
+        navigate(`/facturation/new?patientId=${patientId}&consultationId=${consultationId}`)
+      } else {
+        navigate(`/consultations/${consultationId}`)
+      }
     } catch {
       setError(isEditMode ? 'Erreur lors de la modification de la consultation' : 'Erreur lors de la création de la consultation')
     } finally {
@@ -591,6 +815,72 @@ export default function NewConsultationPage() {
       }
     } catch (error) {
       console.error('Error applying template:', error)
+    }
+  }
+
+  const generateSummary = async () => {
+    if (!consultationId && isEditMode) {
+      showNotification({
+        type: 'error',
+        title: 'Erreur',
+        message: 'Impossible de générer un résumé sans consultation enregistrée'
+      })
+      return
+    }
+
+    // If in edit mode, use the API endpoint
+    if (isEditMode && consultationId) {
+      try {
+        setIsGeneratingSummary(true)
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/consultations/${consultationId}/generate-summary`, {
+          method: 'POST',
+          credentials: 'include',
+        })
+        const data = await res.json()
+
+        if (data.success) {
+          setFormData(prev => ({ ...prev, resumeCourt: data.resume }))
+          showNotification({
+            type: 'success',
+            title: 'Résumé généré',
+            message: 'Le résumé a été généré avec succès'
+          })
+        }
+      } catch (error) {
+        console.error('Error generating summary:', error)
+        showNotification({
+          type: 'error',
+          title: 'Erreur',
+          message: 'Erreur lors de la génération du résumé'
+        })
+      } finally {
+        setIsGeneratingSummary(false)
+      }
+    } else {
+      // If creating a new consultation, generate a simple summary from available data
+      let summary = ''
+      if (formData.type === 'prenatale' && formData.saTerm) {
+        summary = `Cslt prénatal ${formData.saTerm}SA`
+      } else if (formData.type === 'postnatale') {
+        summary = `Suivi post-natal`
+      } else if (formData.type === 'gyneco') {
+        summary = `Consultation gynéco`
+      } else {
+        summary = `Consultation ${formData.type}`
+      }
+
+      // Add important info from motif/conclusion if available
+      const motifShort = formData.motif?.substring(0, 30) || ''
+      if (motifShort && summary.length + motifShort.length < 90) {
+        summary += ` - ${motifShort}`
+      }
+
+      setFormData(prev => ({ ...prev, resumeCourt: summary.substring(0, 100) }))
+      showNotification({
+        type: 'info',
+        title: 'Résumé généré',
+        message: 'Un résumé de base a été généré. Vous pourrez l\'affiner après l\'enregistrement.'
+      })
     }
   }
 
@@ -799,9 +1089,23 @@ export default function NewConsultationPage() {
                   </SelectContent>
                 </Select>
                 {selectedTemplate && (
-                  <p className="text-xs text-blue-600">
-                    Template appliqué - Les champs ont été pré-remplis
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-blue-600">
+                      Template appliqué - Les champs ont été pré-remplis
+                    </p>
+                    <TemplateEditor
+                      templateId={formData.templateId}
+                      currentMotif={formData.motif}
+                      currentExamenClinique={formData.examenClinique}
+                      currentConclusion={formData.conclusion}
+                      onSave={() => {
+                        // Recharger le template après modification
+                        if (formData.templateId) {
+                          applyTemplate(formData.templateId)
+                        }
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -840,279 +1144,6 @@ export default function NewConsultationPage() {
           />
         )}
 
-        {/* Calendar Recommendations Card */}
-        {calendarRecommendations && currentSA && (
-          <Card className="border-blue-200 bg-blue-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-900">
-                <Calendar className="h-5 w-5" />
-                Recommandations du calendrier de grossesse ({Math.floor(currentSA)} SA + {Math.round((currentSA - Math.floor(currentSA)) * 7)} j)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {calendarRecommendations.examensAFaire?.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-sm text-blue-900 mb-2 flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Examens à réaliser
-                  </h4>
-                  <div className="space-y-2">
-                    {calendarRecommendations.examensAFaire.map((examen: string, i: number) => {
-                      const key = `examen-${i}`
-                      return (
-                        <div key={i} className="flex items-start gap-2">
-                          <input
-                            type="checkbox"
-                            id={key}
-                            checked={checkedRecommendations[key] || false}
-                            onChange={() => toggleRecommendation(key)}
-                            className="mt-1 h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <label
-                            htmlFor={key}
-                            className={`text-sm text-blue-800 cursor-pointer ${
-                              checkedRecommendations[key] ? 'line-through opacity-60' : ''
-                            }`}
-                          >
-                            {renderClickableText(examen, i)}
-                          </label>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {calendarRecommendations.prescriptionsAPrevoir?.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-sm text-blue-900 mb-2 flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Prescriptions à prévoir
-                  </h4>
-                  <div className="space-y-2">
-                    {calendarRecommendations.prescriptionsAPrevoir.map((prescription: string, i: number) => {
-                      const key = `prescription-${i}`
-                      return (
-                        <div key={i} className="flex items-start gap-2">
-                          <input
-                            type="checkbox"
-                            id={key}
-                            checked={checkedRecommendations[key] || false}
-                            onChange={() => toggleRecommendation(key)}
-                            className="mt-1 h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <label
-                            htmlFor={key}
-                            className={`text-sm text-blue-800 cursor-pointer ${
-                              checkedRecommendations[key] ? 'line-through opacity-60' : ''
-                            }`}
-                          >
-                            {renderClickableText(prescription, i)}
-                          </label>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {calendarRecommendations.pointsDeVigilance?.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-sm text-orange-900 mb-2 flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4" />
-                    Points de vigilance
-                  </h4>
-                  <div className="space-y-2">
-                    {calendarRecommendations.pointsDeVigilance.map((point: string, i: number) => {
-                      const key = `vigilance-${i}`
-                      return (
-                        <div key={i} className="flex items-start gap-2">
-                          <input
-                            type="checkbox"
-                            id={key}
-                            checked={checkedRecommendations[key] || false}
-                            onChange={() => toggleRecommendation(key)}
-                            className="mt-1 h-4 w-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
-                          />
-                          <label
-                            htmlFor={key}
-                            className={`text-sm text-orange-800 cursor-pointer ${
-                              checkedRecommendations[key] ? 'line-through opacity-60' : ''
-                            }`}
-                          >
-                            {renderClickableText(point, i)}
-                          </label>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {calendarRecommendations.conseilsADonner?.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-sm text-green-900 mb-2 flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Conseils à donner
-                  </h4>
-                  <div className="space-y-2">
-                    {calendarRecommendations.conseilsADonner.map((conseil: string, i: number) => {
-                      const key = `conseil-${i}`
-                      return (
-                        <div key={i} className="flex items-start gap-2">
-                          <input
-                            type="checkbox"
-                            id={key}
-                            checked={checkedRecommendations[key] || false}
-                            onChange={() => toggleRecommendation(key)}
-                            className="mt-1 h-4 w-4 rounded border-green-300 text-green-600 focus:ring-green-500"
-                          />
-                          <label
-                            htmlFor={key}
-                            className={`text-sm text-green-800 cursor-pointer ${
-                              checkedRecommendations[key] ? 'line-through opacity-60' : ''
-                            }`}
-                          >
-                            {renderClickableText(conseil, i)}
-                          </label>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Ordonnances suggérées */}
-        {calendarRecommendations?.ordonnancesSuggerees && calendarRecommendations.ordonnancesSuggerees.length > 0 && (
-          <Card className="border-purple-200 bg-purple-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-purple-900">
-                <FileText className="h-5 w-5" />
-                Ordonnances suggérées (selon le terme)
-              </CardTitle>
-              <p className="text-sm text-purple-700">
-                Créez rapidement les ordonnances recommandées pour ce terme de grossesse
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3">
-                {calendarRecommendations.ordonnancesSuggerees.map((ordonnance: any) => (
-                  <div
-                    key={ordonnance.id}
-                    className="flex items-start justify-between p-4 bg-white rounded-lg border border-purple-200 hover:border-purple-300 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-sm text-slate-900">
-                          {ordonnance.nom}
-                        </h4>
-                        <Badge
-                          variant={ordonnance.priorite === 'urgent' ? 'destructive' : 'secondary'}
-                          className="text-xs"
-                        >
-                          {ordonnance.priorite === 'urgent' ? '🔴 Urgent' : ordonnance.priorite === 'recommande' ? '🟡 Recommandé' : '🟢 Optionnel'}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {ordonnance.type === 'biologie' ? '🧪 Biologie' :
-                           ordonnance.type === 'echographie' ? '📊 Échographie' :
-                           ordonnance.type === 'medicament' ? '💊 Médicament' : '📄 Autre'}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-slate-600">{ordonnance.description}</p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        // Ajouter la prescription à la conclusion
-                        addPrescription(ordonnance.nom)
-
-                        // Naviguer vers création ordonnance avec le template pré-rempli
-                        const consultationIdParam = formData.id ? `&consultationId=${formData.id}` : ''
-                        window.open(
-                          `/ordonnances/new?patientId=${formData.patientId}${consultationIdParam}&template=${encodeURIComponent(ordonnance.templateNom || ordonnance.nom)}`,
-                          '_blank'
-                        )
-                      }}
-                      className="shrink-0"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Créer
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Ordonnances suggérées - Gynécologie */}
-        {console.log('[Gyneco Render] gynecologyRecommendations:', gynecologyRecommendations)}
-        {gynecologyRecommendations?.ordonnancesSuggerees && gynecologyRecommendations.ordonnancesSuggerees.length > 0 && (
-          <Card className="border-pink-200 bg-pink-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-pink-900">
-                <FileText className="h-5 w-5" />
-                Ordonnances suggérées (selon le motif)
-              </CardTitle>
-              <p className="text-sm text-pink-700">
-                Créez rapidement les ordonnances recommandées pour ce motif de consultation gynécologique
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3">
-                {gynecologyRecommendations.ordonnancesSuggerees.map((ordonnance: any) => (
-                  <div
-                    key={ordonnance.id}
-                    className="flex items-start justify-between p-4 bg-white rounded-lg border border-pink-200 hover:border-pink-300 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-sm text-slate-900">
-                          {ordonnance.nom}
-                        </h4>
-                        <Badge
-                          variant={ordonnance.priorite === 'urgent' ? 'destructive' : 'secondary'}
-                          className="text-xs"
-                        >
-                          {ordonnance.priorite === 'urgent' ? '🔴 Urgent' : ordonnance.priorite === 'recommande' ? '🟡 Recommandé' : '🟢 Optionnel'}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {ordonnance.type === 'biologie' ? '🧪 Biologie' :
-                           ordonnance.type === 'echographie' ? '📊 Échographie' :
-                           ordonnance.type === 'medicament' ? '💊 Médicament' : '📄 Autre'}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-slate-600">{ordonnance.description}</p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        // Ajouter la prescription à la conclusion
-                        addPrescription(ordonnance.nom)
-
-                        // Naviguer vers création ordonnance avec le template pré-rempli
-                        const consultationIdParam = formData.id ? `&consultationId=${formData.id}` : ''
-                        window.open(
-                          `/ordonnances/new?patientId=${formData.patientId}${consultationIdParam}&template=${encodeURIComponent(ordonnance.templateNom || ordonnance.nom)}`,
-                          '_blank'
-                        )
-                      }}
-                      className="shrink-0"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Créer
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Consultation Suggestions & Alerts */}
         <ConsultationSuggestions
@@ -1136,19 +1167,372 @@ export default function NewConsultationPage() {
           lastDate={lastConsultation?.date}
         />
 
-        {/* Suggestions automatiques d'ordonnances */}
-        {formData.patientId && (formData.motif || formData.examenClinique || formData.conclusion) && (
-          <SuggestionsOrdonnances
-            patientId={formData.patientId}
-            grossesseId={formData.grossesseId}
-            type={formData.type}
-            motif={formData.motif}
-            examenClinique={formData.examenClinique}
-            conclusion={formData.conclusion}
-            saTerm={formData.saTerm}
-            tensionSystolique={formData.tensionSystolique}
-            tensionDiastolique={formData.tensionDiastolique}
-          />
+        {/* Recommandations et suggestions - Section unifiée */}
+        {(calendarRecommendations || gynecologyRecommendations?.ordonnancesSuggerees?.length > 0 || aiSuggestions.length > 0) && (
+          <Card className="border-blue-200 bg-blue-50/30">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-blue-900">
+                <Calendar className="h-5 w-5" />
+                Recommandations et suggestions
+                {currentSA && <span className="text-sm font-normal">({Math.floor(currentSA)} SA + {Math.round((currentSA - Math.floor(currentSA)) * 7)}j)</span>}
+              </CardTitle>
+              <p className="text-sm text-blue-700">
+                Actions recommandées, examens et ordonnances à prévoir pour cette consultation
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Examens en retard - Section d'alerte */}
+              {calendarRecommendations?.examensEnRetard?.length > 0 && (
+                <div className="space-y-2 p-4 bg-orange-100 border-2 border-orange-300 rounded-lg">
+                  <h4 className="font-bold text-sm text-orange-900 mb-3 flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5" />
+                    ⚠️ Examens en retard - À rattraper
+                  </h4>
+                  <div className="space-y-3">
+                    {calendarRecommendations.examensEnRetard.map((retard: any, i: number) => (
+                      <div key={i} className="p-3 bg-white rounded-lg border-2 border-orange-400">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="font-semibold text-orange-900">
+                            {retard.titre}
+                          </div>
+                          <Badge variant="destructive" className="text-xs">
+                            Prévu {retard.saMin}-{retard.saMax} SA
+                          </Badge>
+                        </div>
+                        {retard.examens?.length > 0 && (
+                          <div className="space-y-1 mt-2">
+                            {retard.examens.map((examen: string, j: number) => {
+                              const key = `retard-${i}-${j}`
+                              return (
+                                <div key={j} className="flex items-start gap-2">
+                                  <input
+                                    type="checkbox"
+                                    id={key}
+                                    checked={checkedRecommendations[key] || false}
+                                    onChange={() => toggleRecommendation(key)}
+                                    className="mt-1 h-4 w-4 rounded border-orange-400 text-orange-600 focus:ring-orange-500"
+                                  />
+                                  <label
+                                    htmlFor={key}
+                                    className={`text-sm text-orange-800 cursor-pointer flex-1 ${
+                                      checkedRecommendations[key] ? 'line-through opacity-60' : ''
+                                    }`}
+                                  >
+                                    {examen}
+                                  </label>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Examens à réaliser */}
+              {calendarRecommendations?.examensAFaire?.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-blue-900 mb-2 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Examens à réaliser
+                  </h4>
+                  <div className="space-y-2">
+                    {calendarRecommendations.examensAFaire.map((examen: string, i: number) => {
+                      const key = `examen-${i}`
+                      return (
+                        <div key={i} className="flex items-start gap-2 p-2 bg-white rounded border border-blue-100">
+                          <input
+                            type="checkbox"
+                            id={key}
+                            checked={checkedRecommendations[key] || false}
+                            onChange={() => toggleRecommendation(key)}
+                            className="mt-1 h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label
+                            htmlFor={key}
+                            className={`text-sm text-blue-800 cursor-pointer flex-1 ${
+                              checkedRecommendations[key] ? 'line-through opacity-60' : ''
+                            }`}
+                          >
+                            {renderClickableText(examen, i)}
+                          </label>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Prescriptions à prévoir */}
+              {calendarRecommendations?.prescriptionsAPrevoir?.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-blue-900 mb-2 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Prescriptions à prévoir
+                  </h4>
+                  <div className="space-y-2">
+                    {calendarRecommendations.prescriptionsAPrevoir.map((prescription: string, i: number) => {
+                      const key = `prescription-${i}`
+                      return (
+                        <div key={i} className="flex items-start gap-2 p-2 bg-white rounded border border-blue-100">
+                          <input
+                            type="checkbox"
+                            id={key}
+                            checked={checkedRecommendations[key] || false}
+                            onChange={() => toggleRecommendation(key)}
+                            className="mt-1 h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label
+                            htmlFor={key}
+                            className={`text-sm text-blue-800 cursor-pointer flex-1 ${
+                              checkedRecommendations[key] ? 'line-through opacity-60' : ''
+                            }`}
+                          >
+                            {renderClickableText(prescription, i)}
+                          </label>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Points de vigilance */}
+              {calendarRecommendations?.pointsDeVigilance?.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-orange-900 mb-2 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Points de vigilance
+                  </h4>
+                  <div className="space-y-2">
+                    {calendarRecommendations.pointsDeVigilance.map((point: string, i: number) => {
+                      const key = `vigilance-${i}`
+                      return (
+                        <div key={i} className="flex items-start gap-2 p-2 bg-orange-50 rounded border border-orange-200">
+                          <input
+                            type="checkbox"
+                            id={key}
+                            checked={checkedRecommendations[key] || false}
+                            onChange={() => toggleRecommendation(key)}
+                            className="mt-1 h-4 w-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
+                          />
+                          <label
+                            htmlFor={key}
+                            className={`text-sm text-orange-800 cursor-pointer flex-1 ${
+                              checkedRecommendations[key] ? 'line-through opacity-60' : ''
+                            }`}
+                          >
+                            {renderClickableText(point, i)}
+                          </label>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Conseils à donner */}
+              {calendarRecommendations?.conseilsADonner?.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-green-900 mb-2 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Conseils à donner
+                  </h4>
+                  <div className="space-y-2">
+                    {calendarRecommendations.conseilsADonner.map((conseil: string, i: number) => {
+                      const key = `conseil-${i}`
+                      return (
+                        <div key={i} className="flex items-start gap-2 p-2 bg-green-50 rounded border border-green-200">
+                          <input
+                            type="checkbox"
+                            id={key}
+                            checked={checkedRecommendations[key] || false}
+                            onChange={() => toggleRecommendation(key)}
+                            className="mt-1 h-4 w-4 rounded border-green-300 text-green-600 focus:ring-green-500"
+                          />
+                          <label
+                            htmlFor={key}
+                            className={`text-sm text-green-800 cursor-pointer flex-1 ${
+                              checkedRecommendations[key] ? 'line-through opacity-60' : ''
+                            }`}
+                          >
+                            {renderClickableText(conseil, i)}
+                          </label>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Ordonnances suggérées selon le terme */}
+              {calendarRecommendations?.ordonnancesSuggerees && calendarRecommendations.ordonnancesSuggerees.length > 0 && (
+                <div className="space-y-2 border-t pt-4">
+                  <h4 className="font-semibold text-sm text-purple-900 mb-2 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Ordonnances recommandées (selon le terme)
+                  </h4>
+                  <div className="space-y-2">
+                    {calendarRecommendations.ordonnancesSuggerees.map((ordonnance: any) => (
+                      <div
+                        key={ordonnance.id}
+                        className="flex items-start justify-between p-3 bg-white rounded-lg border border-purple-200 hover:border-purple-300 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-sm text-slate-900">
+                              {ordonnance.nom}
+                            </h4>
+                            <Badge
+                              variant={ordonnance.priorite === 'urgent' ? 'destructive' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {ordonnance.priorite === 'urgent' ? '🔴 Urgent' : ordonnance.priorite === 'recommande' ? '🟡 Recommandé' : '🟢 Optionnel'}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {ordonnance.type === 'biologie' ? '🧪 Biologie' :
+                               ordonnance.type === 'echographie' ? '📊 Échographie' :
+                               ordonnance.type === 'medicament' ? '💊 Médicament' : '📄 Autre'}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-slate-600">{ordonnance.description}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            addPrescription(ordonnance.nom)
+                            const consultationIdParam = formData.id ? `&consultationId=${formData.id}` : ''
+                            window.open(
+                              `/ordonnances/new?patientId=${formData.patientId}${consultationIdParam}&template=${encodeURIComponent(ordonnance.templateNom || ordonnance.nom)}`,
+                              '_blank'
+                            )
+                          }}
+                          className="shrink-0 ml-3"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Créer
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Ordonnances gynécologie */}
+              {gynecologyRecommendations?.ordonnancesSuggerees && gynecologyRecommendations.ordonnancesSuggerees.length > 0 && (
+                <div className="space-y-2 border-t pt-4">
+                  <h4 className="font-semibold text-sm text-pink-900 mb-2 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Ordonnances recommandées (gynécologie)
+                  </h4>
+                  <div className="space-y-2">
+                    {gynecologyRecommendations.ordonnancesSuggerees.map((ordonnance: any) => (
+                      <div
+                        key={ordonnance.id}
+                        className="flex items-start justify-between p-3 bg-white rounded-lg border border-pink-200 hover:border-pink-300 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-sm text-slate-900">
+                              {ordonnance.nom}
+                            </h4>
+                            <Badge
+                              variant={ordonnance.priorite === 'urgent' ? 'destructive' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {ordonnance.priorite === 'urgent' ? '🔴 Urgent' : ordonnance.priorite === 'recommande' ? '🟡 Recommandé' : '🟢 Optionnel'}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {ordonnance.type === 'biologie' ? '🧪 Biologie' :
+                               ordonnance.type === 'echographie' ? '📊 Échographie' :
+                               ordonnance.type === 'medicament' ? '💊 Médicament' : '📄 Autre'}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-slate-600">{ordonnance.description}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            addPrescription(ordonnance.nom)
+                            const consultationIdParam = formData.id ? `&consultationId=${formData.id}` : ''
+                            window.open(
+                              `/ordonnances/new?patientId=${formData.patientId}${consultationIdParam}&template=${encodeURIComponent(ordonnance.templateNom || ordonnance.nom)}`,
+                              '_blank'
+                            )
+                          }}
+                          className="shrink-0 ml-3"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Créer
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Suggestions automatiques IA */}
+              {aiSuggestions.length > 0 && (
+                <div className="space-y-2 border-t pt-4">
+                  <h4 className="font-semibold text-sm text-indigo-900 mb-2 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Ordonnances suggérées (détection automatique)
+                  </h4>
+                  <div className="space-y-2">
+                    {aiSuggestions.map((suggestion: any, index: number) => (
+                      <div
+                        key={index}
+                        className="flex items-start justify-between p-3 bg-white rounded-lg border border-indigo-200 hover:border-indigo-300 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-sm text-slate-900">
+                              {suggestion.nom}
+                            </h4>
+                            <Badge
+                              variant={suggestion.priorite === 'urgent' ? 'destructive' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {suggestion.priorite === 'urgent' ? '🔴 Urgent' : suggestion.priorite === 'recommande' ? '🟡 Recommandé' : '🟢 Optionnel'}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {suggestion.type === 'biologie' ? '🧪 Biologie' :
+                               suggestion.type === 'echographie' ? '📊 Échographie' :
+                               suggestion.type === 'medicament' ? '💊 Médicament' : '📄 Autre'}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-slate-600 mb-1">{suggestion.description}</p>
+                          <p className="text-xs text-indigo-600 italic">→ {suggestion.raison}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            addPrescription(suggestion.nom)
+                            const consultationIdParam = formData.id ? `&consultationId=${formData.id}` : ''
+                            const params = new URLSearchParams({
+                              patientId: formData.patientId,
+                              ...(formData.grossesseId && { grossesseId: formData.grossesseId }),
+                              ...(suggestion.templateNom && { template: suggestion.templateNom })
+                            })
+                            window.open(`/ordonnances/new?${params.toString()}`, '_blank')
+                          }}
+                          className="shrink-0 ml-3"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Créer
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         <Card>
@@ -1254,6 +1638,47 @@ export default function NewConsultationPage() {
                 value={formData.conclusion}
                 onChange={(e) => updateField('conclusion', e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="resumeCourt" className="text-sm font-medium flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-blue-600" />
+                  Résumé court (pour affichage dans les listes)
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={generateSummary}
+                  disabled={isGeneratingSummary}
+                  className="text-xs"
+                >
+                  {isGeneratingSummary ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Génération...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Générer avec IA
+                    </>
+                  )}
+                </Button>
+              </div>
+              <Input
+                id="resumeCourt"
+                type="text"
+                maxLength={100}
+                placeholder="Ex: Cslt prénatal 28SA - RAS"
+                value={formData.resumeCourt}
+                onChange={(e) => updateField('resumeCourt', e.target.value)}
+                className="bg-white"
+              />
+              <p className="text-xs text-slate-600">
+                Ce résumé apparaîtra à côté de la consultation dans la liste des consultations. Max 100 caractères.
+              </p>
             </div>
           </CardContent>
         </Card>

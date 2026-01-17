@@ -22,8 +22,7 @@ import {
   FileStack,
   HeartPulse,
   Eye,
-  ChevronLeft,
-  ChevronRight,
+  Link as LinkIcon,
 } from 'lucide-react'
 
 interface NavigationItem {
@@ -160,7 +159,8 @@ export function Sidebar() {
       items: [
         { name: 'Documents', href: '/documents', icon: FileText },
         { name: 'Templates', href: '/templates', icon: FileStack },
-        { name: 'Protocoles', href: '/protocoles', icon: BookOpen }
+        { name: 'Protocoles', href: '/protocoles', icon: BookOpen },
+        { name: 'Ressources', href: '/ressources-medicales', icon: LinkIcon }
       ]
     },
     {
@@ -190,19 +190,6 @@ export function Sidebar() {
         >
           <div className="absolute inset-y-0 -right-1 w-3 cursor-col-resize" />
         </div>
-        {/* Toggle Button */}
-        <Button
-          onClick={toggleCollapsed}
-          variant="ghost"
-          size="icon"
-          className="absolute top-4 -right-3 z-50 h-6 w-6 rounded-full bg-white border border-purple-200 shadow-md hover:bg-purple-50"
-        >
-          {isCollapsed ? (
-            <ChevronRight className="h-4 w-4 text-purple-600" />
-          ) : (
-            <ChevronLeft className="h-4 w-4 text-purple-600" />
-          )}
-        </Button>
 
         {/* Logo */}
         <div className={cn(
