@@ -73,6 +73,8 @@ export default function RessourcesMedicalesPage() {
     tags: '',
   })
 
+  const ALL_CATEGORIES = 'all'
+
   useEffect(() => {
     fetchRessources()
   }, [])
@@ -88,7 +90,7 @@ export default function RessourcesMedicalesPage() {
       )
     }
 
-    if (selectedCategory) {
+    if (selectedCategory && selectedCategory !== ALL_CATEGORIES) {
       filtered = filtered.filter(r => r.categorie === selectedCategory)
     }
 
@@ -225,12 +227,15 @@ export default function RessourcesMedicalesPage() {
             className="pl-10"
           />
         </div>
-        <Select value={selectedCategory || ''} onValueChange={(v) => setSelectedCategory(v || null)}>
+        <Select
+          value={selectedCategory || ALL_CATEGORIES}
+          onValueChange={(v) => setSelectedCategory(v === ALL_CATEGORIES ? null : v)}
+        >
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Toutes catégories" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Toutes catégories</SelectItem>
+            <SelectItem value={ALL_CATEGORIES}>Toutes catégories</SelectItem>
             {categories.map(cat => (
               <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
             ))}

@@ -4,10 +4,16 @@ import { db } from '../lib/db.js'
 import { protocols, protocolChunks, aiConversations } from '../lib/schema.js'
 import { eq, sql, desc } from 'drizzle-orm'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import Anthropic from '@anthropic-ai/sdk'
 import { getResponseSchema, detectQuestionType, type ProtocolResponseStructured } from '../lib/protocolSchemas.js'
 
 const router = Router()
 router.use(authMiddleware)
+
+// Initialize Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY || '',
+})
 
 // POST /api/chat - Semantic search with structured AI response
 router.post('/', async (req: AuthRequest, res) => {
@@ -70,120 +76,223 @@ router.post('/', async (req: AuthRequest, res) => {
     const hasPertinentResults = relevantChunks.length > 0 &&
       relevantChunks.some((chunk: any) => parseFloat(chunk.similarity) > 0.5)
 
-    // Si aucun résultat pertinent, chercher sur sources médicales officielles
+    // **ÉTAPE INTERMÉDIAIRE: Si pas de résultats pertinents, essayer avec termes associés**
+    let expandedSearchChunks = relevantChunks
+    let searchWithSynonyms = false
+
     if (!hasPertinentResults) {
-      console.log('[Chat Structured] Recherche sur sources médicales officielles...')
+      console.log('[Chat Structured] ❌ Pas de résultats pertinents (similarity < 0.5)')
+      console.log('[Chat Structured] 🔄 Tentative avec termes associés et synonymes...')
 
       try {
-        // Recherche web via Google Custom Search API (gratuit 100 req/jour)
-        const webSearchQuery = encodeURIComponent(`${question} site:has-sante.fr OR site:ansm.sante.fr OR site:cngof.fr`)
+        // Utiliser Claude pour générer des termes associés
+        const synonymPrompt = `Tu es un assistant médical. Génère des termes associés, synonymes et reformulations pour cette question médicale.
 
-        const googleSearchUrl = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_API_KEY || ''}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID || ''}&q=${webSearchQuery}&num=3`
+QUESTION ORIGINALE: ${question}
 
-        const webSearchRes = await fetch(googleSearchUrl)
+Génère 5-7 termes/expressions alternatifs en français médical qui pourraient décrire la même chose.
+Inclus: synonymes médicaux, termes vernaculaires, acronymes, formulations alternatives.
 
-        if (webSearchRes.ok) {
-          const webData = await webSearchRes.json()
-          const webResults = (webData.items || []).map((item: any) => ({
-            title: item.title,
-            url: item.link,
-            content: item.snippet,
-            source: item.displayLink
-          }))
+Exemples:
+- "diabète gestationnel" → ["DG", "diabète de grossesse", "intolérance au glucose grossesse", "hyperglycémie gravidique"]
+- "césarienne" → ["accouchement par voie haute", "section césarienne", "extraction abdominale"]
 
-          if (webResults.length > 0) {
-            // Construire le contexte à partir des résultats web
-            const webContext = webResults
-              .map((result: any, i: number) =>
-                `[Source ${i + 1} - ${result.title}]\nURL: ${result.url}\n${result.content}`
-              )
-              .join('\n\n---\n\n')
+Réponds UNIQUEMENT en JSON valide, sans markdown:
+{
+  "termes_associes": ["terme 1", "terme 2", "terme 3", ...],
+  "question_reformulee": "reformulation plus large de la question"
+}`
 
-            // Générer réponse avec sources web
-            const webPrompt = `Tu es un assistant médical expert pour les sages-femmes. Analyse les informations ci-dessous provenant de sources médicales officielles françaises et réponds à la question.
+        const synonymMessage = await anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: synonymPrompt }]
+        })
 
-RÈGLES IMPORTANTES:
-- Utilise UNIQUEMENT les informations des sources fournies
-- Cite systématiquement les sources (nom + URL)
-- Sois précis et factuel
-- Indique clairement que ces informations proviennent de sources externes officielles
+        const synonymText = synonymMessage.content[0].type === 'text' ? synonymMessage.content[0].text : '{}'
+        const synonymData = JSON.parse(synonymText)
 
-SOURCES MÉDICALES OFFICIELLES:
-${webContext}
+        console.log(`[Chat Structured] Termes associés générés:`, synonymData.termes_associes)
+
+        // Créer une requête élargie avec les synonymes
+        const expandedQuery = [question, ...synonymData.termes_associes, synonymData.question_reformulee].join(' ')
+
+        // Générer nouvel embedding avec la requête élargie
+        const expandedEmbeddingResult = await embeddingModel.embedContent(expandedQuery)
+        const expandedEmbedding = expandedEmbeddingResult.embedding.values
+
+        // Nouvelle recherche sémantique avec termes élargis
+        const expandedResults = await db.execute(sql`
+          SELECT
+            pc.id,
+            pc.protocol_id,
+            pc.content,
+            pc.chunk_index,
+            pc.page_number,
+            p.nom as protocol_name,
+            p.file_url,
+            1 - (pc.embedding <=> ${JSON.stringify(expandedEmbedding)}::vector) as similarity
+          FROM protocol_chunks pc
+          JOIN protocols p ON p.id = pc.protocol_id
+          WHERE pc.protocol_id = ANY(ARRAY[${sql.raw(protocolIds.map(id => `'${id}'::uuid`).join(','))}])
+          ORDER BY pc.embedding <=> ${JSON.stringify(expandedEmbedding)}::vector
+          LIMIT 5
+        `)
+
+        expandedSearchChunks = expandedResults.rows || []
+
+        const hasExpandedResults = expandedSearchChunks.length > 0 &&
+          expandedSearchChunks.some((chunk: any) => parseFloat(chunk.similarity) > 0.4)
+
+        if (hasExpandedResults) {
+          console.log(`[Chat Structured] ✅ ${expandedSearchChunks.length} chunks trouvés avec termes associés`)
+          searchWithSynonyms = true
+          // On passe à l'utilisation de ces résultats élargis
+        } else {
+          console.log(`[Chat Structured] ❌ Toujours pas de résultats avec termes associés`)
+        }
+
+      } catch (synonymError) {
+        console.error('[Chat Structured] Erreur génération synonymes:', synonymError)
+      }
+    }
+
+    // Si toujours pas de résultats pertinents après recherche élargie, chercher sur sources médicales officielles
+    const finalResults = searchWithSynonyms ? expandedSearchChunks : relevantChunks
+    const hasFinalResults = finalResults.length > 0 &&
+      finalResults.some((chunk: any) => parseFloat(chunk.similarity) > (searchWithSynonyms ? 0.4 : 0.5))
+
+    if (!hasFinalResults) {
+      console.log('[Chat Structured] 🌐 Utilisation des connaissances médicales avec sources officielles...')
+
+      try {
+        // Utiliser Claude pour répondre avec des sources officielles françaises
+        // Au lieu de chercher sur Google (qui nécessite des clés API), on utilise les connaissances de Claude
+        // en lui demandant de citer les sources officielles pertinentes
+
+        const webPromptDirect = `Tu es un assistant médical expert pour les sages-femmes en France.
 
 QUESTION: ${question}
 
-Réponds de manière structurée avec :
-1. Un résumé clair de la réponse
-2. Les détails pertinents
-3. Les sources citées (avec URL)
+Réponds en te basant UNIQUEMENT sur les recommandations officielles françaises que tu connais :
+- HAS (Haute Autorité de Santé)
+- CNGOF (Collège National des Gynécologues Obstétriciens Français)
+- ANSM (Agence Nationale de Sécurité du Médicament)
+- Ordre National des Sages-Femmes
+- Assurance Maladie (Ameli.fr)
+- Santé Publique France
 
-Format ta réponse en JSON avec la structure:
+RÈGLES STRICTES:
+1. Base-toi UNIQUEMENT sur les recommandations officielles françaises que tu connais avec certitude
+2. Cite PRÉCISÉMENT les sources (organisme + type de document + année si connue)
+3. Fournis les URLs des organismes où consulter ces recommandations
+4. Si tu n'es pas certain d'une information, indique-le clairement
+5. Ne fais AUCUNE recommandation clinique sans source officielle
+
+Format ta réponse en JSON avec la structure exacte:
 {
-  "resume": "résumé de la réponse",
-  "details": ["point 1", "point 2", ...],
-  "sources": [{"nom": "...", "url": "...", "organisme": "..."}],
-  "type": "reponse_generale"
-}`
+  "resume": "résumé clair de 2-3 phrases maximum avec citations (Organisme, année)",
+  "details": ["point 1 avec citation précise (HAS 2023)", "point 2 avec citation", ...],
+  "recommandations": ["recommandation pratique 1 avec source", "recommandation 2", ...],
+  "sources": [
+    {
+      "organisme": "nom complet de l'organisme (ex: HAS - Haute Autorité de Santé)",
+      "titre": "titre du document ou type de recommandation",
+      "annee": "2023" (ou "inconnue" si tu ne sais pas),
+      "url": "URL de l'organisme où consulter (ex: https://www.has-sante.fr/)",
+      "pertinence": "pourquoi cette source est pertinente pour la question"
+    }
+  ],
+  "type": "reponse_officielle",
+  "confiance": "haute/moyenne/faible selon ta certitude sur ces informations",
+  "avertissement": "Ajoute un avertissement si des informations manquent ou si la question nécessite une consultation des recommandations complètes"
+}
 
-            const webGenerativeModel = genAI.getGenerativeModel({
-              model: 'gemini-1.5-flash',
-              generationConfig: {
-                responseMimeType: 'application/json'
-              }
-            })
+IMPORTANT: Si tu ne trouves pas d'information officielle fiable, renvoie un JSON avec des tableaux vides et un avertissement explicite.`
 
-            const webResult = await webGenerativeModel.generateContent(webPrompt)
-            const webResponseText = webResult.response.text()
-            const webStructuredData = JSON.parse(webResponseText)
+        const webMessageDirect = await anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 4096,
+          messages: [{ role: 'user', content: webPromptDirect }]
+        })
 
-            // Formater les sources web
-            const webSources = webResults.map((result: any) => ({
-              protocolId: 'web',
-              protocolName: result.title || 'Source web',
-              fileUrl: result.url,
-              results: [{
-                chunkId: 'web',
-                excerpt: result.content.substring(0, 200) + '...',
-                pageNumber: null,
-                similarity: 100
-              }]
-            }))
+        const webResponseTextDirect = webMessageDirect.content[0].type === 'text' ? webMessageDirect.content[0].text : '{}'
 
-            // Ajouter indication que c'est une source externe
-            const finalAnswer = `📚 **Réponse depuis sources médicales officielles**\n\n${webStructuredData.resume}\n\n**Sources consultées :**\n${webStructuredData.sources.map((s: any) => `• ${s.organisme || 'Source'}: [${s.nom}](${s.url})`).join('\n')}`
+        // Nettoyer la réponse si elle contient des backticks markdown
+        let cleanedResponse = webResponseTextDirect.trim()
+        if (cleanedResponse.startsWith('```json')) {
+          cleanedResponse = cleanedResponse.replace(/```json\s*/g, '').replace(/```\s*$/g, '')
+        } else if (cleanedResponse.startsWith('```')) {
+          cleanedResponse = cleanedResponse.replace(/```\s*/g, '')
+        }
 
-            await db.insert(aiConversations).values({
-              userId: req.user!.id,
-              question,
-              answer: finalAnswer,
-              sourcesUsed: webSources,
-            })
+        const webStructuredData = JSON.parse(cleanedResponse)
 
-            return res.json({
-              success: true,
-              answer: finalAnswer,
-              structured: webStructuredData,
-              sources: webSources,
-              mode: 'web_sources'
-            })
+        // Vérifier si on a des résultats pertinents
+        if (webStructuredData.sources && webStructuredData.sources.length > 0) {
+          console.log(`[Chat Structured] ✅ ${webStructuredData.sources.length} sources officielles trouvées`)
+
+          // Formater les sources avec plus d'informations
+          const webSources = webStructuredData.sources.map((source: any, i: number) => ({
+            protocolId: 'web_official',
+            protocolName: `${source.organisme} - ${source.titre}`,
+            fileUrl: source.url,
+            organisme: source.organisme,
+            annee: source.annee,
+            results: [{
+              chunkId: `official_${i}`,
+              excerpt: source.pertinence,
+              pageNumber: null,
+              similarity: 100
+            }]
+          }))
+
+          // Formater la réponse finale avec citations détaillées
+          let finalAnswer = `📚 **Réponse depuis recommandations officielles françaises**\n\n`
+          finalAnswer += `${webStructuredData.resume}\n\n`
+
+          if (webStructuredData.details && webStructuredData.details.length > 0) {
+            finalAnswer += `**📋 Détails :**\n${webStructuredData.details.map((d: string, i: number) => `${i + 1}. ${d}`).join('\n')}\n\n`
           }
+
+          if (webStructuredData.recommandations && webStructuredData.recommandations.length > 0) {
+            finalAnswer += `**💡 Recommandations pratiques :**\n${webStructuredData.recommandations.map((r: string) => `• ${r}`).join('\n')}\n\n`
+          }
+
+          finalAnswer += `**📖 Sources officielles consultées :**\n${webStructuredData.sources.map((s: any, i: number) => {
+            return `\n**${i + 1}. ${s.organisme}** ${s.annee !== 'inconnue' ? `(${s.annee})` : ''}\n   📄 ${s.titre}\n   🔗 ${s.url}\n   ℹ️ ${s.pertinence}`
+          }).join('\n')}\n\n`
+
+          if (webStructuredData.avertissement) {
+            finalAnswer += `⚠️ **Avertissement:** ${webStructuredData.avertissement}\n\n`
+          }
+
+          finalAnswer += `ℹ️ *Niveau de confiance: ${webStructuredData.confiance || 'moyen'}*\n`
+          finalAnswer += `⚠️ *Pour toute application clinique, consultez les recommandations complètes et référez-vous à votre jugement professionnel.*`
+
+          await db.insert(aiConversations).values({
+            userId: req.user!.id,
+            question,
+            answer: finalAnswer,
+            sourcesUsed: webSources,
+          })
+
+          return res.json({
+            success: true,
+            answer: finalAnswer,
+            structured: webStructuredData,
+            sources: webSources,
+            mode: 'official_sources'
+          })
         }
       } catch (webError) {
         console.error('[Chat Structured] Erreur recherche web:', webError)
       }
 
-      // FALLBACK: Utiliser Gemini avec ses connaissances générales sur les recommandations HAS/CNGOF
-      console.log('[Chat Structured] Fallback: Utilisation des connaissances Gemini sur recommandations médicales françaises')
+      // FALLBACK: Utiliser Claude avec ses connaissances générales sur les recommandations HAS/CNGOF
+      console.log('[Chat Structured] Fallback: Utilisation des connaissances Claude sur recommandations médicales françaises')
 
       try {
-        const fallbackModel = genAI.getGenerativeModel({
-          model: 'gemini-1.5-flash',
-          generationConfig: {
-            responseMimeType: 'application/json'
-          }
-        })
-
         const fallbackPrompt = `Tu es un assistant médical expert pour les sages-femmes en France.
 
 QUESTION: ${question}
@@ -197,7 +306,7 @@ RÈGLES IMPORTANTES:
 - Ajoute des liens vers les sites officiels pour consultation
 - Indique toujours l'année de la recommandation si tu la connais
 
-Réponds au format JSON avec:
+Réponds UNIQUEMENT en JSON valide, sans markdown, sans explications:
 {
   "resume": "résumé clair de la réponse",
   "details": ["point 1 avec source", "point 2 avec source", ...],
@@ -206,8 +315,13 @@ Réponds au format JSON avec:
   "avertissement": "Cette réponse se base sur les connaissances générales. Pour plus de précision, consultez directement les sources officielles."
 }`
 
-        const fallbackResult = await fallbackModel.generateContent(fallbackPrompt)
-        const fallbackText = fallbackResult.response.text()
+        const fallbackMessage = await anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 4096,
+          messages: [{ role: 'user', content: fallbackPrompt }]
+        })
+
+        const fallbackText = fallbackMessage.content[0].type === 'text' ? fallbackMessage.content[0].text : '{}'
         const fallbackData = JSON.parse(fallbackText)
 
         const fallbackAnswer = `⚕️ **Réponse basée sur les recommandations officielles françaises**\n\n${fallbackData.resume}\n\n**Détails:**\n${fallbackData.details.map((d: string, i: number) => `${i + 1}. ${d}`).join('\n')}\n\n**Sources recommandées:**\n${fallbackData.sources.map((s: any) => `• ${s.organisme} - ${s.type} ${s.annee ? `(${s.annee})` : ''}\n  ${s.lien || ''}`).join('\n')}\n\n⚠️ ${fallbackData.avertissement}`
@@ -252,28 +366,23 @@ Réponds au format JSON avec:
     }
 
     // **ÉTAPE 3: Construire le contexte pour l'IA**
-    const context = relevantChunks
+    const context = finalResults
       .map((chunk: any, i: number) =>
         `[Source ${i + 1} - ${chunk.protocol_name}, page ${chunk.page_number || '?'}]\n${chunk.content}`
       )
       .join('\n\n---\n\n')
 
     console.log(`[Chat Structured] Contexte construit: ${context.length} caractères`)
+    if (searchWithSynonyms) {
+      console.log(`[Chat Structured] ℹ️ Résultats obtenus via recherche avec termes associés`)
+    }
 
     // **ÉTAPE 4: Détection du type de question**
     const questionType = detectQuestionType(question)
     console.log(`[Chat Structured] Type détecté: ${questionType}`)
 
-    // **ÉTAPE 5: Génération structurée avec Gemini**
-    console.log('[Chat Structured] Génération de la réponse structurée...')
-
-    const generativeModel = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema: getResponseSchema()
-      }
-    })
+    // **ÉTAPE 5: Génération structurée avec Claude**
+    console.log('[Chat Structured] Génération de la réponse structurée avec Claude...')
 
     const prompt = `Tu es un assistant médical expert pour les sages-femmes. Analyse les extraits de protocoles ci-dessous et réponds à la question de manière STRUCTURÉE.
 
@@ -285,16 +394,33 @@ RÈGLES IMPORTANTES:
 - Sois précis sur les dosages, timings, étapes
 - Cite toujours les sources (protocole + page)
 - Si info manquante, ne l'invente pas
+- Réponds UNIQUEMENT en JSON valide, sans markdown, sans explications
 
 EXTRAITS DES PROTOCOLES:
 ${context}
 
 QUESTION: ${question}
 
-Réponds au format JSON structuré selon le schéma fourni.`
+Réponds au format JSON avec cette structure exacte:
+{
+  "type": "${questionType}",
+  "resume": "résumé concis de la réponse (2-3 phrases)",
+  "reponse_principale": "réponse détaillée principale",
+  "points_cles": ["point 1", "point 2", ...],
+  "citations": ["citation protocole 1", "citation protocole 2", ...],
+  "attention": "points d'attention ou contre-indications si pertinent"
+}`
 
-    const result = await generativeModel.generateContent(prompt)
-    const responseText = result.response.text()
+    const message = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 4096,
+      messages: [{
+        role: 'user',
+        content: prompt
+      }]
+    })
+
+    const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
 
     console.log('[Chat Structured] Réponse brute:', responseText.substring(0, 200))
 
@@ -321,7 +447,7 @@ Réponds au format JSON structuré selon le schéma fourni.`
       chunks: Array<{ content: string; pageNumber: number; chunkId: string; similarity: number }>;
     }>()
 
-    for (const row of relevantChunks) {
+    for (const row of finalResults) {
       const chunk = row as any
       if (!protocolGroups.has(chunk.protocol_id)) {
         protocolGroups.set(chunk.protocol_id, {

@@ -23,6 +23,7 @@ import {
   HeartPulse,
   Eye,
   Link as LinkIcon,
+  Phone,
 } from 'lucide-react'
 
 interface NavigationItem {
@@ -160,7 +161,8 @@ export function Sidebar() {
         { name: 'Documents', href: '/documents', icon: FileText },
         { name: 'Templates', href: '/templates', icon: FileStack },
         { name: 'Protocoles', href: '/protocoles', icon: BookOpen },
-        { name: 'Ressources', href: '/ressources-medicales', icon: LinkIcon }
+        { name: 'Ressources', href: '/ressources-medicales', icon: LinkIcon },
+        { name: 'Numéros Utiles', href: '/numeros-utiles', icon: Phone }
       ]
     },
     {
@@ -183,12 +185,21 @@ export function Sidebar() {
         {/* Resize handle */}
         <div
           className={cn(
-            "absolute top-0 right-0 bottom-0 w-1 hover:w-2 bg-purple-200/0 hover:bg-purple-400/50 cursor-col-resize transition-all z-50 group",
-            isResizing && "w-2 bg-purple-500"
+            "absolute top-0 right-0 bottom-0 w-1 hover:w-2 bg-purple-300/30 hover:bg-purple-400/70 cursor-col-resize transition-all z-50 group border-r-2 border-purple-300/50 hover:border-purple-500",
+            isResizing && "w-2 bg-purple-500 border-purple-600"
           )}
           onMouseDown={handleResizeStart}
+          title="Glissez pour redimensionner"
         >
           <div className="absolute inset-y-0 -right-1 w-3 cursor-col-resize" />
+          {/* Visual dots indicator */}
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-50 group-hover:opacity-100 transition-opacity">
+            <div className="flex flex-col gap-1">
+              <div className="w-0.5 h-0.5 bg-purple-600 rounded-full"></div>
+              <div className="w-0.5 h-0.5 bg-purple-600 rounded-full"></div>
+              <div className="w-0.5 h-0.5 bg-purple-600 rounded-full"></div>
+            </div>
+          </div>
         </div>
 
         {/* Logo */}

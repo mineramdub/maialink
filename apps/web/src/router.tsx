@@ -53,6 +53,7 @@ const TemplatesPage = lazy(() => import('./pages/templates/TemplatesPage'))
 const TemplateEditorPage = lazy(() => import('./pages/templates/TemplateEditorPage'))
 const OrdonnanceTemplatesPage = lazy(() => import('./pages/admin/OrdonnanceTemplatesPage').then(m => ({ default: m.OrdonnanceTemplatesPage })))
 const RessourcesMedicalesPage = lazy(() => import('./pages/RessourcesMedicalesPage'))
+const NumerosUtilesPage = lazy(() => import('./pages/NumerosUtilesPage'))
 
 // Wrapper component to add Suspense to lazy loaded routes
 const withSuspense = (Component: React.LazyExoticComponent<any>) => (
@@ -116,6 +117,7 @@ export const router = createBrowserRouter([
           { path: '/templates/new', element: withSuspense(TemplateEditorPage) },
           { path: '/templates/:id/edit', element: withSuspense(TemplateEditorPage) },
           { path: '/ressources-medicales', element: withSuspense(RessourcesMedicalesPage) },
+          { path: '/numeros-utiles', element: withSuspense(NumerosUtilesPage) },
           { path: '/admin/ordonnance-templates', element: withSuspense(OrdonnanceTemplatesPage) },
           { path: '/parametres', element: withSuspense(ParametresPage) },
           { path: '/parametres/praticien', element: withSuspense(PractitionerSettingsPage) },

@@ -1,5 +1,6 @@
 // Calendrier de suivi de grossesse selon recommandations HAS/CNGOF
 // Pour sage-femmes libérales
+// Organisé par les 7 consultations mensuelles obligatoires
 
 export interface CalendarEvent {
   id: string
@@ -11,541 +12,506 @@ export interface CalendarEvent {
   priorite: 'obligatoire' | 'recommande' | 'optionnel'
   examens?: string[]
   conseils?: string[]
+  sousExamens?: {
+    titre: string
+    type: 'echographie' | 'biologie' | 'examen' | 'consultation_externe'
+    priorite: 'obligatoire' | 'recommande' | 'optionnel'
+    items: string[]
+  }[]
 }
 
-// Calendrier complet de suivi de grossesse
+// Calendrier organisé par consultations mensuelles
 export const CALENDRIER_GROSSESSE: CalendarEvent[] = [
-  // Premier trimestre
+  // ========== CONSULTATION 1 - AVANT 15 SA ==========
   {
-    id: 'echo_datation',
-    titre: 'Échographie de datation',
-    description: 'Échographie précoce de datation (optionnelle)',
-    saMin: 8,
-    saMax: 11,
-    type: 'echographie',
-    priorite: 'optionnel',
-    examens: [
-      'Datation précise de la grossesse',
-      'Vérification grossesse intra-utérine',
-      'Nombre d\'embryons',
-      'Vitalité embryonnaire (BCF)'
-    ],
-    conseils: [
-      'Recommandée si doute sur DDR',
-      'Grossesse multiple suspectée',
-      'Antécédent de GEU'
-    ]
-  },
-  {
-    id: 'consultation_precoce',
-    titre: 'Consultation précoce',
-    description: 'Première consultation de grossesse - Déclaration',
+    id: 'consultation_1',
+    titre: 'Consultation du 1er mois',
+    description: '1ère consultation obligatoire - Déclaration de grossesse',
     saMin: 6,
-    saMax: 10,
+    saMax: 14,
     type: 'consultation',
     priorite: 'obligatoire',
     examens: [
-      'Examen clinique complet',
-      'Poids, taille, TA, BMI',
-      'Examen gynécologique',
-      'Frottis si > 3 ans',
-      'Prescription examens T1'
+      'Examen clinique complet (poids, TA, examen gynécologique)',
+      'Déclaration de grossesse (CERFA à envoyer avant 15 SA)',
+      'Prescription supplémentation : Acide folique + Vitamine D'
     ],
     conseils: [
-      'Déclaration de grossesse',
-      'Supplémentation acide folique',
-      'Conseils hygiéno-diététiques',
-      'Toxoplasmose si non immune'
-    ]
-  },
-  {
-    id: 'biologie_t1',
-    titre: 'Bilan biologique T1',
-    description: 'Examens biologiques du premier trimestre',
-    saMin: 8,
-    saMax: 12,
-    type: 'biologie',
-    priorite: 'obligatoire',
-    examens: [
-      'Groupe sanguin + RAI',
-      'NFS (Hb, plaquettes)',
-      'Glycémie à jeun',
-      'Sérologies: Toxoplasmose, Rubéole, Syphilis, HIV, Hépatite B',
-      'ECBU',
-      'TSH si facteurs de risque'
-    ]
-  },
-  {
-    id: 'echo_t1',
-    titre: 'Échographie T1',
-    description: 'Échographie de datation et dépistage T1',
-    saMin: 11,
-    saMax: 13,
-    type: 'echographie',
-    priorite: 'obligatoire',
-    examens: [
-      'Datation (LCC)',
-      'Clarté nucale',
-      'Dépistage T21 combiné',
-      'Recherche malformations précoces'
+      'Arrêt tabac et alcool',
+      'Prévention toxoplasmose si non immune',
+      'Activité physique modérée recommandée',
+      'Alimentation équilibrée'
     ],
-    conseils: [
-      'Proposer dépistage T21',
-      'Information DPNI si souhaité'
+    sousExamens: [
+      {
+        titre: 'Bilan biologique T1 (obligatoire)',
+        type: 'biologie',
+        priorite: 'obligatoire',
+        items: [
+          'Groupe sanguin ABO + Rhésus + phénotype complet (si 1ère détermination)',
+          'RAI (Recherche agglutinines irrégulières)',
+          'NFS (Numération Formule Sanguine)',
+          'Glycémie à jeun',
+          'Sérologie Toxoplasmose (si non immune : contrôle mensuel)',
+          'Sérologie Rubéole',
+          'Sérologie Syphilis (TPHA/VDRL)',
+          'Sérologie VIH (avec accord patiente)',
+          'Sérologie Hépatite B (Ag HBs)',
+          'Sérologie Hépatite C (si facteurs de risque)',
+          'ECBU (Examen Cytobactériologique des Urines)'
+        ]
+      },
+      {
+        titre: 'Échographie T1 (11-13 SA + 6j)',
+        type: 'echographie',
+        priorite: 'obligatoire',
+        items: [
+          'Datation précise de la grossesse (LCC)',
+          'Nombre d\'embryons',
+          'Vitalité embryonnaire',
+          'Mesure clarté nucale (dépistage trisomie 21)',
+          'Biométrie embryonnaire'
+        ]
+      },
+      {
+        titre: 'Dépistage trisomie 21 (si souhaité)',
+        type: 'examen',
+        priorite: 'recommande',
+        items: [
+          'Dépistage combiné T1 : échographie + marqueurs sériques (PAPP-A, βHCG libre)',
+          'OU Test ADN libre circulant (DPNI) si indication'
+        ]
+      }
     ]
   },
+
+  // ========== CONSULTATION 2 - 4ÈME MOIS (EPP) ==========
   {
-    id: 'entretien_prenatal_precoce',
-    titre: 'Entretien Prénatal Précoce (EPP)',
-    description: 'Entretien individuel ou en couple',
-    saMin: 16,
+    id: 'consultation_2_epp',
+    titre: 'Consultation du 4ème mois - EPP',
+    description: 'Entretien Prénatal Précoce (recommandé)',
+    saMin: 15,
     saMax: 20,
     type: 'consultation',
-    priorite: 'recommande',
-    examens: [
-      'Évaluation des besoins',
-      'Projet de naissance',
-      'Contexte psycho-social',
-      'Addictions'
-    ],
-    conseils: [
-      'Entretien confidentiel',
-      'Pas d\'examen clinique',
-      'Orientation si besoin',
-      '8 séances de préparation à la naissance incluses'
-    ]
-  },
-  {
-    id: 'bilan_buccodentaire',
-    titre: 'Bilan bucco-dentaire',
-    description: 'Examen dentaire (pris en charge à 100%)',
-    saMin: 16,
-    saMax: 28,
-    type: 'examen',
-    priorite: 'recommande',
-    examens: [
-      'Examen dentaire complet',
-      'Détartrage si besoin',
-      'Soins dentaires'
-    ],
-    conseils: [
-      'Pris en charge intégralement par l\'Assurance Maladie',
-      'Prévention gingivite gravidique',
-      'Importance hygiène bucco-dentaire'
-    ]
-  },
-  {
-    id: 'consultation_4mois',
-    titre: 'Consultation 4e mois',
-    description: 'Consultation du 4e mois (16-18 SA)',
-    saMin: 16,
-    saMax: 18,
-    type: 'consultation',
     priorite: 'obligatoire',
     examens: [
-      'Examen clinique',
-      'TA, poids',
-      'Hauteur utérine',
-      'BCF',
-      'Prescription écho T2'
-    ],
-    conseils: [
+      'Examen clinique : poids, TA, hauteur utérine',
+      'Bruits du cœur fœtaux (doppler)',
       'Mouvements actifs fœtaux',
-      'Préparation à la naissance'
-    ]
-  },
-  {
-    id: 'echo_t2',
-    titre: 'Échographie T2',
-    description: 'Échographie morphologique',
-    saMin: 20,
-    saMax: 24,
-    type: 'echographie',
-    priorite: 'obligatoire',
-    examens: [
-      'Morphologie fœtale complète',
-      'Biométrie',
-      'Placenta et liquide amniotique',
-      'Doppler utérins si FDR'
-    ]
-  },
-  {
-    id: 'depistage_diabete',
-    titre: 'Dépistage diabète gestationnel',
-    description: 'Test O\'Sullivan ou HGPO',
-    saMin: 24,
-    saMax: 28,
-    type: 'depistage',
-    priorite: 'recommande',
-    examens: [
-      'GAJ (si facteurs de risque)',
-      'Test O\'Sullivan 50g',
-      'HGPO 75g si O\'Sullivan positif'
-    ],
-    conseils: [
-      'Systématique si FDR: obésité, ATCD, âge >35 ans',
-      'À jeun le matin'
-    ]
-  },
-  {
-    id: 'consultation_5mois',
-    titre: 'Consultation 5e mois',
-    description: 'Consultation du 5e mois (20-22 SA)',
-    saMin: 20,
-    saMax: 22,
-    type: 'consultation',
-    priorite: 'obligatoire',
-    examens: [
-      'Examen clinique',
-      'TA, poids, HU',
-      'BCF, MAF',
-      'Résultats écho T2'
-    ]
-  },
-  {
-    id: 'consultation_6mois',
-    titre: 'Consultation 6e mois',
-    description: 'Consultation du 6e mois (24-26 SA)',
-    saMin: 24,
-    saMax: 26,
-    type: 'consultation',
-    priorite: 'obligatoire',
-    examens: [
-      'Examen clinique',
-      'TA, poids, HU',
-      'BCF, MAF',
-      'RAI si Rh-',
-      'NFS'
-    ],
-    conseils: [
-      'Préparation à la naissance',
-      'Projet de naissance'
-    ]
-  },
-  {
-    id: 'preparation_naissance',
-    titre: 'Séances préparation à la naissance',
-    description: '8 séances de préparation (remboursées)',
-    saMin: 24,
-    saMax: 36,
-    type: 'consultation',
-    priorite: 'recommande',
-    examens: [
-      'Cours théoriques',
-      'Exercices respiratoires',
-      'Positions d\'accouchement',
-      'Gestion de la douleur',
-      'Allaitement',
-      'Soins au bébé'
-    ],
-    conseils: [
-      '8 séances prises en charge à 100%',
-      'Peut être individuelle ou en groupe',
-      'Différentes méthodes: classique, sophrologie, yoga, piscine...',
-      'À débuter dès le 6ème mois'
-    ]
-  },
-  {
-    id: 'consultation_7mois',
-    titre: 'Consultation 7e mois',
-    description: 'Consultation du 7e mois (28-30 SA)',
-    saMin: 28,
-    saMax: 30,
-    type: 'consultation',
-    priorite: 'obligatoire',
-    examens: [
-      'Examen clinique',
-      'TA, poids, HU',
-      'BCF, MAF, présentation',
-      'Prescription écho T3',
-      'Coqueluche (si non vaccinée)'
-    ]
-  },
-  {
-    id: 'echo_t3',
-    titre: 'Échographie T3',
-    description: 'Échographie du troisième trimestre',
-    saMin: 30,
-    saMax: 35,
-    type: 'echographie',
-    priorite: 'obligatoire',
-    examens: [
-      'Biométrie fœtale',
-      'Croissance (estimation poids)',
-      'Quantité liquide amniotique',
-      'Placenta',
-      'Doppler si RCIU'
-    ]
-  },
-  {
-    id: 'consultation_8mois',
-    titre: 'Consultation 8e mois',
-    description: 'Consultation du 8e mois (32-34 SA)',
-    saMin: 32,
-    saMax: 34,
-    type: 'consultation',
-    priorite: 'obligatoire',
-    examens: [
-      'Examen clinique',
-      'TA, poids, HU',
-      'BCF, MAF, présentation',
-      'Prélèvement vaginal SGB (35-37 SA)',
-      'NFS, RAI si Rh-'
-    ],
-    conseils: [
-      'Signes travail',
-      'Quand venir à la maternité',
-      'Valise maternité'
-    ]
-  },
-  {
-    id: 'consultation_anesthesie',
-    titre: 'Consultation anesthésie',
-    description: 'Consultation obligatoire avec l\'anesthésiste',
-    saMin: 32,
-    saMax: 36,
-    type: 'consultation',
-    priorite: 'obligatoire',
-    examens: [
-      'Interrogatoire médical complet',
-      'Antécédents chirurgicaux',
-      'Allergies',
-      'Traitements en cours',
-      'Examen du dos/rachis',
-      'Bilan sanguin (NFS, hémostase)'
-    ],
-    conseils: [
-      'Obligatoire même si pas de péridurale souhaitée',
-      'Apporter tous les examens médicaux',
-      'Discuter du projet d\'analgésie',
-      'Informations sur la péridurale et alternatives'
-    ]
-  },
-  {
-    id: 'depistage_streptob',
-    titre: 'Dépistage Streptocoque B',
-    description: 'Prélèvement vaginal SGB',
-    saMin: 35,
-    saMax: 37,
-    type: 'depistage',
-    priorite: 'obligatoire',
-    examens: [
-      'Prélèvement vaginal',
-      'Culture Streptocoque B'
-    ],
-    conseils: [
-      'Antibioprophylaxie si positif'
-    ]
-  },
-  {
-    id: 'consultation_9mois',
-    titre: 'Consultation 9e mois',
-    description: 'Consultation du 9e mois (36-38 SA)',
-    saMin: 36,
-    saMax: 38,
-    type: 'consultation',
-    priorite: 'obligatoire',
-    examens: [
-      'Examen clinique complet',
-      'TA, poids, HU',
-      'BCF, MAF, présentation',
-      'Examen du col (si souhaité)',
-      'Consultation anesthésie'
-    ],
-    conseils: [
-      'Surveillance hebdomadaire dès 36 SA',
-      'Consultation anesthésie obligatoire',
-      'Projet de naissance'
-    ]
-  },
-  {
-    id: 'surveillance_hebdo',
-    titre: 'Surveillance hebdomadaire',
-    description: 'Consultations hebdomadaires de fin de grossesse',
-    saMin: 37,
-    saMax: 41,
-    type: 'consultation',
-    priorite: 'obligatoire',
-    examens: [
-      'TA, poids',
-      'HU, BCF',
-      'Présentation',
-      'État du col',
       'Bandelette urinaire'
     ],
     conseils: [
-      'Signes d\'alerte',
-      'MAF quotidiens',
-      'Déclenchement si > 41 SA'
+      'Entretien Prénatal Précoce (EPP) recommandé ce mois',
+      'Discussion projet de naissance',
+      'Préparation à la naissance : inscription possible',
+      'Informations sur les droits sociaux'
+    ],
+    sousExamens: [
+      {
+        titre: 'Entretien Prénatal Précoce (EPP)',
+        type: 'consultation_externe',
+        priorite: 'recommande',
+        items: [
+          'Évaluation besoins psycho-sociaux',
+          'Discussion projet de naissance',
+          'Dépistage violences conjugales',
+          'Orientation vers professionnels si nécessaire',
+          'Information sur préparation à la naissance'
+        ]
+      },
+      {
+        titre: 'Contrôles biologiques mensuels',
+        type: 'biologie',
+        priorite: 'obligatoire',
+        items: [
+          'Toxoplasmose (si non immune)',
+          'RAI (si Rhésus négatif)',
+          'Albuminurie / Glycosurie (bandelette)',
+          'NFS si anémie'
+        ]
+      }
     ]
   },
+
+  // ========== CONSULTATION 3 - 5ÈME MOIS ==========
   {
-    id: 'monitoring_foetal',
-    titre: 'Monitoring fœtal',
-    description: 'Enregistrement du rythme cardiaque fœtal',
-    saMin: 37,
-    saMax: 41,
-    type: 'examen',
-    priorite: 'recommande',
+    id: 'consultation_3',
+    titre: 'Consultation du 5ème mois',
+    description: '3ème consultation obligatoire',
+    saMin: 20,
+    saMax: 24,
+    type: 'consultation',
+    priorite: 'obligatoire',
     examens: [
-      'RCF (Rythme Cardiaque Fœtal)',
-      'Enregistrement 20-30 minutes',
-      'Réactivité fœtale',
-      'Contractions utérines'
+      'Examen clinique : poids, TA, hauteur utérine',
+      'Bruits du cœur fœtaux',
+      'Mouvements actifs fœtaux',
+      'Présentation fœtale',
+      'Bandelette urinaire'
     ],
     conseils: [
-      'Peut être fait lors des consultations hebdomadaires',
-      'Rassurant pour la mère',
-      'Détection anomalies RCF'
+      'Surveillance mouvements fœtaux',
+      'Préparation à la naissance : débuter les séances',
+      'Repos si contractions fréquentes'
+    ],
+    sousExamens: [
+      {
+        titre: 'Échographie T2 (22-24 SA) - Morphologique',
+        type: 'echographie',
+        priorite: 'obligatoire',
+        items: [
+          'Biométrie fœtale complète (croissance)',
+          'Étude morphologique complète des organes',
+          'Dépistage malformations',
+          'Localisation placentaire',
+          'Quantité liquide amniotique',
+          'Mesure col utérin'
+        ]
+      },
+      {
+        titre: 'Contrôles biologiques',
+        type: 'biologie',
+        priorite: 'obligatoire',
+        items: [
+          'Toxoplasmose (si non immune)',
+          'RAI (si Rhésus négatif)',
+          'Albuminurie / Glycosurie'
+        ]
+      }
     ]
   },
+
+  // ========== CONSULTATION 4 - 6ÈME MOIS ==========
+  {
+    id: 'consultation_4',
+    titre: 'Consultation du 6ème mois',
+    description: '4ème consultation obligatoire - Dépistage diabète gestationnel',
+    saMin: 24,
+    saMax: 28,
+    type: 'consultation',
+    priorite: 'obligatoire',
+    examens: [
+      'Examen clinique : poids, TA, hauteur utérine',
+      'Bruits du cœur fœtaux',
+      'Mouvements actifs fœtaux',
+      'Présentation fœtale',
+      'Bandelette urinaire',
+      'Membres inférieurs (œdèmes, varices)'
+    ],
+    conseils: [
+      'Surveillance mouvements fœtaux quotidiens',
+      'Programmer consultation anesthésiste avant 37 SA',
+      'Continuer préparation à la naissance'
+    ],
+    sousExamens: [
+      {
+        titre: 'HGPO 75g - Dépistage diabète gestationnel (24-28 SA)',
+        type: 'biologie',
+        priorite: 'obligatoire',
+        items: [
+          'Test OBLIGATOIRE entre 24-28 SA',
+          'À jeun (8-12h de jeûne)',
+          'Glycémie à jeun < 0.92 g/L',
+          'Glycémie à 1h < 1.80 g/L',
+          'Glycémie à 2h < 1.53 g/L',
+          'Diabète gestationnel si 1 valeur dépassée'
+        ]
+      },
+      {
+        titre: 'Bilan biologique T2',
+        type: 'biologie',
+        priorite: 'obligatoire',
+        items: [
+          'NFS (dépistage anémie)',
+          'RAI si Rhésus négatif (à 28 SA)',
+          'Toxoplasmose (si non immune)',
+          'Albuminurie / Glycosurie'
+        ]
+      },
+      {
+        titre: 'Prévention Rhésus (si Rh négatif)',
+        type: 'examen',
+        priorite: 'obligatoire',
+        items: [
+          'Injection Rhophylac 300μg IM à 28 SA',
+          'Prévention allo-immunisation anti-D'
+        ]
+      }
+    ]
+  },
+
+  // ========== CONSULTATION 5 - 7ÈME MOIS ==========
+  {
+    id: 'consultation_5',
+    titre: 'Consultation du 7ème mois',
+    description: '5ème consultation obligatoire - Début 3ème trimestre',
+    saMin: 28,
+    saMax: 32,
+    type: 'consultation',
+    priorite: 'obligatoire',
+    examens: [
+      'Examen clinique : poids, TA, hauteur utérine',
+      'Bruits du cœur fœtaux',
+      'Mouvements actifs fœtaux',
+      'Présentation fœtale',
+      'Col utérin (TV)',
+      'Bandelette urinaire',
+      'Membres inférieurs (œdèmes)'
+    ],
+    conseils: [
+      'Surveillance quotidienne mouvements fœtaux',
+      'Repos si contractions fréquentes',
+      'Signes début travail expliqués',
+      'Préparation valise maternité'
+    ],
+    sousExamens: [
+      {
+        titre: 'Contrôles biologiques',
+        type: 'biologie',
+        priorite: 'obligatoire',
+        items: [
+          'NFS',
+          'RAI (si Rhésus négatif)',
+          'Toxoplasmose (si non immune)',
+          'Albuminurie / Glycosurie'
+        ]
+      }
+    ]
+  },
+
+  // ========== CONSULTATION 6 - 8ÈME MOIS ==========
+  {
+    id: 'consultation_6',
+    titre: 'Consultation du 8ème mois',
+    description: '6ème consultation obligatoire - Préparation accouchement',
+    saMin: 32,
+    saMax: 37,
+    type: 'consultation',
+    priorite: 'obligatoire',
+    examens: [
+      'Examen clinique complet : poids, TA, œdèmes',
+      'Hauteur utérine',
+      'Bruits du cœur fœtaux',
+      'Mouvements actifs fœtaux',
+      'Présentation fœtale',
+      'Engagement',
+      'Toucher vaginal : col (longueur, position, consistance, dilatation)',
+      'Score de Bishop',
+      'Bandelette urinaire'
+    ],
+    conseils: [
+      'Consultation anesthésiste OBLIGATOIRE avant 37 SA',
+      'Vérifier valise maternité prête',
+      'Signes début travail rappelés',
+      'Projet de naissance finalisé'
+    ],
+    sousExamens: [
+      {
+        titre: 'Échographie T3 (32-34 SA)',
+        type: 'echographie',
+        priorite: 'obligatoire',
+        items: [
+          'Biométrie fœtale (croissance)',
+          'Estimation poids fœtal',
+          'Présentation fœtale',
+          'Quantité liquide amniotique',
+          'Localisation placentaire',
+          'Doppler si indication'
+        ]
+      },
+      {
+        titre: 'Consultation anesthésiste (avant 37 SA)',
+        type: 'consultation_externe',
+        priorite: 'obligatoire',
+        items: [
+          'Évaluation terrain anesthésique',
+          'Discussion péridurale / rachianesthésie',
+          'Information risques et bénéfices',
+          'Contre-indications éventuelles',
+          'Accord anesthésie'
+        ]
+      },
+      {
+        titre: 'Bilan biologique T3',
+        type: 'biologie',
+        priorite: 'obligatoire',
+        items: [
+          'NFS (contrôle anémie)',
+          'RAI si Rhésus négatif',
+          'Toxoplasmose (si non immune)',
+          'Albuminurie / Glycosurie'
+        ]
+      }
+    ]
+  },
+
+  // ========== CONSULTATION 7 - 9ÈME MOIS ==========
+  {
+    id: 'consultation_7',
+    titre: 'Consultation du 9ème mois',
+    description: '7ème consultation obligatoire - Fin de grossesse',
+    saMin: 35,
+    saMax: 41,
+    type: 'consultation',
+    priorite: 'obligatoire',
+    examens: [
+      'Examen clinique complet : poids, TA, œdèmes',
+      'Hauteur utérine',
+      'Bruits du cœur fœtaux',
+      'Mouvements actifs fœtaux',
+      'Présentation fœtale',
+      'Engagement',
+      'Toucher vaginal : Score de Bishop complet',
+      'Perte bouchon muqueux',
+      'Bandelette urinaire'
+    ],
+    conseils: [
+      'Tout est prêt pour l\'accouchement',
+      'Signes début travail bien expliqués',
+      'Partir à la maternité si contractions régulières 5 min ou perte des eaux',
+      'Surveillance mouvements fœtaux quotidienne'
+    ],
+    sousExamens: [
+      {
+        titre: 'Prélèvement vaginal Streptocoque B (35-37 SA)',
+        type: 'biologie',
+        priorite: 'obligatoire',
+        items: [
+          'PV vaginal + rectal',
+          'Dépistage Streptocoque B',
+          'Si positif : antibioprophylaxie pendant travail',
+          'Prévention infection néonatale'
+        ]
+      },
+      {
+        titre: 'Bilan pré-accouchement',
+        type: 'biologie',
+        priorite: 'obligatoire',
+        items: [
+          'NFS (contrôle final anémie)',
+          'RAI si Rhésus négatif',
+          'Albuminurie / Glycosurie'
+        ]
+      },
+      {
+        titre: 'Monitoring fœtal (NST) - Si ≥ 39 SA',
+        type: 'examen',
+        priorite: 'recommande',
+        items: [
+          'Enregistrement RCF 20-30 min',
+          'Vérification réactivité fœtale',
+          'Détection contractions utérines',
+          'RCF réactif = rassurant'
+        ]
+      }
+    ]
+  },
+
+  // ========== CONSULTATION À TERME (≥ 41 SA) ==========
   {
     id: 'consultation_terme',
-    titre: 'Consultation de terme',
-    description: 'Consultation à 41 SA si grossesse prolongée',
+    titre: 'Consultation à terme / Dépassement',
+    description: 'Surveillance rapprochée si ≥ 41 SA',
     saMin: 41,
-    saMax: 41,
+    saMax: 42,
     type: 'consultation',
     priorite: 'obligatoire',
     examens: [
       'Examen clinique complet',
-      'Monitoring fœtal',
       'Score de Bishop',
-      'Échographie (quantité LA, Doppler)',
-      'Décision déclenchement'
+      'Monitoring fœtal (NST) obligatoire',
+      'Discussion déclenchement'
     ],
     conseils: [
-      'Déclenchement systématique si >41 SA+3j',
-      'Surveillance rapprochée',
-      'Risque complications augmenté'
-    ]
-  },
-  // Post-partum
-  {
-    id: 'visite_postpartum_precoce',
-    titre: 'Visite post-partum précoce',
-    description: 'Visite à domicile J1-J3',
-    saMin: 42,
-    saMax: 42,
-    type: 'consultation',
-    priorite: 'recommande',
-    examens: [
-      'État général mère',
-      'Involution utérine',
-      'Lochies',
-      'Périnée/cicatrice',
-      'Allaitement',
-      'Examen bébé'
+      'Surveillance rapprochée (tous les 2-3 jours)',
+      'Monitoring bihebdomadaire',
+      'Déclenchement à programmer si ≥ 41 SA',
+      'Ne pas dépasser 42 SA'
     ],
-    conseils: [
-      'Allaitement/biberon',
-      'Contraception',
-      'Rééducation périnéale'
+    sousExamens: [
+      {
+        titre: 'Monitoring fœtal bihebdomadaire',
+        type: 'examen',
+        priorite: 'obligatoire',
+        items: [
+          'NST tous les 2-3 jours',
+          'Vérification bien-être fœtal',
+          'Détection souffrance fœtale'
+        ]
+      },
+      {
+        titre: 'Programmation déclenchement',
+        type: 'examen',
+        priorite: 'obligatoire',
+        items: [
+          'Date déclenchement fixée',
+          'Maturation cervicale si col défavorable',
+          'Information modalités déclenchement'
+        ]
+      }
     ]
   },
-  {
-    id: 'consultation_pediatre_nne',
-    titre: 'Consultation pédiatre nouveau-né',
-    description: 'Examen du nouveau-né par le pédiatre J3-J5',
-    saMin: 42,
-    saMax: 42,
-    type: 'consultation',
-    priorite: 'recommande',
-    examens: [
-      'Examen clinique complet du bébé',
-      'Poids, taille, périmètre crânien',
-      'Réflexes archaïques',
-      'Examen des hanches',
-      'Ictère néonatal',
-      'Alimentation (sein/biberon)'
-    ],
-    conseils: [
-      'Dépistages néonatals (Guthrie)',
-      'Test auditif',
-      'Carnet de santé',
-      'Conseils allaitement/biberon',
-      'Prochaine consultation pédiatrique'
-    ]
-  },
-  {
-    id: 'visite_postpartum_j8',
-    titre: 'Visite post-partum J8-J10',
-    description: 'Visite de contrôle post-accouchement',
-    saMin: 43,
-    saMax: 43,
-    type: 'consultation',
-    priorite: 'recommande',
-    examens: [
-      'État général',
-      'Involution utérine',
-      'Cicatrice périnéale',
-      'Allaitement',
-      'Examen bébé',
-      'Test de Guthrie'
-    ]
-  },
+
+  // ========== POST-PARTUM ==========
   {
     id: 'consultation_postnatale',
-    titre: 'Consultation post-natale',
-    description: 'Consultation 6-8 semaines post-partum',
+    titre: 'Consultation postnatale',
+    description: 'Consultation obligatoire 6-8 semaines après accouchement',
     saMin: 48,
-    saMax: 50,
+    saMax: 56,
     type: 'consultation',
     priorite: 'obligatoire',
     examens: [
+      'Examen clinique général',
       'Examen gynécologique',
-      'Frottis si besoin',
-      'Contraception',
-      'Testing périnéal',
-      'État psychologique'
+      'Contrôle involution utérine',
+      'Examen périnée / cicatrice',
+      'Dépistage dépression post-partum',
+      'Contraception'
     ],
     conseils: [
-      'Prescription rééducation périnéale',
-      'Contraception',
-      'Reprise activité sexuelle',
-      'Dépistage dépression post-partum'
+      'Rééducation périnéale si nécessaire',
+      'Contraception adaptée',
+      'Reprise activité physique progressive',
+      'Suivi psychologique si besoin'
+    ],
+    sousExamens: [
+      {
+        titre: 'Rééducation périnéale',
+        type: 'examen',
+        priorite: 'recommande',
+        items: [
+          '10 séances de kinésithérapie',
+          'À débuter 6-8 semaines post-partum',
+          'Prévention incontinence',
+          'Renforcement musculaire'
+        ]
+      }
     ]
   }
 ]
 
 // Fonction pour obtenir les événements selon le terme actuel
 export function getCalendarEventsForSA(currentSA: number): {
-  passed: CalendarEvent[]
   current: CalendarEvent[]
+  passed: CalendarEvent[]
   upcoming: CalendarEvent[]
-  overdue: CalendarEvent[]
 } {
-  const passed: CalendarEvent[] = []
   const current: CalendarEvent[] = []
+  const passed: CalendarEvent[] = []
   const upcoming: CalendarEvent[] = []
-  const overdue: CalendarEvent[] = []
 
   for (const event of CALENDRIER_GROSSESSE) {
-    if (currentSA < event.saMin) {
-      // Événement futur
-      upcoming.push(event)
-    } else if (currentSA >= event.saMin && currentSA <= event.saMax) {
-      // Événement en cours
+    if (currentSA >= event.saMin && currentSA <= event.saMax) {
       current.push(event)
     } else if (currentSA > event.saMax) {
-      // Événement passé - vérifier si fait ou en retard
-      // Pour l'instant, on met tout dans "passé"
-      // Plus tard, on vérifiera dans la BD si réalisé
       passed.push(event)
+    } else {
+      upcoming.push(event)
     }
   }
 
-  return { passed, current, upcoming, overdue }
-}
-
-// Interface pour suggestions d'ordonnances
-export interface OrdonnanceSuggestion {
-  id: string
-  nom: string
-  description: string
-  type: 'biologie' | 'echographie' | 'medicament' | 'autre'
-  priorite: 'urgent' | 'recommande' | 'optionnel'
-  templateNom?: string // Nom du template d'ordonnance à utiliser
+  return { current, passed, upcoming }
 }
 
 // Fonction pour obtenir les recommandations pour une consultation
@@ -554,171 +520,105 @@ export function getConsultationRecommendations(currentSA: number): {
   prescriptionsAPrevoir: string[]
   pointsDeVigilance: string[]
   conseilsADonner: string[]
-  ordonnancesSuggerees: OrdonnanceSuggestion[]
+  ordonnancesSuggerees: any[]
+  examensEnRetard: Array<{titre: string, saMin: number, saMax: number, examens: string[]}>
 } {
-  const { current } = getCalendarEventsForSA(currentSA)
+  const { current, passed } = getCalendarEventsForSA(currentSA)
 
   const examensAFaire: string[] = []
   const prescriptionsAPrevoir: string[] = []
   const pointsDeVigilance: string[] = []
   const conseilsADonner: string[] = []
-  const ordonnancesSuggerees: OrdonnanceSuggestion[] = []
+  const ordonnancesSuggerees: any[] = []
+  const examensEnRetard: Array<{titre: string, saMin: number, saMax: number, examens: string[]}> = []
 
+  // Récupérer tous les événements en cours
   for (const event of current) {
+    // Ajouter les examens principaux
     if (event.examens) {
       examensAFaire.push(...event.examens)
     }
+
+    // Ajouter les conseils
     if (event.conseils) {
       conseilsADonner.push(...event.conseils)
     }
+
+    // Ajouter les sous-examens (échos, biologies, consultations externes)
+    if (event.sousExamens) {
+      for (const sousExamen of event.sousExamens) {
+        prescriptionsAPrevoir.push(`📋 ${sousExamen.titre}`)
+        examensAFaire.push(...sousExamen.items.map(item => `  • ${item}`))
+      }
+    }
   }
 
-  // Recommandations selon le trimestre
+  // Identifier les examens en retard
+  for (const event of passed) {
+    if (event.type === 'consultation' && (event.priorite === 'obligatoire' || event.priorite === 'recommande')) {
+      // Vérifier les sous-examens
+      if (event.sousExamens) {
+        for (const sousExamen of event.sousExamens) {
+          if (sousExamen.priorite === 'obligatoire' || sousExamen.priorite === 'recommande') {
+            examensEnRetard.push({
+              titre: `${event.titre} - ${sousExamen.titre}`,
+              saMin: event.saMin,
+              saMax: event.saMax,
+              examens: sousExamen.items
+            })
+
+            // Reporter à la consultation actuelle
+            prescriptionsAPrevoir.push(`⚠️ À RATTRAPER: ${sousExamen.titre} (prévu ${event.saMin}-${event.saMax} SA)`)
+            examensAFaire.push(...sousExamen.items.map(item => `⚠️ RETARD: ${item}`))
+          }
+        }
+      }
+
+      // Vérifier les examens principaux
+      if (event.examens && event.examens.length > 0) {
+        examensEnRetard.push({
+          titre: event.titre,
+          saMin: event.saMin,
+          saMax: event.saMax,
+          examens: event.examens
+        })
+      }
+    }
+  }
+
+  // Points de vigilance selon le trimestre
   if (currentSA < 14) {
-    // T1
-    pointsDeVigilance.push('Rechercher signes de fausse couche', 'Nausées/vomissements', 'Supplémentation acide folique')
-    prescriptionsAPrevoir.push('Échographie T1 si non faite', 'Biologie T1', 'Acide folique', 'Vitamine D')
-
-    // Ordonnances suggérées T1
-    ordonnancesSuggerees.push({
-      id: 'biologie_t1',
-      nom: 'Bilan biologique T1',
-      description: 'NFS, groupe sanguin, RAI, sérologies (toxo, rubéole, syphilis, VIH, VHB)',
-      type: 'biologie',
-      priorite: 'urgent',
-      templateNom: 'Bilan biologique T1'
-    })
-
-    if (currentSA >= 8 && currentSA <= 11) {
-      ordonnancesSuggerees.push({
-        id: 'echo_t1',
-        nom: 'Échographie T1',
-        description: 'Échographie de datation et dépistage T1 (11-13 SA)',
-        type: 'echographie',
-        priorite: 'urgent',
-        templateNom: 'Échographie T1'
-      })
-    }
-
-    ordonnancesSuggerees.push({
-      id: 'suppl_t1',
-      nom: 'Supplémentation T1',
-      description: 'Acide folique + Vitamine D',
-      type: 'medicament',
-      priorite: 'recommande',
-      templateNom: 'Supplémentation grossesse T1'
-    })
-
+    pointsDeVigilance.push(
+      'Rechercher signes de fausse couche',
+      'Nausées/vomissements',
+      'Supplémentation acide folique'
+    )
   } else if (currentSA >= 14 && currentSA < 28) {
-    // T2
-    pointsDeVigilance.push('Mouvements actifs fœtaux', 'Croissance (HU)', 'TA', 'Protéinurie')
-    prescriptionsAPrevoir.push('Échographie T2 si non faite', 'NFS', 'RAI si Rh-')
-
-    // Ordonnances suggérées T2
-    if (currentSA >= 20 && currentSA <= 22) {
-      ordonnancesSuggerees.push({
-        id: 'echo_t2',
-        nom: 'Échographie T2',
-        description: 'Échographie morphologique T2 (22-24 SA)',
-        type: 'echographie',
-        priorite: 'urgent',
-        templateNom: 'Échographie T2'
-      })
-    }
-
-    ordonnancesSuggerees.push({
-      id: 'biologie_t2',
-      nom: 'Bilan biologique T2',
-      description: 'NFS, RAI (si Rh-)',
-      type: 'biologie',
-      priorite: 'recommande',
-      templateNom: 'Bilan biologique T2'
-    })
-
-    if (currentSA >= 24 && currentSA <= 28) {
-      prescriptionsAPrevoir.push('Dépistage diabète gestationnel')
-      ordonnancesSuggerees.push({
-        id: 'hgpo',
-        nom: 'Test diabète gestationnel',
-        description: 'HGPO 75g (24-28 SA)',
-        type: 'biologie',
-        priorite: 'urgent',
-        templateNom: 'Test diabète gestationnel'
-      })
-    }
-
-    ordonnancesSuggerees.push({
-      id: 'suppl_t2',
-      nom: 'Supplémentation T2',
-      description: 'Vitamine D + Fer si anémie',
-      type: 'medicament',
-      priorite: 'recommande',
-      templateNom: 'Supplémentation grossesse T2'
-    })
-
-  } else if (currentSA >= 28) {
-    // T3
-    pointsDeVigilance.push('TA (pré-éclampsie)', 'MAF quotidiens', 'Contractions', 'Perte de liquide', 'Présentation fœtale')
-    prescriptionsAPrevoir.push('Échographie T3 si non faite', 'NFS', 'RAI si Rh-')
-
-    // Ordonnances suggérées T3
-    if (currentSA >= 30 && currentSA <= 32) {
-      ordonnancesSuggerees.push({
-        id: 'echo_t3',
-        nom: 'Échographie T3',
-        description: 'Échographie de croissance T3 (32-34 SA)',
-        type: 'echographie',
-        priorite: 'urgent',
-        templateNom: 'Échographie T3'
-      })
-    }
-
-    ordonnancesSuggerees.push({
-      id: 'biologie_t3',
-      nom: 'Bilan biologique T3',
-      description: 'NFS, RAI (si Rh-)',
-      type: 'biologie',
-      priorite: 'recommande',
-      templateNom: 'Bilan biologique T3'
-    })
-
-    if (currentSA >= 35 && currentSA <= 37) {
-      prescriptionsAPrevoir.push('Prélèvement vaginal Streptocoque B')
-      ordonnancesSuggerees.push({
-        id: 'pv_sgb',
-        nom: 'Prélèvement vaginal SGB',
-        description: 'Dépistage Streptocoque B (35-37 SA)',
-        type: 'biologie',
-        priorite: 'urgent',
-        templateNom: 'Prélèvement vaginal Streptocoque B'
-      })
-    }
-
-    if (currentSA >= 36) {
-      conseilsADonner.push('Signes de travail', 'Quand venir à la maternité', 'Surveillance hebdomadaire')
-    }
-
-    ordonnancesSuggerees.push({
-      id: 'suppl_t3',
-      nom: 'Supplémentation T3',
-      description: 'Vitamine D + Fer si anémie',
-      type: 'medicament',
-      priorite: 'recommande',
-      templateNom: 'Supplémentation grossesse T3'
-    })
+    pointsDeVigilance.push(
+      'Mouvements actifs fœtaux',
+      'Croissance (HU)',
+      'TA',
+      'Protéinurie'
+    )
+  } else {
+    pointsDeVigilance.push(
+      'Surveillance quotidienne mouvements fœtaux',
+      'Contractions régulières (MAP)',
+      'TA et protéinurie (pré-éclampsie)',
+      'Croissance fœtale (HU)'
+    )
   }
 
   return {
-    examensAFaire: [...new Set(examensAFaire)],
-    prescriptionsAPrevoir: [...new Set(prescriptionsAPrevoir)],
-    pointsDeVigilance: [...new Set(pointsDeVigilance)],
-    conseilsADonner: [...new Set(conseilsADonner)],
-    ordonnancesSuggerees
+    examensAFaire,
+    prescriptionsAPrevoir,
+    pointsDeVigilance,
+    conseilsADonner,
+    ordonnancesSuggerees,
+    examensEnRetard
   }
 }
-
-// Fonction pour obtenir les recommandations d'ordonnances pour une consultation gynécologique
-export function getGynecologyRecommendations(motif: string): {
+export function getGynecologyRecommendations(motif: string, sousTypeGyneco?: string): {
   ordonnancesSuggerees: OrdonnanceSuggestion[]
   examensAFaire: string[]
   conseilsADonner: string[]
@@ -728,6 +628,7 @@ export function getGynecologyRecommendations(motif: string): {
   const conseilsADonner: string[] = []
 
   const motifLower = motif.toLowerCase()
+  const sousType = sousTypeGyneco?.toLowerCase() || ''
 
   // DYSMÉNORRHÉE
   if (motifLower.includes('dysménorrhée') || motifLower.includes('dysmenorrhee') ||
@@ -897,13 +798,112 @@ export function getGynecologyRecommendations(motif: string): {
 
   // CONTRACEPTION
   if (motifLower.includes('contraception') || motifLower.includes('pilule') ||
-      motifLower.includes('stérilet') || motifLower.includes('diu') || motifLower.includes('implant')) {
+      motifLower.includes('stérilet') || motifLower.includes('diu') || motifLower.includes('implant') ||
+      sousType === 'instauration' || sousType === 'suivi') {
 
     examensAFaire.push('Tension artérielle', 'Poids, IMC', 'Recherche contre-indications')
     conseilsADonner.push('Efficacité et mode d\'action expliqués', 'Préservatif en + pour protection IST')
 
-    // Pas d'ordonnance pré-définie car dépend du choix de contraception
-    // L'ordonnance sera faite manuellement selon le choix
+    // INSTAURATION DE CONTRACEPTION - Proposer toutes les options
+    if (sousType === 'instauration') {
+      ordonnancesSuggerees.push({
+        id: 'contraception_pilule_combinee',
+        nom: 'Contraception - Pilule Combinée',
+        description: 'Pilule œstroprogestative (Leeloo, Optilova, Minidril)',
+        type: 'medicament',
+        priorite: 'recommande',
+        templateNom: 'Contraception - Pilule Combinée'
+      })
+
+      ordonnancesSuggerees.push({
+        id: 'contraception_pilule_micro',
+        nom: 'Contraception - Pilule Microprogestative',
+        description: 'Pilule sans œstrogènes (Cerazette, Optimizette)',
+        type: 'medicament',
+        priorite: 'recommande',
+        templateNom: 'Contraception - Pilule Microprogestative'
+      })
+
+      ordonnancesSuggerees.push({
+        id: 'contraception_diu_cuivre',
+        nom: 'Contraception - DIU Cuivre',
+        description: 'Dispositif intra-utérin au cuivre (sans hormones)',
+        type: 'medicament',
+        priorite: 'recommande',
+        templateNom: 'Contraception - DIU Cuivre'
+      })
+
+      ordonnancesSuggerees.push({
+        id: 'contraception_diu_hormonal',
+        nom: 'Contraception - DIU Hormonal',
+        description: 'Mirena, Kyleena ou Jaydess (hormonal)',
+        type: 'medicament',
+        priorite: 'recommande',
+        templateNom: 'Contraception - DIU Hormonal'
+      })
+
+      ordonnancesSuggerees.push({
+        id: 'contraception_implant',
+        nom: 'Contraception - Implant',
+        description: 'Nexplanon (implant sous-cutané)',
+        type: 'medicament',
+        priorite: 'recommande',
+        templateNom: 'Contraception - Implant'
+      })
+
+      ordonnancesSuggerees.push({
+        id: 'contraception_patch',
+        nom: 'Contraception - Patch',
+        description: 'Patch transdermique hebdomadaire (Evra)',
+        type: 'medicament',
+        priorite: 'recommande',
+        templateNom: 'Contraception - Patch'
+      })
+
+      ordonnancesSuggerees.push({
+        id: 'contraception_anneau',
+        nom: 'Contraception - Anneau Vaginal',
+        description: 'Anneau contraceptif (NuvaRing)',
+        type: 'medicament',
+        priorite: 'recommande',
+        templateNom: 'Contraception - Anneau Vaginal'
+      })
+
+      examensAFaire.push('Examen gynécologique si DIU envisagé', 'Vérifier dernières règles')
+      conseilsADonner.push(
+        'Expliquer les différentes méthodes',
+        'Avantages et inconvénients de chaque option',
+        'Laisser la patiente choisir selon son mode de vie'
+      )
+    }
+
+    // SUIVI DE CONTRACEPTION - Renouvellement uniquement
+    if (sousType === 'suivi') {
+      ordonnancesSuggerees.push({
+        id: 'contraception_renouvellement_pilule',
+        nom: 'Renouvellement Pilule',
+        description: 'Renouvellement pilule contraceptive habituelle',
+        type: 'medicament',
+        priorite: 'urgent',
+        templateNom: 'Contraception - Pilule Combinée'
+      })
+
+      ordonnancesSuggerees.push({
+        id: 'contraception_renouvellement_micro',
+        nom: 'Renouvellement Pilule Microprogestative',
+        description: 'Renouvellement pilule microprogestative',
+        type: 'medicament',
+        priorite: 'urgent',
+        templateNom: 'Contraception - Pilule Microprogestative'
+      })
+
+      examensAFaire.push('Vérifier tolérance et observance', 'Effets secondaires ?')
+      conseilsADonner.push(
+        'Rappel importance prise régulière',
+        'Signaler tout effet indésirable',
+        'Prochain RDV dans 6 ou 12 mois'
+      )
+    }
   }
 
   // FROTTIS
@@ -1004,4 +1004,194 @@ export function generateAutomaticAlertsForPregnancy(
   }
 
   return alerts
+}
+
+/**
+ * VERSION ASYNCHRONE - Charge les templates depuis la BDD
+ * Remplace progressivement getGynecologyRecommendations()
+ *
+ * Cette version utilise les templates stockés en base de données au lieu
+ * des templates codés en dur, permettant une gestion dynamique via l'interface admin
+ */
+export async function getGynecologyRecommendationsAsync(
+  motif: string,
+  sousTypeGyneco?: string,
+  userId?: string
+): Promise<{
+  ordonnancesSuggerees: OrdonnanceSuggestion[]
+  examensAFaire: string[]
+  conseilsADonner: string[]
+}> {
+  const { searchTemplates } = await import('./template-loader.js')
+
+  const ordonnancesSuggerees: OrdonnanceSuggestion[] = []
+  const examensAFaire: string[] = []
+  const conseilsADonner: string[] = []
+
+  const motifLower = motif.toLowerCase()
+  const sousType = sousTypeGyneco?.toLowerCase() || ''
+
+  try {
+    // Charger les templates pertinents depuis la BDD en fonction du motif
+    // On recherche dans les catégories gynécologiques appropriées
+    let templates: any[] = []
+
+    // CONTRACEPTION
+    if (sousType === 'contraception' || sousType === 'instauration' || sousType === 'suivi' ||
+        motifLower.includes('contraception') || motifLower.includes('pilule') ||
+        motifLower.includes('diu') || motifLower.includes('stérilet') ||
+        motifLower.includes('implant')) {
+      const { findTemplatesByCategory } = await import('./template-loader.js')
+      templates = await findTemplatesByCategory('contraception', userId)
+    }
+    // INFECTIONS (mycose, chlamydia, cystite, etc.)
+    else if (motifLower.includes('mycose') || motifLower.includes('candidose')) {
+      templates = await searchTemplates('mycose', userId)
+    }
+    else if (motifLower.includes('chlamydia') || motifLower.includes('chlamidia')) {
+      templates = await searchTemplates('chlamydia', userId)
+    }
+    else if (motifLower.includes('gonocoque') || motifLower.includes('gonorrhée') ||
+             motifLower.includes('gonorrhee') || motifLower.includes('blennorragie')) {
+      templates = await searchTemplates('gonorrhée', userId)
+    }
+    else if (motifLower.includes('trichomonas') || motifLower.includes('trichomonase')) {
+      templates = await searchTemplates('trichomonase', userId)
+    }
+    else if (motifLower.includes('vaginose') || motifLower.includes('gardnerella')) {
+      templates = await searchTemplates('vaginose', userId)
+    }
+    else if (motifLower.includes('cystite') || motifLower.includes('infection urinaire')) {
+      templates = await searchTemplates('cystite', userId)
+    }
+    else if (motifLower.includes('dépistage ist') || motifLower.includes('depistage ist') ||
+             motifLower.includes('dépistage mst') || motifLower.includes('bilan ist') ||
+             motifLower.includes('test ist') || motifLower.includes('serologies')) {
+      templates = await searchTemplates('dépistage ist', userId)
+    }
+    else if (motifLower.includes('frottis') || motifLower.includes('fcv') ||
+             motifLower.includes('dépistage col') || motifLower.includes('papillomavirus') ||
+             motifLower.includes('hpv') && motifLower.includes('test')) {
+      templates = await searchTemplates('frottis', userId)
+    }
+    else if (motifLower.includes('infection') || motifLower.includes('ist') ||
+             motifLower.includes('mst') || motifLower.includes('vaginite')) {
+      // Recherche générique dans catégorie infections
+      const { findTemplatesByCategory } = await import('./template-loader.js')
+      templates = await findTemplatesByCategory('infections', userId)
+    }
+    // MÉNOPAUSE
+    else if (motifLower.includes('ménopause') || motifLower.includes('menopause') ||
+             motifLower.includes('bouffée') || motifLower.includes('bouffee')) {
+      const { findTemplatesByCategory } = await import('./template-loader.js')
+      templates = await findTemplatesByCategory('ménopause', userId)
+    }
+    // TROUBLES MENSTRUELS - Cas spécifiques d'abord
+    else if (motifLower.includes('aménorrhée') || motifLower.includes('amenorrhee') ||
+             motifLower.includes('absence') && (motifLower.includes('règles') || motifLower.includes('regles'))) {
+      templates = await searchTemplates('aménorrhée', userId)
+    }
+    else if (motifLower.includes('ménorragies') || motifLower.includes('menorragies') ||
+             motifLower.includes('règles abondantes') || motifLower.includes('regles abondantes') ||
+             motifLower.includes('saignements abondants')) {
+      templates = await searchTemplates('ménorragies', userId)
+    }
+    else if (motifLower.includes('spanioménorrhée') || motifLower.includes('spaniomenorrhee') ||
+             motifLower.includes('oligoménorrhée') || motifLower.includes('oligomenorrhee') ||
+             motifLower.includes('cycles longs') || motifLower.includes('cycles irréguliers')) {
+      templates = await searchTemplates('spanioménorrhée', userId)
+    }
+    else if (motifLower.includes('dysménorrhée') || motifLower.includes('dysmenorrhee') ||
+             motifLower.includes('règles douloureuses') || motifLower.includes('regles douloureuses')) {
+      templates = await searchTemplates('douleurs menstruelles', userId)
+    }
+    else if (motifLower.includes('règles') || motifLower.includes('regles') ||
+             motifLower.includes('menstruel')) {
+      // Recherche générique pour troubles menstruels
+      const { findTemplatesByCategory } = await import('./template-loader.js')
+      templates = await findTemplatesByCategory('gynécologie', userId)
+    }
+    // ALLAITEMENT
+    else if (motifLower.includes('allaitement') || motifLower.includes('crevasse') ||
+             motifLower.includes('lactation')) {
+      const { findTemplatesByCategory } = await import('./template-loader.js')
+      templates = await findTemplatesByCategory('allaitement', userId)
+    }
+    // GROSSESSE
+    else if (motifLower.includes('grossesse') || motifLower.includes('enceinte') ||
+             motifLower.includes('nausée') || motifLower.includes('nausee') ||
+             motifLower.includes('vitamine')) {
+      const { findTemplatesByCategory } = await import('./template-loader.js')
+      templates = await findTemplatesByCategory('grossesse', userId)
+    }
+    // RECHERCHE GÉNÉRIQUE en dernier recours
+    else {
+      templates = await searchTemplates(motif, userId)
+    }
+
+    // Convertir les templates en OrdonnanceSuggestion
+    for (const template of templates) {
+      ordonnancesSuggerees.push({
+        id: template.id,
+        nom: template.nom,
+        description: template.description || '',
+        type: template.type,
+        priorite: template.priorite,
+        templateNom: template.nom
+      })
+    }
+
+    // Ajouter conseils et examens par défaut selon le contexte
+    // Ces conseils restent génériques et ne sont pas stockés en BDD
+    if (sousType === 'contraception' || motifLower.includes('contraception')) {
+      examensAFaire.push('Tension artérielle', 'Poids, IMC', 'Recherche contre-indications')
+      conseilsADonner.push('Efficacité et mode d\'action expliqués', 'Préservatif en + pour protection IST')
+    }
+
+    if (motifLower.includes('infection') || motifLower.includes('mycose')) {
+      examensAFaire.push('Examen au spéculum', 'Prélèvement vaginal si besoin')
+      conseilsADonner.push('Toilette intime douce', 'Éviter les irritants', 'Traiter le partenaire si besoin')
+    }
+
+  } catch (error) {
+    console.error('[Gyneco Recommendations Async] Error loading templates:', error)
+    // En cas d'erreur, fallback sur la version synchrone avec templates en dur
+    return getGynecologyRecommendations(motif, sousTypeGyneco)
+  }
+
+  // Si aucun template trouvé en BDD, utiliser les templates statiques
+  if (ordonnancesSuggerees.length === 0 && examensAFaire.length === 0) {
+    const { getGynecoTemplateByMotif } = await import('./gynecoTemplates.js')
+    const staticTemplate = getGynecoTemplateByMotif(motifLower)
+
+    if (staticTemplate) {
+      // Ajouter les examens recommandés
+      examensAFaire.push(...staticTemplate.examensRecommandes)
+
+      // Ajouter comme conseil les points de vigilance et questions
+      if (staticTemplate.pointsVigilance.length > 0) {
+        conseilsADonner.push('Points de vigilance:', ...staticTemplate.pointsVigilance.slice(0, 5))
+      }
+
+      // Ajouter les prescriptions suggérées comme ordonnances
+      if (staticTemplate.prescriptionsSuggestions) {
+        staticTemplate.prescriptionsSuggestions.forEach((prescription, idx) => {
+          ordonnancesSuggerees.push({
+            id: `static_${staticTemplate.id}_${idx}`,
+            nom: prescription,
+            description: staticTemplate.description,
+            type: 'gynécologie',
+            priorite: 'recommande',
+            templateNom: staticTemplate.name
+          })
+        })
+      }
+    }
+  }
+
+  return {
+    ordonnancesSuggerees,
+    examensAFaire,
+    conseilsADonner
+  }
 }

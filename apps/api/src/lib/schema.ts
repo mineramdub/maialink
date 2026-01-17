@@ -1264,6 +1264,7 @@ export const resultatsARecuperer = pgTable('resultats_a_recuperer', {
 
   typeExamen: text('type_examen').notNull(), // "Biologie", "Échographie", "Anatomopathologie", etc.
   description: text('description').notNull(),
+  categorie: text('categorie').default('gyneco').notNull(), // "obstetrique" ou "gyneco"
   dateExamen: date('date_examen'),
   laboratoire: text('laboratoire'),
 
@@ -1767,6 +1768,29 @@ export const ressourcesMedicales = pgTable('ressources_medicales', {
   categorieIdx: index('ressources_medicales_categorie_idx').on(table.categorie),
 }))
 
+// Numéros utiles (urgences, collègues, laboratoires, etc.)
+export const numerosUtiles = pgTable('numeros_utiles', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  nom: text('nom').notNull(), // Nom du contact ou service
+  description: text('description'), // Description optionnelle
+  categorie: text('categorie').notNull(), // urgences, collegues, laboratoires, maternites, pharmacies, autres
+  telephone: text('telephone'), // Numéro de téléphone
+  email: text('email'), // Email optionnel
+  adresse: text('adresse'), // Adresse optionnelle
+  notes: text('notes'), // Notes supplémentaires
+  favori: boolean('favori').default(false), // Marquer comme favori
+  ordre: integer('ordre').default(0), // Ordre d'affichage personnalisé
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('numeros_utiles_user_id_idx').on(table.userId),
+  categorieIdx: index('numeros_utiles_categorie_idx').on(table.categorie),
+  favoriIdx: index('numeros_utiles_favori_idx').on(table.favori),
+}))
+
 // Types exports
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -1812,3 +1836,5 @@ export type SmartSuggestion = typeof smartSuggestions.$inferSelect
 export type NewSmartSuggestion = typeof smartSuggestions.$inferInsert
 export type PracticeLearningEvent = typeof practiceLearningEvents.$inferSelect
 export type NewPracticeLearningEvent = typeof practiceLearningEvents.$inferInsert
+export type NumeroUtile = typeof numerosUtiles.$inferSelect
+export type NewNumeroUtile = typeof numerosUtiles.$inferInsert

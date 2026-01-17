@@ -9,9 +9,15 @@ import { getTemplateForSA, generateConsultationFromTemplate, generateReminders }
 import { getGynecologyRecommendations, getGynecologyRecommendationsAsync } from '../lib/pregnancy-calendar.js'
 import { getOrdonnanceSuggestions } from '../lib/ordonnanceTemplates.js'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import Anthropic from '@anthropic-ai/sdk'
 
 const router = Router()
 router.use(authMiddleware)
+
+// Initialize Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY || '',
+})
 
 // GET /api/consultations - List consultations
 router.get('/', async (req: AuthRequest, res) => {
@@ -176,6 +182,68 @@ router.get('/gynecology-recommendations', async (req: AuthRequest, res) => {
     })
   } catch (error) {
     console.error('Get gynecology recommendations error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// GET /api/consultations/gynecology-template - Get complete gynecology consultation template
+router.get('/gynecology-template', async (req: AuthRequest, res) => {
+  try {
+    const { motif } = req.query
+
+    if (!motif || typeof motif !== 'string') {
+      return res.status(400).json({
+        error: 'Motif de consultation requis'
+      })
+    }
+
+    // Importer et récupérer le template
+    const { getGynecoTemplateByMotif, getAllGynecoMotifs } = await import('../lib/gynecoTemplates.js')
+    const template = getGynecoTemplateByMotif(motif)
+
+    if (!template) {
+      // Retourner la liste des motifs disponibles
+      const availableMotifs = getAllGynecoMotifs()
+      return res.json({
+        success: false,
+        error: 'Template non trouvé pour ce motif',
+        availableMotifs
+      })
+    }
+
+    res.json({
+      success: true,
+      template: {
+        id: template.id,
+        name: template.name,
+        description: template.description,
+        motif: template.data.motif,
+        examenClinique: template.data.examenClinique,
+        conclusion: template.data.conclusion,
+        examensRecommandes: template.examensRecommandes,
+        pointsVigilance: template.pointsVigilance,
+        questionsPoser: template.questionsPoser,
+        prescriptionsSuggestions: template.prescriptionsSuggestions
+      }
+    })
+  } catch (error) {
+    console.error('Get gynecology template error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// GET /api/consultations/gynecology-motifs - Get all available gynecology consultation motifs
+router.get('/gynecology-motifs', async (req: AuthRequest, res) => {
+  try {
+    const { getAllGynecoMotifs } = await import('../lib/gynecoTemplates.js')
+    const motifs = getAllGynecoMotifs()
+
+    res.json({
+      success: true,
+      motifs
+    })
+  } catch (error) {
+    console.error('Get gynecology motifs error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })
@@ -534,10 +602,7 @@ router.post('/:id/generate-summary', async (req: AuthRequest, res) => {
       bdc: consultation.bdc,
     }
 
-    // Generate summary using Gemini
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-
+    // Generate summary using Claude
     const prompt = `Tu es une sage-femme expérimentée. Génère un résumé TRÈS COURT (maximum 50 caractères) de cette consultation pour affichage dans une liste.
 
 Type de consultation: ${context.type}
@@ -562,8 +627,13 @@ Exemples de bons résumés:
 
 Réponds UNIQUEMENT avec le résumé, sans guillemets ni explications.`
 
-    const result = await model.generateContent(prompt)
-    const summary = result.response.text().trim()
+    const message = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 100,
+      messages: [{ role: 'user', content: prompt }]
+    })
+
+    const summary = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
 
     // Truncate to 100 chars max as safety
     const finalSummary = summary.substring(0, 100)

@@ -3,6 +3,7 @@ import { Card, CardContent } from './ui/card'
 import { Label } from './ui/label'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
+import { HighlightableTextarea } from './ui/highlightable-textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible'
 import { ChevronDown } from 'lucide-react'
@@ -20,11 +21,12 @@ export function ExamenCliniqueAdapte({ type, motif, defaultValue, onChange }: Ex
   if (defaultValue && defaultValue.trim().length > 50) {
     return (
       <div className="space-y-2">
-        <Textarea
+        <HighlightableTextarea
           value={defaultValue}
-          onChange={(e) => onChange(e.target.value)}
-          rows={15}
-          className="font-mono text-sm"
+          onChange={(value) => onChange(value)}
+          rows={18}
+          className="text-base font-medium leading-relaxed"
+          placeholder="Examen clinique..."
         />
       </div>
     )

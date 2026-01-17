@@ -12,7 +12,8 @@ import {
   User,
   Sparkles,
   FileText,
-  Minimize2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 
 interface ProtocolResult {
@@ -39,7 +40,6 @@ interface Message {
 
 export function ChatBubble() {
   const [isOpen, setIsOpen] = useState(false)
-  const [isMinimized, setIsMinimized] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -53,10 +53,10 @@ export function ChatBubble() {
   }, [messages])
 
   useEffect(() => {
-    if (isOpen && !isMinimized && textareaRef.current) {
+    if (isOpen && textareaRef.current) {
       textareaRef.current.focus()
     }
-  }, [isOpen, isMinimized])
+  }, [isOpen])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,7 +65,7 @@ export function ChatBubble() {
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input.trim(),
+      content: input,
       timestamp: new Date(),
     }
 
@@ -78,66 +78,56 @@ export function ChatBubble() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ question: userMessage.content }),
+        body: JSON.stringify({ question: input }),
       })
 
       const data = await res.json()
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.answer || data.error || 'Erreur lors de la generation de la reponse',
-        sources: data.sources,
-        structured: data.structured,
-        timestamp: new Date(),
-      }
-
-      setMessages((prev) => [...prev, assistantMessage])
-    } catch (error) {
-      console.error('Chat error:', error)
-      setMessages((prev) => [
-        ...prev,
-        {
+      if (data.success) {
+        const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: 'Erreur de connexion. Veuillez reessayer.',
+          content: data.answer,
+          sources: data.sources,
+          structured: data.structured,
           timestamp: new Date(),
-        },
-      ])
+        }
+
+        setMessages((prev) => [...prev, assistantMessage])
+      } else {
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: "Désolé, une erreur s'est produite. Veuillez réessayer.",
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, errorMessage])
+      }
+    } catch (error) {
+      console.error('Chat error:', error)
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "Désolé, impossible de se connecter au serveur.",
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit(e)
-    }
-  }
-
+  // Floating toggle button when closed
   if (!isOpen) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg hover:shadow-xl transition-all hover:scale-105 group"
-        title="Poser une question sur vos protocoles"
+        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg hover:shadow-xl transition-all hover:scale-110"
+        title="Ouvrir l'Assistant Protocoles"
       >
-        <Sparkles className="h-6 w-6 group-hover:animate-pulse" />
-      </button>
-    )
-  }
-
-  if (isMinimized) {
-    return (
-      <button
-        onClick={() => setIsMinimized(false)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg hover:shadow-xl transition-all px-4 py-3"
-      >
-        <Sparkles className="h-5 w-5" />
-        <span className="text-sm font-medium">Assistant IA</span>
+        <Sparkles className="h-6 w-6" />
         {messages.length > 0 && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-xs">
+          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold">
             {messages.length}
           </span>
         )}
@@ -145,159 +135,146 @@ export function ChatBubble() {
     )
   }
 
+  // Drawer panel
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col w-[400px] h-[600px] max-h-[80vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5" />
-          <span className="font-semibold">Assistant Protocoles</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setIsMinimized(true)}
-            className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
-          >
-            <Minimize2 className="h-4 w-4" />
-          </button>
+    <>
+      {/* Overlay */}
+      <div
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity"
+        onClick={() => setIsOpen(false)}
+      />
+
+      {/* Drawer */}
+      <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[500px] bg-white shadow-2xl flex flex-col transform transition-transform duration-300">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-violet-500 to-purple-600 text-white">
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5" />
+            <span className="font-semibold text-lg">Assistant Protocoles</span>
+          </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
+            className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+            title="Fermer"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
-      </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center mb-4">
-              <Bot className="h-8 w-8 text-violet-600" />
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-br from-slate-50 to-purple-50/30">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center px-4">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center mb-4">
+                <Bot className="h-10 w-10 text-violet-600" />
+              </div>
+              <h3 className="font-semibold text-slate-900 mb-2 text-xl">
+                Assistant Protocoles IA
+              </h3>
+              <p className="text-sm text-slate-600 mb-6 leading-relaxed max-w-sm">
+                Posez-moi vos questions sur vos protocoles médicaux.
+                Je rechercherai les informations dans vos documents et vous donnerai une réponse claire.
+              </p>
+              <div className="space-y-3 w-full max-w-md">
+                <p className="text-xs text-slate-500 font-medium mb-3">💡 Exemples de questions :</p>
+                <button
+                  onClick={() => setInput('Quelle est la conduite à tenir en cas de pré-éclampsie ?')}
+                  className="w-full text-left text-sm p-4 rounded-xl bg-white hover:bg-violet-50 text-slate-700 transition-colors border border-violet-200 hover:border-violet-300 shadow-sm"
+                >
+                  "Conduite à tenir en cas de pré-éclampsie ?"
+                </button>
+                <button
+                  onClick={() => setInput('Quels sont les examens du 1er trimestre ?')}
+                  className="w-full text-left text-sm p-4 rounded-xl bg-white hover:bg-violet-50 text-slate-700 transition-colors border border-violet-200 hover:border-violet-300 shadow-sm"
+                >
+                  "Examens du 1er trimestre ?"
+                </button>
+              </div>
             </div>
-            <h3 className="font-semibold text-slate-900 mb-2">
-              Assistant Protocoles IA
-            </h3>
-            <p className="text-sm text-slate-500 mb-4">
-              Posez-moi vos questions sur vos protocoles medicaux.
-              Je rechercherai les informations dans vos documents.
-            </p>
-            <div className="space-y-2 w-full">
-              <p className="text-xs text-slate-400">Exemples de questions :</p>
-              <button
-                onClick={() => setInput('Quelle est la conduite a tenir en cas de pre-eclampsie ?')}
-                className="w-full text-left text-sm p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors"
-              >
-                "Conduite a tenir en cas de pre-eclampsie ?"
-              </button>
-              <button
-                onClick={() => setInput('Quels sont les examens du 1er trimestre ?')}
-                className="w-full text-left text-sm p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors"
-              >
-                "Examens du 1er trimestre ?"
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-3 ${
-                  message.role === 'user' ? 'flex-row-reverse' : ''
-                }`}
-              >
+          ) : (
+            <>
+              {messages.map((message) => (
                 <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                    message.role === 'user'
-                      ? 'bg-slate-100'
-                      : 'bg-gradient-to-br from-violet-500 to-purple-600'
+                  key={message.id}
+                  className={`flex gap-3 ${
+                    message.role === 'user' ? 'flex-row-reverse' : ''
                   }`}
                 >
-                  {message.role === 'user' ? (
-                    <User className="h-4 w-4 text-slate-600" />
-                  ) : (
-                    <Bot className="h-4 w-4 text-white" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  {/* Message utilisateur ou réponse structurée */}
-                  {message.role === 'user' ? (
-                    <div className="rounded-2xl px-4 py-2.5 bg-slate-100 text-slate-900">
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    </div>
-                  ) : message.structured ? (
-                    /* Réponse structurée avec IA */
-                    <div className="rounded-2xl px-4 py-3 bg-gradient-to-br from-violet-50 to-purple-50">
-                      <StructuredResponse data={message.structured} />
-                    </div>
-                  ) : (
-                    /* Réponse simple avec carousel si sources */
-                    <>
-                      {message.sources && message.sources.length > 0 && (
-                        <ProtocolResultsCarousel sources={message.sources} />
-                      )}
-                      <div
-                        className={`rounded-2xl px-4 py-2.5 mt-3 ${
-                          message.sources && message.sources.length > 0
-                            ? 'bg-slate-50 text-slate-600 text-xs'
-                            : 'bg-gradient-to-br from-violet-50 to-purple-50 text-slate-900'
-                        }`}
-                      >
-                        <p className={message.sources && message.sources.length > 0 ? 'text-xs' : 'text-sm whitespace-pre-wrap'}>
-                          {message.content}
-                        </p>
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                      message.role === 'user'
+                        ? 'bg-slate-200'
+                        : 'bg-gradient-to-br from-violet-500 to-purple-600'
+                    }`}
+                  >
+                    {message.role === 'user' ? (
+                      <User className="h-4 w-4 text-slate-600" />
+                    ) : (
+                      <Bot className="h-4 w-4 text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1 max-w-[85%]">
+                    {message.role === 'user' ? (
+                      <div className="rounded-2xl px-4 py-3 bg-slate-100 text-slate-900">
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                       </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600">
-                  <Bot className="h-4 w-4 text-white" />
-                </div>
-                <div className="flex-1 rounded-2xl px-4 py-3 bg-gradient-to-br from-violet-50 to-purple-50">
-                  <div className="flex items-center gap-2 text-sm text-violet-600">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Recherche dans vos protocoles...
+                    ) : message.structured ? (
+                      <div className="rounded-2xl px-4 py-3 bg-white border border-violet-200">
+                        <StructuredResponse data={message.structured} />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="rounded-2xl px-4 py-3 bg-white border border-violet-200 text-slate-900">
+                          <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                            {message.content}
+                          </p>
+                        </div>
+                        {message.sources && message.sources.length > 0 && (
+                          <div className="mt-3">
+                            <ProtocolResultsCarousel sources={message.sources} />
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </>
-        )}
-      </div>
-
-      {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t border-slate-200">
-        <div className="flex gap-2">
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Posez votre question..."
-            rows={1}
-            className="resize-none min-h-[44px] max-h-[120px]"
-          />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!input.trim() || isLoading}
-            className="shrink-0 bg-gradient-to-br from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
+              ))}
+              <div ref={messagesEndRef} />
+            </>
+          )}
         </div>
-      </form>
-    </div>
+
+        {/* Input */}
+        <div className="border-t border-slate-200 p-4 bg-white">
+          <form onSubmit={handleSubmit} className="flex gap-3">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSubmit(e)
+                }
+              }}
+              placeholder="Posez votre question sur vos protocoles..."
+              className="flex-1 min-h-[48px] max-h-32 resize-none"
+              disabled={isLoading}
+            />
+            <Button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="h-12 w-12 shrink-0 bg-gradient-to-br from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+            >
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Send className="h-5 w-5" />
+              )}
+            </Button>
+          </form>
+        </div>
+      </div>
+    </>
   )
 }

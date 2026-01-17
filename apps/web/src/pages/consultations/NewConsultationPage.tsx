@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { Textarea } from '../../components/ui/textarea'
+import { HighlightableTextarea } from '../../components/ui/highlightable-textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { ArrowLeft, Loader2, Save, FileText, Calendar, AlertTriangle, CheckCircle2, Plus, Sparkles } from 'lucide-react'
@@ -1119,11 +1120,12 @@ export default function NewConsultationPage() {
                   label="Templates"
                 />
               </div>
-              <Textarea
+              <HighlightableTextarea
                 id="motif"
                 rows={2}
                 value={formData.motif}
-                onChange={(e) => updateField('motif', e.target.value)}
+                onChange={(value) => updateField('motif', value)}
+                placeholder="Décrivez le motif de consultation..."
               />
             </div>
           </CardContent>
@@ -1632,11 +1634,12 @@ export default function NewConsultationPage() {
                   label="Templates"
                 />
               </div>
-              <Textarea
+              <HighlightableTextarea
                 id="conclusion"
                 rows={10}
                 value={formData.conclusion}
-                onChange={(e) => updateField('conclusion', e.target.value)}
+                onChange={(value) => updateField('conclusion', value)}
+                placeholder="Conclusion de la consultation..."
               />
             </div>
 

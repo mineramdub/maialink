@@ -35,6 +35,7 @@ import resultatsLaboRoutes from './routes/resultats-labo.js'
 import shareRoutes from './routes/share.js'
 import practiceLearningRoutes from './routes/practice-learning.js'
 import ressourcesMedicalesRoutes from './routes/ressources-medicales.js'
+import numerosUtilesRoutes from './routes/numeros-utiles.js'
 import { auditMiddleware } from './middleware/audit.js'
 import { shareCreationLimiter, shareAccessLimiter, sharedDataLimiter } from './middleware/rate-limit.js'
 
@@ -178,6 +179,7 @@ app.use('/api/traitements-habituels', traitementsHabituelsRoutes)
 app.use('/api/resultats-labo', resultatsLaboRoutes)
 app.use('/api/practice-learning', practiceLearningRoutes)
 app.use('/api/ressources-medicales', ressourcesMedicalesRoutes)
+app.use('/api/numeros-utiles', numerosUtilesRoutes)
 
 // Share routes with rate limiting
 // Authenticated routes (/api/share) - for practitioners
