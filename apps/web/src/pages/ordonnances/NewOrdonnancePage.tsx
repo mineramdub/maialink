@@ -223,8 +223,8 @@ export default function NewOrdonnancePage() {
       return
     }
 
-    if (selectedMedicaments.length === 0) {
-      alert('Veuillez ajouter au moins un médicament')
+    if (selectedMedicaments.length === 0 && !previewContent) {
+      alert('Veuillez ajouter au moins un médicament ou utiliser un template')
       return
     }
 
@@ -614,10 +614,10 @@ export default function NewOrdonnancePage() {
               <h2 className="text-lg font-semibold">Aperçu de l'ordonnance</h2>
             </div>
 
-            {selectedMedicaments.length === 0 ? (
+            {selectedMedicaments.length === 0 && !previewContent ? (
               <div className="text-center py-12 text-gray-500">
                 <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p className="text-sm">Sélectionnez des médicaments pour voir l'aperçu</p>
+                <p className="text-sm">Sélectionnez un template ou des médicaments pour voir l'aperçu</p>
               </div>
             ) : (
               <div className="bg-white border-2 border-gray-200 rounded-lg p-6 font-mono text-xs overflow-y-auto max-h-[calc(100vh-200px)]">

@@ -23,7 +23,8 @@ router.get('/', async (req: AuthRequest, res) => {
         or(
           ilike(patients.firstName, `%${search}%`),
           ilike(patients.lastName, `%${search}%`),
-          ilike(patients.email, `%${search}%`)
+          ilike(patients.email, `%${search}%`),
+          ilike(patients.birthDate, `%${search}%`) // Recherche par date de naissance
         )
       )
     }
@@ -119,6 +120,9 @@ router.get('/:id', async (req: AuthRequest, res) => {
         },
         alertes: {
           where: (alertes, { eq }) => eq(alertes.isRead, false),
+        },
+        resultatsLabo: {
+          orderBy: (resultatsLabo, { desc }) => [desc(resultatsLabo.dateAnalyse), desc(resultatsLabo.createdAt)],
         },
       },
     })
