@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, FileText, Search, Plus, X, Save, Pill, Check } from 'lucide-react'
+import { ArrowLeft, FileText, Search, Plus, X, Save, Pill, Check, Edit } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface Medicament {
   nom: string
@@ -52,6 +53,8 @@ export default function NewOrdonnancePage() {
 
   const [isGenerating, setIsGenerating] = useState(false)
   const [previewContent, setPreviewContent] = useState('')
+  const [isEditingPreview, setIsEditingPreview] = useState(false)
+  const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false)
 
   // Charger les patients
   useEffect(() => {
@@ -609,9 +612,34 @@ export default function NewOrdonnancePage() {
         {/* Colonne droite - Preview */}
         <div>
           <Card className="p-6 sticky top-6">
-            <div className="flex items-center gap-2 mb-4">
-              <FileText className="h-5 w-5 text-blue-600" />
-              <h2 className="text-lg font-semibold">Aperçu de l'ordonnance</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-600" />
+                <h2 className="text-lg font-semibold">Aperçu de l'ordonnance</h2>
+              </div>
+              {isEditingPreview && (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsEditingPreview(false)}
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setIsEditingPreview(false)
+                      if (selectedTemplate) {
+                        setShowSaveTemplateDialog(true)
+                      }
+                    }}
+                  >
+                    <Check className="h-4 w-4 mr-1" />
+                    Valider
+                  </Button>
+                </div>
+              )}
             </div>
 
             {selectedMedicaments.length === 0 && !previewContent ? (
@@ -624,10 +652,17 @@ export default function NewOrdonnancePage() {
                 <div className="mb-6 pb-4 border-b-2 border-gray-300">
                   <div className="text-center font-bold text-sm mb-2">ORDONNANCE</div>
                   <div className="text-xs space-y-1">
-                    <div>Dr. {user?.firstName} {user?.lastName}</div>
+                    <div className="font-semibold">{user?.firstName} {user?.lastName}</div>
                     <div>Sage-Femme</div>
-                    {user?.rpps && <div>RPPS: {user.rpps}</div>}
-                    {user?.adeli && <div>ADELI: {user.adeli}</div>}
+                    {user?.rpps && <div>N° RPPS: {user.rpps}</div>}
+                    {user?.adeli && <div>N° ADELI: {user.adeli}</div>}
+                    {user?.cabinetAddress && (
+                      <>
+                        <div className="mt-2">{user.cabinetAddress}</div>
+                        <div>{user.cabinetPostalCode} {user.cabinetCity}</div>
+                      </>
+                    )}
+                    {user?.phone && <div>Tél: {user.phone}</div>}
                   </div>
                 </div>
 
@@ -641,9 +676,21 @@ export default function NewOrdonnancePage() {
                   </div>
                 )}
 
-                <div className="whitespace-pre-wrap">
-                  {previewContent}
-                </div>
+                {isEditingPreview ? (
+                  <Textarea
+                    value={previewContent}
+                    onChange={(e) => setPreviewContent(e.target.value)}
+                    className="w-full font-mono text-xs min-h-[300px] whitespace-pre-wrap"
+                  />
+                ) : (
+                  <div
+                    className="whitespace-pre-wrap cursor-pointer hover:bg-gray-50 p-2 rounded"
+                    onClick={() => setIsEditingPreview(true)}
+                    title="Cliquer pour éditer"
+                  >
+                    {previewContent}
+                  </div>
+                )}
 
                 <div className="mt-6 pt-4 border-t border-gray-300 text-right">
                   <div className="text-xs text-gray-600">
@@ -658,6 +705,52 @@ export default function NewOrdonnancePage() {
           </Card>
         </div>
       </div>
+
+      {/* Dialogue pour sauvegarder les modifications au template */}
+      <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sauvegarder les modifications ?</DialogTitle>
+            <DialogDescription>
+              Vous avez modifié le contenu de l'ordonnance basée sur le template "{selectedTemplate}".
+              Voulez-vous sauvegarder ces modifications pour les prochaines ordonnances de ce type ?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowSaveTemplateDialog(false)}
+            >
+              Non, juste pour cette ordonnance
+            </Button>
+            <Button
+              onClick={async () => {
+                // Sauvegarder le template modifié
+                try {
+                  const template = templates.find(t => t.nom === selectedTemplate)
+                  if (template) {
+                    await fetch(`${import.meta.env.VITE_API_URL}/api/ordonnances/templates/${template.nom}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({
+                        contenu: previewContent
+                      })
+                    })
+                    alert('Template mis à jour avec succès !')
+                  }
+                } catch (error) {
+                  console.error('Erreur mise à jour template:', error)
+                  alert('Erreur lors de la mise à jour du template')
+                }
+                setShowSaveTemplateDialog(false)
+              }}
+            >
+              Oui, sauvegarder le template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

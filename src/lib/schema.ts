@@ -25,6 +25,9 @@ export const users = pgTable('users', {
   rpps: text('rpps'),
   adeli: text('adeli'),
   phone: text('phone'),
+  cabinetAddress: text('cabinet_address'),
+  cabinetPostalCode: text('cabinet_postal_code'),
+  cabinetCity: text('cabinet_city'),
   twoFactorSecret: text('two_factor_secret'),
   twoFactorEnabled: boolean('two_factor_enabled').default(false),
   isActive: boolean('is_active').default(true),
@@ -75,6 +78,29 @@ export const patients = pgTable('patients', {
   // Obstétrique
   gravida: integer('gravida').default(0),
   para: integer('para').default(0),
+
+  // Gynécologie
+  ageMenarche: integer('age_menarche'), // Âge des premières règles
+  dureeCycle: integer('duree_cycle'), // Durée du cycle en jours
+  dureeRegles: integer('duree_regles'), // Durée des règles en jours
+  regulariteCycle: text('regularite_cycle'), // 'regulier', 'irregulier', 'variable'
+  dysmenorrhee: text('dysmenorrhee'), // 'absente', 'legere', 'moderee', 'severe'
+  dyspareunie: text('dyspareunie'), // 'absente', 'legere', 'moderee', 'severe'
+  leucorrhees: text('leucorrhees'), // Pertes blanches
+  contraceptionActuelle: text('contraception_actuelle'),
+  dateDernierFrottis: date('date_dernier_frottis'),
+  dateDerniereMammographie: date('date_derniere_mammographie'),
+
+  // Obstétrique détaillé
+  datesDernieresRegles: text('dates_dernieres_regles'), // Format date ou texte
+  gestesParite: text('gestes_parite'), // Détails G/P (ex: "G3P2A1")
+  accouchements: text('accouchements'), // Historique textuel des accouchements
+  cesarienne: boolean('cesarienne').default(false),
+  nombreCesariennes: integer('nombre_cesariennes'),
+  fausseCouches: integer('fausses_couches'),
+  ivg: integer('ivg'),
+  grossesseExtraUterine: boolean('grossesse_extra_uterine').default(false),
+  mortNe: boolean('mort_ne').default(false),
 
   // Assurance
   mutuelle: text('mutuelle'),
@@ -314,6 +340,35 @@ export const examensPrenataux = pgTable('examens_prenataux', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+export const resultatsLabo = pgTable('resultats_labo', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  // Type et identification
+  type: text('type').notNull(), // 'nfs', 'biochimie', 'serologie', 'hormonologie', 'autre'
+  nom: text('nom').notNull(), // Ex: "NFS", "TSH", "Sérologie toxoplasmose"
+
+  // Dates
+  dateAnalyse: date('date_analyse'), // Date de prélèvement/analyse
+  dateReception: date('date_reception'), // Date de réception du résultat
+
+  // Résultats
+  resultatManuel: text('resultat_manuel'), // Saisie manuelle (texte libre ou JSON structuré)
+  fichierUrl: text('fichier_url'), // URL du PDF uploadé
+  fichierNom: text('fichier_nom'), // Nom original du fichier
+
+  // Interprétation
+  normal: boolean('normal'), // true=normal, false=anormal, null=non interprété
+  commentaire: text('commentaire'), // Commentaire médical
+
+  // Métadonnées
+  laboratoire: text('laboratoire'), // Nom du laboratoire
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 export const alertes = pgTable('alertes', {
   id: uuid('id').defaultRandom().primaryKey(),
   patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
@@ -522,6 +577,7 @@ export const patientsRelations = relations(patients, ({ one, many }) => ({
   invoices: many(invoices),
   documents: many(documents),
   alertes: many(alertes),
+  resultatsLabo: many(resultatsLabo),
 }))
 
 export const grossessesRelations = relations(grossesses, ({ one, many }) => ({
@@ -661,6 +717,17 @@ export const aiConversationsRelations = relations(aiConversations, ({ one }) => 
   }),
 }))
 
+export const resultatsLaboRelations = relations(resultatsLabo, ({ one }) => ({
+  patient: one(patients, {
+    fields: [resultatsLabo.patientId],
+    references: [patients.id],
+  }),
+  user: one(users, {
+    fields: [resultatsLabo.userId],
+    references: [users.id],
+  }),
+}))
+
 // Types exports
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -678,3 +745,5 @@ export type Protocol = typeof protocols.$inferSelect
 export type NewProtocol = typeof protocols.$inferInsert
 export type ProtocolChunk = typeof protocolChunks.$inferSelect
 export type AiConversation = typeof aiConversations.$inferSelect
+export type ResultatLabo = typeof resultatsLabo.$inferSelect
+export type NewResultatLabo = typeof resultatsLabo.$inferInsert

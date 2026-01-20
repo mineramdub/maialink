@@ -35,9 +35,20 @@ export function usePractitionerData(): PraticienData | null {
 
     const settings = settingsData?.settings
 
-    // If no settings exist yet, return null to indicate incomplete profile
-    if (!settings || !settings.cabinetAddress) {
-      return null
+    // Build address from user data or settings
+    let address = ''
+    if (user.cabinetAddress) {
+      address = user.cabinetAddress
+      if (user.cabinetPostalCode && user.cabinetCity) {
+        address += `\n${user.cabinetPostalCode} ${user.cabinetCity}`
+      }
+    } else if (settings?.cabinetAddress) {
+      address = settings.cabinetAddress
+    }
+
+    // If no address configured, return minimal info (allow PDF generation anyway)
+    if (!address) {
+      address = 'Cabinet médical'
     }
 
     return {
@@ -45,9 +56,9 @@ export function usePractitionerData(): PraticienData | null {
       lastName: user.lastName,
       rpps: user.rpps || undefined,
       adeli: user.adeli || undefined,
-      address: settings.cabinetAddress,
-      phone: settings.cabinetPhone || '',
-      email: settings.cabinetEmail || user.email,
+      address: address,
+      phone: user.phone || settings?.cabinetPhone || '',
+      email: user.email,
     }
   }, [user, settingsData])
 }

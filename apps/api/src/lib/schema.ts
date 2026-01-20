@@ -1271,6 +1271,8 @@ export const resultatsARecuperer = pgTable('resultats_a_recuperer', {
   statut: resultatStatutEnum('statut').default('en_attente'),
   dateRecuperation: date('date_recuperation'),
   notes: text('notes'),
+  fichierUrl: text('fichier_url'),
+  fichierNom: text('fichier_nom'),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
