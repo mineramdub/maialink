@@ -1,5 +1,5 @@
 import { db } from './db.js'
-import { users, sessions, auditLogs } from './schema.js'
+import { users, sessions, auditLogs, practitionerSettings } from './schema.js'
 import { eq, and, gt } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
@@ -112,6 +112,14 @@ export async function registerUser(data: {
   lastName: string
   rpps?: string
   adeli?: string
+  numeroAM?: string
+  phone?: string
+  specialite?: string
+  typeStructure?: string
+  nomStructure?: string
+  cabinetAddress?: string
+  cabinetPostalCode?: string
+  cabinetCity?: string
 }): Promise<{ success: boolean; error?: string; user?: AuthUser }> {
   try {
     const existingUser = await db.query.users.findFirst({
@@ -131,6 +139,8 @@ export async function registerUser(data: {
       lastName: data.lastName,
       rpps: data.rpps,
       adeli: data.adeli,
+      numeroAM: data.numeroAM,
+      phone: data.phone,
     }).returning()
 
     await db.insert(auditLogs).values({
@@ -139,6 +149,21 @@ export async function registerUser(data: {
       tableName: 'users',
       recordId: newUser.id,
     })
+
+    // Créer practitionerSettings si les informations du cabinet sont fournies
+    if (data.cabinetAddress) {
+      await db.insert(practitionerSettings).values({
+        userId: newUser.id,
+        cabinetAddress: data.cabinetAddress,
+        cabinetPostalCode: data.cabinetPostalCode || null,
+        cabinetCity: data.cabinetCity || null,
+        cabinetPhone: data.phone || null,
+        cabinetEmail: data.email || null,
+        specialite: data.specialite || null,
+        typeStructure: data.typeStructure || null,
+        nomStructure: data.nomStructure || null,
+      })
+    }
 
     return {
       success: true,

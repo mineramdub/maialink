@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -50,6 +50,8 @@ interface Patient {
 export default function EditPatientPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const defaultTab = searchParams.get('tab') || 'identite'
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
@@ -140,7 +142,7 @@ export default function EditPatientPage({ params }: { params: Promise<{ id: stri
       )}
 
       <form onSubmit={handleSubmit}>
-        <Tabs defaultValue="identite" className="space-y-6">
+        <Tabs defaultValue={defaultTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="identite" className="gap-2">
               <User className="h-4 w-4" />

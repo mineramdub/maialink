@@ -68,6 +68,35 @@ export const COTATIONS_SAGE_FEMME: CotationNGAP[] = [
     description: 'Enregistrement du rythme cardiaque foetal',
   },
 
+  // Accouchement
+  {
+    code: 'SF 11',
+    libelle: 'Accouchement normal',
+    lettreCle: 'SF',
+    coefficient: 11,
+    tarifBase: 34.65,
+    categorie: 'accouchement',
+    description: 'Accouchement normal a domicile ou en maison de naissance',
+  },
+  {
+    code: 'SF 13',
+    libelle: 'Surveillance du travail',
+    lettreCle: 'SF',
+    coefficient: 13,
+    tarifBase: 40.95,
+    categorie: 'accouchement',
+    description: 'Surveillance de la femme en travail',
+  },
+  {
+    code: 'SF 14',
+    libelle: 'Delivrance artificielle',
+    lettreCle: 'SF',
+    coefficient: 14,
+    tarifBase: 44.10,
+    categorie: 'accouchement',
+    description: 'Delivrance artificielle',
+  },
+
   // Post-partum
   {
     code: 'SF 6',
@@ -107,6 +136,15 @@ export const COTATIONS_SAGE_FEMME: CotationNGAP[] = [
     categorie: 'allaitement',
     description: 'Consultation allaitement',
   },
+  {
+    code: 'SF 10',
+    libelle: 'Accompagnement allaitement a domicile',
+    lettreCle: 'SF',
+    coefficient: 10,
+    tarifBase: 31.50,
+    categorie: 'allaitement',
+    description: 'Seance d\'accompagnement de l\'allaitement a domicile',
+  },
 
   // Preparation a la naissance
   {
@@ -126,6 +164,15 @@ export const COTATIONS_SAGE_FEMME: CotationNGAP[] = [
     tarifBase: 33.39,
     categorie: 'preparation',
     description: 'Seance collective de preparation (3 a 6 femmes)',
+  },
+  {
+    code: 'SF 5',
+    libelle: 'Seance preparation en piscine',
+    lettreCle: 'SF',
+    coefficient: 5,
+    tarifBase: 15.75,
+    categorie: 'preparation',
+    description: 'Seance de preparation a la naissance en milieu aquatique',
   },
   {
     code: 'SF 21',
@@ -158,6 +205,15 @@ export const COTATIONS_SAGE_FEMME: CotationNGAP[] = [
   },
 
   // Gynecologie
+  {
+    code: 'SF 16,5',
+    libelle: 'Consultation de contraception et prevention',
+    lettreCle: 'SF',
+    coefficient: 16.5,
+    tarifBase: 51.98,
+    categorie: 'gyneco',
+    description: 'Consultation de contraception et de prevention',
+  },
   {
     code: 'SF 9,5',
     libelle: 'Frottis cervico-uterin',
@@ -226,6 +282,15 @@ export const COTATIONS_SAGE_FEMME: CotationNGAP[] = [
     description: 'Majoration pour acte de nuit',
   },
   {
+    code: 'MF',
+    libelle: 'Majoration nuit profonde (0h-6h)',
+    lettreCle: 'M',
+    coefficient: 1,
+    tarifBase: 22.60,
+    categorie: 'majoration',
+    description: 'Majoration pour acte de nuit profonde',
+  },
+  {
     code: 'MD',
     libelle: 'Majoration dimanche/ferie',
     lettreCle: 'M',
@@ -233,6 +298,33 @@ export const COTATIONS_SAGE_FEMME: CotationNGAP[] = [
     tarifBase: 8.00,
     categorie: 'majoration',
     description: 'Majoration dimanche et jours feries',
+  },
+  {
+    code: 'MAU',
+    libelle: 'Majoration acte unique',
+    lettreCle: 'M',
+    coefficient: 1,
+    tarifBase: 5.00,
+    categorie: 'majoration',
+    description: 'Majoration pour acte unique',
+  },
+  {
+    code: 'MIE',
+    libelle: 'Majoration urgence',
+    lettreCle: 'M',
+    coefficient: 1,
+    tarifBase: 15.00,
+    categorie: 'majoration',
+    description: 'Majoration d\'urgence',
+  },
+  {
+    code: 'MCU',
+    libelle: 'Majoration coordination urgente',
+    lettreCle: 'M',
+    coefficient: 1,
+    tarifBase: 30.00,
+    categorie: 'majoration',
+    description: 'Majoration de coordination urgente',
   },
   {
     code: 'IK',
@@ -244,6 +336,24 @@ export const COTATIONS_SAGE_FEMME: CotationNGAP[] = [
     description: 'Par kilometre (plaine)',
   },
   {
+    code: 'IKM',
+    libelle: 'Indemnite kilometrique montagne',
+    lettreCle: 'IK',
+    coefficient: 1,
+    tarifBase: 0.70,
+    categorie: 'deplacement',
+    description: 'Par kilometre (zone montagne)',
+  },
+  {
+    code: 'IKP',
+    libelle: 'Indemnite kilometrique a pied/ski',
+    lettreCle: 'IK',
+    coefficient: 1,
+    tarifBase: 4.57,
+    categorie: 'deplacement',
+    description: 'Par kilometre a pied ou a ski',
+  },
+  {
     code: 'IFD',
     libelle: 'Indemnite forfaitaire deplacement',
     lettreCle: 'IFD',
@@ -251,6 +361,15 @@ export const COTATIONS_SAGE_FEMME: CotationNGAP[] = [
     tarifBase: 2.50,
     categorie: 'deplacement',
     description: 'Forfait deplacement',
+  },
+  {
+    code: 'IFI',
+    libelle: 'Indemnite forfaitaire immobilisation',
+    lettreCle: 'IFI',
+    coefficient: 1,
+    tarifBase: 4.00,
+    categorie: 'deplacement',
+    description: 'Indemnite pour immobilisation du vehicule',
   },
 ]
 
@@ -272,12 +391,14 @@ export function getCotationsByCategory(categorie: string): CotationNGAP[] {
 // Suggestions de cotations selon le type de consultation
 export function suggestCotations(consultationType: string): CotationNGAP[] {
   const mapping: Record<string, string[]> = {
-    prenatale: ['C', 'C + MIS', 'SF 15'],
+    prenatale: ['C', 'C + MIS', 'SF 15', 'SF 12'],
     postnatale: ['SF 6', 'SF 9', 'SF 12,6'],
-    gyneco: ['C', 'SF 9,5', 'SF 4,4', 'SF 2,2'],
+    gyneco: ['C', 'SF 16,5', 'SF 9,5', 'SF 4,4', 'SF 2,2'],
     reeducation: ['SF 7', 'SF 8'],
-    preparation: ['SF 17', 'SF 10,6', 'SF 21'],
+    preparation: ['SF 17', 'SF 10,6', 'SF 5', 'SF 21'],
     monitoring: ['SF 15'],
+    accouchement: ['SF 11', 'SF 13', 'SF 14'],
+    allaitement: ['SF 2,5', 'SF 10'],
     autre: ['C'],
   }
 

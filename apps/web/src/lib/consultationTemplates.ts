@@ -612,29 +612,77 @@ EXAMEN COMPLÉMENTAIRE:
       conclusion: `Grossesse évolutive de [X] SA + [X]j.
 DDR: [date] - DPA: [date]
 
-Patiente informée du suivi de grossesse:
-- 7 consultations prénatales
-- 3 échographies obligatoires (T1, T2, T3)
+✓ Déclaration de grossesse remise (CERFA à envoyer avant 15 SA)
+✓ Dossier de maternité remis
+✓ Guide suivi grossesse remis
+
+PATIENTE INFORMÉE:
+- 7 consultations prénatales obligatoires
+- 3 échographies obligatoires (T1 à 11-13 SA, T2 à 22-24 SA, T3 à 32-34 SA)
 - Examens biologiques mensuels
+- Entretien prénatal précoce (EPP) recommandé au 4ème mois
 
-Déclaration de grossesse remise (CERFA).
-Dossier de maternité remis.
+📋 EXAMENS À RÉALISER - 1ER TRIMESTRE (OBLIGATOIRES):
 
-PRESCRIPTIONS:
-- Acide folique 400μg/j (jusqu'à 12 SA)
-- Vitamine D 400-800 UI/j
-- Bilan sanguin complet (NFS, groupe sanguin, sérologies: toxo, rubéole, syphilis, VIH, VHB, VHC)
-- RAI si Rhésus négatif
-- Échographie de datation (11-13 SA + 6j)
-- Dépistage trisomie 21 (si souhaité)
+🩸 BILAN SANGUIN COMPLET T1:
+✓ Groupe sanguin ABO + Rhésus + phénotype complet (si 1ère détermination)
+✓ RAI (Recherche agglutinines irrégulières) - Si Rh-: surveillance mensuelle
+✓ NFS (Numération Formule Sanguine) - dépistage anémie
+✓ Glycémie à jeun - dépistage diabète
 
-CONSEILS:
-- Alimentation: éviter fromages au lait cru, charcuterie, poissons crus
-- Toxoplasmose: laver fruits/légumes, cuire viandes à cœur, éviter contact litière chat
-- Arrêt tabac et alcool
-- Activité physique modérée autorisée
+🧪 SÉROLOGIES OBLIGATOIRES:
+✓ Toxoplasmose (si non immune: contrôle mensuel)
+✓ Rubéole (protection vérifiée)
+✓ Syphilis (TPHA/VDRL)
+✓ VIH (avec accord patiente)
+✓ Hépatite B (Ag HBs)
+✓ Hépatite C (si facteurs de risque)
 
-Prochain RDV: consultation 2ème mois (avant [X] SA).`
+📊 ÉCHOGRAPHIE T1 (11-13 SA + 6j):
+✓ Datation de la grossesse (mesure LCC)
+✓ Nombre d'embryons
+✓ Mesure clarté nucale (dépistage trisomie 21)
+✓ Vitalité embryonnaire
+
+🧬 DÉPISTAGE TRISOMIE 21 (si souhaité):
+✓ Dépistage combiné T1 (échographie + marqueurs sériques PAPP-A, βHCG libre)
+OU Test ADN libre circulant (DPNI si indication)
+
+📝 ORDONNANCES REMISES:
+✓ Acide folique 400μg/j (jusqu'à 12 SA) - Prévention anomalies tube neural
+✓ Vitamine D 400-800 UI/j (toute la grossesse)
+✓ Bilan biologique T1 complet
+✓ Échographie de datation T1 (11-13 SA)
+✓ [Si toxo non immune: contrôle toxo mensuel]
+✓ [Si Rh-: RAI mensuel]
+
+⚠️ POINTS DE VIGILANCE T1:
+- Rechercher signes de fausse couche (saignements, douleurs)
+- Dépister hyperémèse gravidique (vomissements incoercibles)
+- Vérifier supplémentation acide folique
+
+💊 SUPPLÉMENTATION:
+- Acide folique 400μg/j OBLIGATOIRE
+- Vitamine D 400-800 UI/j toute la grossesse
+- [Si anémie: fer + vitamine C]
+
+🍎 CONSEILS ALIMENTAIRES - PRÉVENTION TOXOPLASMOSE:
+- Cuire viandes à cœur (>65°C)
+- Laver soigneusement fruits et légumes
+- Éviter charcuterie crue, fromages au lait cru
+- Éviter contact avec litière de chat
+
+🚭 ADDICTIONS:
+- Arrêt COMPLET tabac et alcool
+- Aide au sevrage tabagique si besoin
+
+📅 PROCHAIN RDV: Consultation 2ème trimestre (vers 18-20 SA)
+
+⚠️ SIGNES D'ALERTE - CONSULTER EN URGENCE:
+- Saignements abondants
+- Douleurs pelviennes intenses
+- Fièvre > 38°C
+- Vomissements incoercibles`
     }
   },
 
@@ -699,7 +747,7 @@ Prochain RDV: consultation [X]ème mois (vers [X] SA).`
 Terme: [X] SA + [X] jours
 
 EXAMEN GÉNÉRAL:
-- Poids: [X] kg (prise totale: [X] kg)
+- Poids: [X] kg (prise totale: [X] kg depuis début grossesse)
 - Tension artérielle: [X]/[X] mmHg
 - État général: bon
 
@@ -708,7 +756,7 @@ EXAMEN OBSTÉTRICAL:
 - Bruits du cœur fœtal: [X] bpm, réguliers
 - Mouvements actifs fœtaux: réguliers, ressentis quotidiennement
 - Présentation fœtale: [non déterminée à ce stade]
-- Bandelette urinaire: négative
+- Bandelette urinaire: [négative / protéinurie / glycosurie]
 
 EXAMEN COMPLÉMENTAIRE:
 - Membres inférieurs: [pas d'œdèmes / œdèmes légers chevilles en fin de journée]`,
@@ -716,28 +764,79 @@ EXAMEN COMPLÉMENTAIRE:
 Évolution conforme. Pas de signe d'appel pathologique.
 
 RÉSULTATS EXAMENS:
-- Échographie morphologique ([date]): [normale / anomalie à surveiller]
+- Échographie morphologique T2 ([date]): [normale / anomalie à surveiller]
 - HGPO 75g ([date]): [normale / diabète gestationnel]
 - NFS: [normale / anémie: Hb [g/dl]]
 - Toxoplasmose: [statut]
 
-PRESCRIPTIONS:
-- HGPO 75g (test dépistage diabète gestationnel) - À faire entre 24-28 SA
-- NFS de contrôle
-- RAI si Rhésus négatif (28 SA)
-- [Si Rh-: Prévention Rhésus (Rhophylac 300μg IM à 28 SA)]
-- [Si anémie: Fer + Vitamine C]
+📋 EXAMENS À RÉALISER - 2ÈME TRIMESTRE (24-28 SA):
 
-À PRÉVOIR:
-- Consultation anesthésiste obligatoire (à programmer avant 37 SA)
-- Préparation à la naissance: débuter les séances
+📊 ÉCHOGRAPHIE T2 (22-24 SA) - MORPHOLOGIQUE:
+✓ Biométrie fœtale (croissance)
+✓ Étude morphologique complète des organes
+✓ Localisation placentaire
+✓ Quantité liquide amniotique
+✓ Mesure col utérin
 
-CONSEILS:
-- Surveillance mouvements fœtaux
+🩸 BILAN SANGUIN T2:
+✓ NFS - Dépistage anémie
+✓ RAI si Rhésus négatif (à 24-28 SA)
+✓ Albuminurie / Glycosurie sur bandelette
+✓ [Si toxo non immune: sérologie toxo]
+
+🧪 DÉPISTAGE DIABÈTE GESTATIONNEL (24-28 SA) - OBLIGATOIRE:
+✓ HGPO 75g (Hyperglycémie Provoquée par voie Orale)
+  - Glycémie à jeun
+  - Glycémie à 1h
+  - Glycémie à 2h
+✓ À réaliser le matin à jeun (8-12h de jeûne)
+✓ Valeurs normales:
+  - À jeun < 0.92 g/L
+  - À 1h < 1.80 g/L
+  - À 2h < 1.53 g/L
+✓ Diabète gestationnel si 1 valeur dépassée
+
+💉 PRÉVENTION RHÉSUS (si Rhésus négatif):
+✓ Injection Rhophylac 300μg IM à 28 SA
+✓ Prévention allo-immunisation anti-D
+
+📝 ORDONNANCES REMISES:
+✓ HGPO 75g (dépistage diabète gestationnel 24-28 SA)
+✓ NFS de contrôle
+✓ RAI si Rhésus négatif (28 SA)
+✓ [Si Rh-: Ordonnance Rhophylac 300μg IM à 28 SA]
+✓ [Si anémie: Fer + Vitamine C]
+✓ [Si toxo non immune: sérologie toxo mensuelle]
+
+⚠️ POINTS DE VIGILANCE T2:
+- Surveiller mouvements actifs fœtaux (doivent être ressentis quotidiennement)
+- Mesurer hauteur utérine (croissance fœtale)
+- Contrôler tension artérielle (dépistage HTA gravidique)
+- Rechercher protéinurie (pré-éclampsie)
+
+À PRÉVOIR POUR T3:
+✓ Consultation anesthésiste OBLIGATOIRE (à programmer avant 37 SA)
+✓ Préparation à la naissance: débuter les 8 séances remboursées
+✓ Inscription maternité si pas encore fait
+
+💊 SUPPLÉMENTATION:
+- Vitamine D 400-800 UI/j (toute la grossesse)
+- [Si anémie (Hb < 11 g/dl): Fer 80-100mg/j + Vitamine C]
+- [Si crampes: Magnésium]
+
+🏃 ACTIVITÉ PHYSIQUE:
+- Activité modérée toujours autorisée
+- Natation, marche recommandées
 - Repos si contractions fréquentes
-- Signes d'alerte: contractions douloureuses régulières, saignements, perte liquide, diminution mouvements bébé
 
-Prochain RDV: consultation [X]ème mois (vers [X] SA).`
+📅 PROCHAIN RDV: Consultation 3ème trimestre (vers 32-34 SA)
+
+⚠️ SIGNES D'ALERTE - CONSULTER EN URGENCE:
+- Contractions douloureuses et régulières avant 37 SA (MAP)
+- Saignements
+- Perte de liquide amniotique
+- Diminution ou absence mouvements fœtaux
+- Maux de tête violents, troubles vision, œdèmes importants (pré-éclampsie)`
     }
   },
 
@@ -811,7 +910,7 @@ Prochain RDV: consultation [X]ème mois (vers [X] SA).`
 Terme: [X] SA + [X] jours
 
 EXAMEN GÉNÉRAL:
-- Poids: [X] kg
+- Poids: [X] kg (prise totale: [X] kg)
 - Tension artérielle: [X]/[X] mmHg
 - Œdèmes: [absents / membres inférieurs / généralisés]
 
@@ -837,40 +936,95 @@ Présentation [céphalique / siège].
 
 RÉSULTATS EXAMENS:
 - Frottis vaginal Streptocoque B: [négatif / POSITIF → antibioprophylaxie pendant travail]
+- Échographie T3 ([date]): [croissance harmonieuse / RCIU / macrosomie]
 - Consultation anesthésiste: [réalisée le [date]]
 - NFS: [normale / anémie]
 
-PRÉPARATION ACCOUCHEMENT:
-✓ Consultation anesthésiste réalisée
-✓ Séances préparation naissance: [complètes]
-✓ Maternité: [nom], niveau [1/2/3]
-✓ Projet de naissance discuté
-✓ Valise maternité: [prête]
+📋 EXAMENS À RÉALISER - 3ÈME TRIMESTRE (35-37 SA):
 
-PROJET:
+📊 ÉCHOGRAPHIE T3 (32-34 SA):
+✓ Biométrie fœtale (croissance, estimation poids)
+✓ Présentation fœtale
+✓ Quantité liquide amniotique
+✓ Localisation placentaire
+✓ Doppler si nécessaire
+
+🦠 PRÉLÈVEMENT VAGINAL STREPTOCOQUE B (35-37 SA) - OBLIGATOIRE:
+✓ PV vaginal + rectal
+✓ Si positif: antibioprophylaxie pendant travail (Pénicilline G ou Amoxicilline IV)
+✓ Prévention infection néonatale
+
+🩸 BILAN SANGUIN T3:
+✓ NFS - Contrôle anémie
+✓ RAI si Rhésus négatif (36 SA)
+✓ Albuminurie / Glycosurie sur bandelette
+✓ [Si toxo non immune: sérologie toxo]
+
+🏥 CONSULTATION ANESTHÉSISTE OBLIGATOIRE (avant 37 SA):
+✓ Évaluation terrain anesthésique
+✓ Discussion péridurale
+✓ Information risques/bénéfices
+✓ Accord anesthésie péridurale ou rachianesthésie
+
+📝 ORDONNANCES REMISES:
+✓ Prélèvement vaginal Streptocoque B (35-37 SA)
+✓ NFS de contrôle
+✓ RAI si Rhésus négatif (36 SA)
+✓ [Si siège persistant: RDV version par manœuvre externe]
+✓ [Si facteurs risque: monitoring fœtal]
+
+⚠️ POINTS DE VIGILANCE T3:
+- Surveillance quotidienne mouvements fœtaux (min 10 MAF/jour)
+- Contrôler TA régulièrement (HTA gravidique, pré-éclampsie)
+- Dépistage streptocoque B entre 35-37 SA
+- Rechercher contractions régulières (MAP)
+
+PRÉPARATION ACCOUCHEMENT - CHECKLIST:
+✓ Consultation anesthésiste: [réalisée le [date] / à faire]
+✓ Séances préparation naissance: [X/8 séances réalisées]
+✓ Maternité choisie: [nom], niveau [1/2/3]
+✓ Inscription maternité: [faite]
+✓ Projet de naissance: [discuté et écrit]
+✓ Valise maternité: [en cours / prête]
+✓ Siège auto: [acheté]
+
+PROJET DE NAISSANCE:
 - Allaitement: [maternel / artificiel / indécis]
 - Péridurale: [souhaitée / non / selon douleur]
-- Accompagnement: [conjoint / autre]
+- Accompagnement: [conjoint / doula / autre]
+- Position accouchement: [libre / selon souhait]
 
-SIGNES DÉBUT TRAVAIL (rappel):
-- Contractions régulières, douloureuses, rapprochées (toutes les 5 min depuis 1h)
-- Perte des eaux (même sans contractions)
+💊 SUPPLÉMENTATION:
+- Vitamine D 400-800 UI/j (continuer)
+- [Si anémie: Fer + Vitamine C]
+
+🏥 SIGNES DÉBUT TRAVAIL (à bien expliquer):
+→ PARTIR À LA MATERNITÉ SI:
+✓ Contractions régulières, douloureuses, rapprochées (toutes les 5 min depuis 1h)
+✓ Perte des eaux (même sans contractions) - liquide clair
+✓ Saignements abondants (comme règles)
+✓ Diminution importante ou absence mouvements fœtaux
+
+⚠️ SIGNES D'ALERTE - CONSULTER EN URGENCE:
+- Perte de liquide amniotique teinté/verdâtre (liquide méconial)
 - Saignements abondants
-→ Partir à la maternité
+- Contractions très douloureuses et rapprochées
+- Diminution ou absence mouvements fœtaux
+- Maux de tête violents, troubles vision, douleur épigastrique, œdèmes importants (pré-éclampsie)
+→ Appeler maternité ou consulter immédiatement
 
-SIGNES D'ALERTE:
-- Diminution mouvements fœtaux
-- Saignements
-- Contractions très douloureuses
-- Perte liquide teinté/verdâtre
-- Maux de tête violents, troubles vision
-→ Consulter en urgence
+📋 DOCUMENTS À APPORTER À LA MATERNITÉ:
+✓ Dossier médical complet
+✓ Carte de groupe sanguin
+✓ Tous les résultats d'examens
+✓ Carte vitale + mutuelle
+✓ Pièce d'identité
+✓ Livret de famille (si marié)
+✓ Projet de naissance
 
-PRESCRIPTIONS:
-- [Si siège: Version par manœuvre externe proposée]
-- Monitoring fœtal si facteurs de risque
+📅 PROCHAIN RDV: Consultation à terme (39-40 SA) ou début travail
 
-Prochain RDV: consultation à terme (vers 39-40 SA) ou début travail.`
+Tout est prêt pour accueillir bébé. Bon courage pour la fin de grossesse !`
     }
   },
 

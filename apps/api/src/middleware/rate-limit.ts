@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit'
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
 
 /**
  * Rate limiter for share access code verification
@@ -15,7 +15,7 @@ export const shareAccessLimiter = rateLimit({
   legacyHeaders: false,
   // Use IP + token for more granular limiting
   keyGenerator: (req) => {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown'
+    const ip = ipKeyGenerator(req)
     const token = req.params.token || 'no-token'
     return `${ip}:${token}`
   },
@@ -36,9 +36,7 @@ export const sharedDataLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.ip || req.socket.remoteAddress || 'unknown'
-  },
+  keyGenerator: ipKeyGenerator,
 })
 
 /**
@@ -57,7 +55,7 @@ export const shareCreationLimiter = rateLimit({
   keyGenerator: (req) => {
     // Use user ID if authenticated
     const authReq = req as any
-    return authReq.user?.id || req.ip || 'unknown'
+    return authReq.user?.id || ipKeyGenerator(req)
   },
 })
 

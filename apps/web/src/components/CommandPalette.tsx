@@ -141,19 +141,33 @@ export function CommandPalette() {
       label: 'Nouvelle consultation',
       icon: Stethoscope,
       action: () => {
+        navigate('/consultations/new')
         setOpen(false)
-        document.dispatchEvent(new CustomEvent('open-quick-consultation'))
       },
-      shortcut: '⌘⇧C',
-      keywords: ['consultation', 'rendez-vous']
+      shortcut: '⌘N',
+      keywords: ['consultation', 'rendez-vous', 'nouvelle']
     },
     {
       group: 'Actions',
-      label: 'Nouveau document',
+      label: 'Nouvelle ordonnance',
       icon: FileText,
-      action: () => navigate('/documents/new'),
-      shortcut: '⌘⇧D',
-      keywords: ['document', 'certificat', 'ordonnance']
+      action: () => {
+        navigate('/ordonnances/new')
+        setOpen(false)
+      },
+      shortcut: '⌘O',
+      keywords: ['ordonnance', 'prescription', 'médicament', 'nouvelle']
+    },
+    {
+      group: 'Actions',
+      label: 'Générer un document',
+      icon: FileText,
+      action: () => {
+        navigate('/documents/generate')
+        setOpen(false)
+      },
+      shortcut: '⌘D',
+      keywords: ['document', 'certificat', 'compte-rendu', 'générer']
     },
     {
       group: 'Actions',

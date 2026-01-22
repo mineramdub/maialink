@@ -34,7 +34,7 @@ export function MobileNav({ alertCount = 0 }: MobileNavProps) {
   const moreItems = [
     { label: 'Consultations', href: '/consultations' },
     { label: 'Grossesses', href: '/grossesses' },
-    { label: 'Rééducation', href: '/reeducation' },
+    { label: 'Orga Rappels', href: '/suivi-gyneco' },
     { label: 'Gynécologie', href: '/gynecologie' },
     { label: 'Documents', href: '/documents' },
     { label: 'Templates', href: '/templates' },

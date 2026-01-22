@@ -5,7 +5,7 @@ import { documentTemplates, documents, patients } from '../lib/schema.js'
 import { eq, and } from 'drizzle-orm'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { MEDICAMENTS_COURANTS, ORDONNANCE_TEMPLATES } from '../lib/ordonnanceTemplates.js'
+import { ORDONNANCE_TEMPLATES } from '../lib/ordonnanceTemplates.js'
 
 const router = Router()
 router.use(authMiddleware)
@@ -23,7 +23,6 @@ router.get('/templates', async (req: AuthRequest, res) => {
     res.json({
       success: true,
       templates: ORDONNANCE_TEMPLATES,  // New system
-      medicaments: MEDICAMENTS_COURANTS,
       dbTemplates  // Legacy system for compatibility
     })
   } catch (error) {
@@ -99,7 +98,7 @@ ${prescriber?.phone || ''}
 
 ORDONNANCE
 
-Patient(e): ${patient.firstName} ${patient.lastName}${patient.maidenName ? ` (née ${patient.maidenName})` : ''}
+Patient(e): ${patient.firstName || ''} ${patient.lastName || ''}${patient.maidenName ? ` (née ${patient.maidenName})` : ''}
 Date de naissance: ${format(new Date(patient.birthDate), 'dd/MM/yyyy', { locale: fr })}
 N° Sécurité Sociale: ${patient.socialSecurityNumber || 'Non renseigné'}
 ${grossesseInfo ? '\n' + grossesseInfo : ''}

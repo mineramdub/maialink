@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
-import { Plus, Baby, Loader2, Calendar } from 'lucide-react'
+import { Plus, Baby, Loader2, Calendar, UserCheck } from 'lucide-react'
 import { formatDate } from '../../lib/utils'
 import { useGrossesses, usePrefetchGrossesse } from '../../hooks/useGrossesses'
 
@@ -98,12 +98,18 @@ export default function GrossessesPage() {
                         )}
                       </div>
 
-                      <div className="mt-3">
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
                         <Badge
                           variant={grossesse.status === 'en_cours' ? 'default' : 'secondary'}
                         >
                           {grossesse.status === 'en_cours' ? 'En cours' : grossesse.status}
                         </Badge>
+                        {grossesse.suiviPartageGyneco && (
+                          <Badge className="bg-purple-600 flex items-center gap-1">
+                            <UserCheck className="h-3 w-3" />
+                            Suivi partagé
+                          </Badge>
+                        )}
                       </div>
 
                       {grossesse.grossesseMultiple && (

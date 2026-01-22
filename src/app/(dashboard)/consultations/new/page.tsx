@@ -28,6 +28,7 @@ function NewConsultationForm() {
   const searchParams = useSearchParams()
   const patientId = searchParams.get('patient')
   const grossesseId = searchParams.get('grossesse')
+  const typeFromUrl = searchParams.get('type')
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -36,7 +37,7 @@ function NewConsultationForm() {
   const [formData, setFormData] = useState({
     patientId: patientId || '',
     grossesseId: grossesseId || '',
-    type: 'prenatale',
+    type: typeFromUrl || 'prenatale',
     date: new Date().toISOString().slice(0, 16),
     duree: 30,
     motif: '',

@@ -44,12 +44,12 @@ export function Sidebar() {
     <aside className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
       <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-slate-200 bg-white px-6 pb-4">
         {/* Logo */}
-        <div className="flex h-16 shrink-0 items-center gap-2">
+        <Link href="/dashboard" className="flex h-16 shrink-0 items-center gap-2 hover:opacity-80 transition-opacity">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900">
             <Heart className="h-5 w-5 text-white" />
           </div>
           <span className="text-xl font-semibold text-slate-900">MaiaLink</span>
-        </div>
+        </Link>
 
         {/* Navigation */}
         <nav className="flex flex-1 flex-col">

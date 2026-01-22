@@ -121,9 +121,10 @@ router.get('/:id', async (req: AuthRequest, res) => {
         alertes: {
           where: (alertes, { eq }) => eq(alertes.isRead, false),
         },
-        resultatsLabo: {
-          orderBy: (resultatsLabo, { desc }) => [desc(resultatsLabo.dateAnalyse), desc(resultatsLabo.createdAt)],
-        },
+        // TODO: Activer après création de la table resultatsLabo
+        // resultatsLabo: {
+        //   orderBy: (resultatsLabo, { desc }) => [desc(resultatsLabo.dateAnalyse), desc(resultatsLabo.createdAt)],
+        // },
       },
     })
 

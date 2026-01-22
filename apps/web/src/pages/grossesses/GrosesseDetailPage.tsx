@@ -24,12 +24,16 @@ import {
   User,
   Plus,
   Stethoscope,
+  UserCheck,
+  Share2,
 } from 'lucide-react'
 import { formatDate, calculateSA } from '../../lib/utils'
 import { AccouchementForm } from '../../components/AccouchementForm'
 import { CalendrierGrossesse } from '../../components/CalendrierGrossesse'
 import { RecapGrossesse } from '../../components/RecapGrossesse'
 import { ExportPDFButton } from '../../components/ExportPDFButton'
+import { ShareDialog } from '../../components/ShareDialog'
+import { HistoriqueConsultationsGrossesse } from '../../components/HistoriqueConsultationsGrossesse'
 
 export default function GrosesseDetailPage() {
   const { id } = useParams()
@@ -39,6 +43,7 @@ export default function GrosesseDetailPage() {
   const [sa, setSa] = useState<any>(null)
   const [showAccouchementDialog, setShowAccouchementDialog] = useState(false)
   const [calendrierData, setCalendrierData] = useState<any>(null)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
 
   useEffect(() => {
     fetchGrossesse()
@@ -139,6 +144,10 @@ export default function GrosesseDetailPage() {
             consultations={grossesse.consultations || []}
             variant="outline"
           />
+          <Button variant="outline" onClick={() => setShareDialogOpen(true)}>
+            <Share2 className="h-4 w-4 mr-2" />
+            Partager
+          </Button>
           <Button asChild>
             <Link to={`/consultations/new?grossesseId=${id}&patientId=${grossesse.patientId}`}>
               <Plus className="h-4 w-4 mr-2" />
@@ -187,12 +196,26 @@ export default function GrosesseDetailPage() {
               </div>
               <div>
                 <div className="text-sm text-slate-600">Statut</div>
-                <Badge className="mt-1">{grossesse.status}</Badge>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <Badge>{grossesse.status}</Badge>
+                  {grossesse.suiviPartageGyneco && (
+                    <Badge className="bg-purple-600 flex items-center gap-1">
+                      <UserCheck className="h-3 w-3" />
+                      Suivi partagé
+                    </Badge>
+                  )}
+                </div>
               </div>
               {grossesse.grossesseMultiple && (
                 <div>
                   <div className="text-sm text-slate-600">Foetus</div>
                   <div className="font-medium mt-1">{grossesse.nombreFoetus}</div>
+                </div>
+              )}
+              {grossesse.suiviPartageGyneco && grossesse.nomGyneco && (
+                <div>
+                  <div className="text-sm text-slate-600">Gynécologue</div>
+                  <div className="font-medium mt-1 text-purple-700">{grossesse.nomGyneco}</div>
                 </div>
               )}
             </div>
@@ -273,6 +296,13 @@ export default function GrosesseDetailPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Historique des consultations */}
+            <HistoriqueConsultationsGrossesse
+              grossesseId={id!}
+              patientId={grossesse.patientId}
+              ddr={grossesse.ddr}
+            />
           </div>
         </TabsContent>
 
@@ -334,6 +364,16 @@ export default function GrosesseDetailPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Share Dialog */}
+      <ShareDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        patientId={grossesse.patientId}
+        patientName={`${grossesse.patient.firstName} ${grossesse.patient.lastName}`}
+        grossesseId={id}
+        grossesses={[grossesse]}
+      />
     </div>
   )
 }

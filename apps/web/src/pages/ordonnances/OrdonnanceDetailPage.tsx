@@ -245,8 +245,8 @@ export default function OrdonnanceDetailPage() {
               />
             </div>
           ) : (
-            <div className="prose prose-sm max-w-none">
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+            <div className="prose max-w-none">
+              <pre className="whitespace-pre-wrap font-serif text-base leading-loose text-slate-800">
                 {ordonnance.contenu}
               </pre>
             </div>

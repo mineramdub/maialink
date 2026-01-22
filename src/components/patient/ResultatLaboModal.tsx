@@ -67,6 +67,7 @@ export function ResultatLaboModal({ patientId, open, onClose, onSuccess }: Resul
   const [mode, setMode] = useState<'upload' | 'manuel'>('manuel')
   const [saisieMode, setSaisieMode] = useState<'tableau' | 'texte'>('tableau')
   const [isLoading, setIsLoading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const [formData, setFormData] = useState({
     type: 'autre',
     nom: '',
@@ -76,6 +77,7 @@ export function ResultatLaboModal({ patientId, open, onClose, onSuccess }: Resul
     normal: '',
     commentaire: '',
     laboratoire: '',
+    prescripteur: '',
   })
   const [biologyResults, setBiologyResults] = useState<Record<string, string>>({})
   const [file, setFile] = useState<File | null>(null)
@@ -147,6 +149,7 @@ export function ResultatLaboModal({ patientId, open, onClose, onSuccess }: Resul
           normal: '',
           commentaire: '',
           laboratoire: '',
+          prescripteur: '',
         })
         setBiologyResults({})
         setFile(null)
@@ -155,6 +158,27 @@ export function ResultatLaboModal({ patientId, open, onClose, onSuccess }: Resul
       console.error('Erreur:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+
+    const droppedFile = e.dataTransfer.files[0]
+    if (droppedFile && droppedFile.type === 'application/pdf') {
+      setFile(droppedFile)
+      setMode('upload')
     }
   }
 
@@ -207,7 +231,7 @@ export function ResultatLaboModal({ patientId, open, onClose, onSuccess }: Resul
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Date d'analyse</Label>
                 <Input
@@ -222,6 +246,14 @@ export function ResultatLaboModal({ patientId, open, onClose, onSuccess }: Resul
                   value={formData.laboratoire}
                   onChange={(e) => setFormData({ ...formData, laboratoire: e.target.value })}
                   placeholder="Nom du laboratoire"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Prescripteur</Label>
+                <Input
+                  value={formData.prescripteur}
+                  onChange={(e) => setFormData({ ...formData, prescripteur: e.target.value })}
+                  placeholder="Dr. Nom"
                 />
               </div>
             </div>
@@ -307,12 +339,52 @@ export function ResultatLaboModal({ patientId, open, onClose, onSuccess }: Resul
             <TabsContent value="upload" className="space-y-4 mt-0">
               <div className="space-y-2">
                 <Label>Fichier PDF</Label>
-                <Input
-                  type="file"
-                  accept=".pdf"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                />
-                {file && <p className="text-sm text-slate-600">{file.name}</p>}
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`
+                    border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
+                    ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-slate-400'}
+                  `}
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                >
+                  <Upload className={`h-12 w-12 mx-auto mb-4 ${isDragging ? 'text-blue-500' : 'text-slate-400'}`} />
+                  {file ? (
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">{file.name}</p>
+                      <p className="text-xs text-slate-500 mt-1">{(file.size / 1024).toFixed(1)} Ko</p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setFile(null)
+                        }}
+                      >
+                        Changer de fichier
+                      </Button>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-sm font-medium text-slate-700 mb-1">
+                        Glissez-déposez votre PDF ici
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        ou cliquez pour sélectionner un fichier
+                      </p>
+                    </div>
+                  )}
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept=".pdf"
+                    className="hidden"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  />
+                </div>
               </div>
             </TabsContent>
 

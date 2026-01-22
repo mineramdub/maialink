@@ -539,8 +539,8 @@ export default function TemplatesPage() {
                       // Détection des titres (texte en majuscules suivi de :)
                       if (section.match(/^[A-ZÀÂÄÉÈÊËÏÎÔÖÙÛÜÇ\s]+:/)) {
                         return (
-                          <div key={idx} className="mb-4">
-                            <h4 className="text-base font-semibold text-blue-900 mb-2 border-b border-blue-200 pb-1">
+                          <div key={idx} className="mb-5">
+                            <h4 className="text-base font-bold text-blue-900 mb-3 border-b-2 border-blue-300 pb-2 tracking-wide">
                               {section}
                             </h4>
                           </div>
@@ -549,10 +549,22 @@ export default function TemplatesPage() {
                       // Détection des listes numérotées
                       if (section.match(/^\d+\./)) {
                         return (
-                          <div key={idx} className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-3 rounded-r">
-                            <pre className="whitespace-pre-wrap text-sm text-slate-800 font-sans">
-                              {section}
-                            </pre>
+                          <div key={idx} className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4 rounded-r">
+                            <div className="whitespace-pre-wrap text-[15px] text-slate-800 font-medium leading-7">
+                              {section.split('\n').map((line, i) => (
+                                <div key={i} className="mb-1">
+                                  {line.split(/(\[à compléter\]|\[à calculer\])/).map((part, j) => (
+                                    part === '[à compléter]' || part === '[à calculer]' ? (
+                                      <span key={j} className="inline-block bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-sm font-semibold border border-amber-300">
+                                        {part}
+                                      </span>
+                                    ) : (
+                                      <span key={j}>{part}</span>
+                                    )
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )
                       }
@@ -563,19 +575,43 @@ export default function TemplatesPage() {
                         section.toLowerCase().includes('important')
                       ) {
                         return (
-                          <div key={idx} className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-3 rounded-r">
-                            <pre className="whitespace-pre-wrap text-sm text-slate-800 font-sans">
-                              {section}
-                            </pre>
+                          <div key={idx} className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-4 rounded-r">
+                            <div className="whitespace-pre-wrap text-[15px] text-slate-800 font-medium leading-7">
+                              {section.split('\n').map((line, i) => (
+                                <div key={i} className="mb-1">
+                                  {line.split(/(\[à compléter\]|\[à calculer\])/).map((part, j) => (
+                                    part === '[à compléter]' || part === '[à calculer]' ? (
+                                      <span key={j} className="inline-block bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-sm font-semibold border border-amber-300">
+                                        {part}
+                                      </span>
+                                    ) : (
+                                      <span key={j}>{part}</span>
+                                    )
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )
                       }
-                      // Contenu normal
+                      // Contenu normal - amélioration de la typographie
                       return (
-                        <div key={idx} className="mb-3">
-                          <pre className="whitespace-pre-wrap text-sm text-slate-700 font-sans leading-relaxed">
-                            {section}
-                          </pre>
+                        <div key={idx} className="mb-4 bg-white">
+                          <div className="whitespace-pre-wrap text-[15px] text-slate-700 font-normal leading-7">
+                            {section.split('\n').map((line, i) => (
+                              <div key={i} className="mb-1.5">
+                                {line.split(/(\[à compléter\]|\[à calculer\])/).map((part, j) => (
+                                  part === '[à compléter]' || part === '[à calculer]' ? (
+                                    <span key={j} className="inline-block bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-sm font-semibold border border-blue-300 mx-0.5">
+                                      {part}
+                                    </span>
+                                  ) : (
+                                    <span key={j}>{part}</span>
+                                  )
+                                ))}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )
                     })}

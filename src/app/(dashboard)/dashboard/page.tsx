@@ -15,6 +15,7 @@ import {
   Plus,
   ArrowRight,
   Stethoscope,
+  FileText,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
@@ -174,6 +175,41 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Actions rapides */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Actions rapides</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Button variant="outline" className="h-auto flex-col gap-2 py-4" asChild>
+              <Link href="/documents/new?type=ordonnance">
+                <FileText className="h-6 w-6" />
+                <span className="text-sm">Créer une ordonnance</span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto flex-col gap-2 py-4" asChild>
+              <Link href="/consultations/new">
+                <Stethoscope className="h-6 w-6" />
+                <span className="text-sm">Nouvelle consultation</span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto flex-col gap-2 py-4" asChild>
+              <Link href="/patients/new">
+                <Users className="h-6 w-6" />
+                <span className="text-sm">Ajouter une patiente</span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-auto flex-col gap-2 py-4" asChild>
+              <Link href="/documents">
+                <FileText className="h-6 w-6" />
+                <span className="text-sm">Mes documents</span>
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* RDV du jour */}

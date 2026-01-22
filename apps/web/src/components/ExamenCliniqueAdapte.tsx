@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from './ui/card'
 import { Label } from './ui/label'
 import { Input } from './ui/input'
+import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
 import { HighlightableTextarea } from './ui/highlightable-textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
@@ -14,13 +15,49 @@ interface ExamenCliniqueAdapteProps {
   motif?: string
   defaultValue?: string
   onChange: (text: string) => void
+  forceStructuredMode?: boolean
 }
 
-export function ExamenCliniqueAdapte({ type, motif, defaultValue, onChange }: ExamenCliniqueAdapteProps) {
-  // Si un texte par défaut existe (template appliqué), on l'affiche en textarea simple
-  if (defaultValue && defaultValue.trim().length > 50) {
+export function ExamenCliniqueAdapte({ type, motif, defaultValue, onChange, forceStructuredMode = false }: ExamenCliniqueAdapteProps) {
+  const [useStructuredForm, setUseStructuredForm] = useState(true)
+
+  // Si un texte par défaut existe (template appliqué) ET qu'on ne force pas le mode structuré
+  // ET que le texte ne semble pas venir d'un formulaire structuré
+  // On détecte le texte de formulaire structuré par la présence de marqueurs spécifiques
+  const structuredFormMarkers = [
+    'EXAMEN DES SEINS:',
+    'EXAMEN GYNÉCOLOGIQUE:',
+    'EXAMEN OBSTÉTRICAL:',
+    'EXAMEN POSTNATAL:',
+    'BILAN PÉRINÉAL:',
+    'THÈME:',
+    'DATATION:',
+    'EXAMEN CLINIQUE:',
+    '- Hauteur utérine:',
+    '- Inspection/palpation:',
+    '- Involution utérine:',
+    '- Testing périnéal:'
+  ]
+
+  const isStructuredFormText = defaultValue && structuredFormMarkers.some(marker => defaultValue.includes(marker))
+
+  const isTemplateText = defaultValue &&
+    defaultValue.trim().length > 50 &&
+    !forceStructuredMode &&
+    !isStructuredFormText
+
+  if (isTemplateText && !useStructuredForm) {
     return (
       <div className="space-y-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setUseStructuredForm(true)}
+          className="mb-2"
+        >
+          Passer au formulaire structuré
+        </Button>
         <HighlightableTextarea
           value={defaultValue}
           onChange={(value) => onChange(value)}
@@ -35,24 +72,24 @@ export function ExamenCliniqueAdapte({ type, motif, defaultValue, onChange }: Ex
   // Sinon, afficher le formulaire adapté au type
   switch (type) {
     case 'prenatale':
-      return <ExamenPrenatale onChange={onChange} />
+      return <ExamenPrenatale onChange={onChange} defaultValue={defaultValue} />
     case 'postnatale':
-      return <ExamenPostnatale onChange={onChange} />
+      return <ExamenPostnatale onChange={onChange} defaultValue={defaultValue} />
     case 'gyneco':
-      return <ExamenGyneco motif={motif} onChange={onChange} />
+      return <ExamenGyneco motif={motif} onChange={onChange} defaultValue={defaultValue} />
     case 'reeducation':
-      return <ExamenReeducation onChange={onChange} />
+      return <ExamenReeducation onChange={onChange} defaultValue={defaultValue} />
     case 'preparation':
-      return <ExamenPreparation onChange={onChange} />
+      return <ExamenPreparation onChange={onChange} defaultValue={defaultValue} />
     case 'ivg':
-      return <ExamenIVG onChange={onChange} />
+      return <ExamenIVG onChange={onChange} defaultValue={defaultValue} />
     default:
-      return <ExamenGenerique onChange={onChange} />
+      return <ExamenGenerique onChange={onChange} defaultValue={defaultValue} />
   }
 }
 
 // ========== EXAMEN PRÉNATAL ==========
-function ExamenPrenatale({ onChange }: { onChange: (text: string) => void }) {
+function ExamenPrenatale({ onChange, defaultValue }: { onChange: (text: string) => void, defaultValue?: string }) {
   const [data, setData] = useState({
     omf: '',
     col: '',
@@ -206,7 +243,7 @@ function generatePrenataleText(data: any): string {
 }
 
 // ========== EXAMEN POSTNATAL ==========
-function ExamenPostnatale({ onChange }: { onChange: (text: string) => void }) {
+function ExamenPostnatale({ onChange, defaultValue }: { onChange: (text: string) => void, defaultValue?: string }) {
   const [data, setData] = useState({
     involution: '',
     lochies: '',
@@ -357,7 +394,7 @@ function generatePostnataleText(data: any): string {
 }
 
 // ========== EXAMEN GYNÉCOLOGIQUE ==========
-function ExamenGyneco({ motif, onChange }: { motif?: string, onChange: (text: string) => void }) {
+function ExamenGyneco({ motif, onChange, defaultValue }: { motif?: string, onChange: (text: string) => void, defaultValue?: string }) {
   const [data, setData] = useState({
     seins: '',
     adenopathies: '',
@@ -553,7 +590,7 @@ function generateGynecoText(data: any): string {
 }
 
 // ========== EXAMEN RÉÉDUCATION ==========
-function ExamenReeducation({ onChange }: { onChange: (text: string) => void }) {
+function ExamenReeducation({ onChange, defaultValue }: { onChange: (text: string) => void, defaultValue?: string }) {
   const [data, setData] = useState({
     testing: '',
     fuites_urinaires: '',
@@ -715,7 +752,7 @@ function generateReeducationText(data: any): string {
 }
 
 // ========== EXAMEN PRÉPARATION ==========
-function ExamenPreparation({ onChange }: { onChange: (text: string) => void }) {
+function ExamenPreparation({ onChange, defaultValue }: { onChange: (text: string) => void, defaultValue?: string }) {
   const [data, setData] = useState({
     theme: '',
     participants: '',
@@ -810,7 +847,7 @@ function generatePreparationText(data: any): string {
 }
 
 // ========== EXAMEN IVG ==========
-function ExamenIVG({ onChange }: { onChange: (text: string) => void }) {
+function ExamenIVG({ onChange, defaultValue }: { onChange: (text: string) => void, defaultValue?: string }) {
   const [data, setData] = useState({
     terme_echo: '',
     col: '',
@@ -949,7 +986,7 @@ function generateIVGText(data: any): string {
 }
 
 // ========== EXAMEN GÉNÉRIQUE (fallback) ==========
-function ExamenGenerique({ onChange }: { onChange: (text: string) => void }) {
+function ExamenGenerique({ onChange, defaultValue }: { onChange: (text: string) => void, defaultValue?: string }) {
   const [data, setData] = useState({
     general: '',
     cardiovasculaire: '',

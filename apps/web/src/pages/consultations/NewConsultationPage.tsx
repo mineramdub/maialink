@@ -19,6 +19,9 @@ import { SuiviBebe } from '../../components/SuiviBebe'
 import { HistoriqueConsultation } from '../../components/HistoriqueConsultation'
 import { AlertesCliniques } from '../../components/AlertesCliniques'
 import { TemplateEditor } from '../../components/TemplateEditor'
+import { BilanSuggestion } from '../../components/BilanSuggestion'
+import { ContraceptifSuggestion } from '../../components/ContraceptifSuggestion'
+import { FrottisSuggestion } from '../../components/FrottisSuggestion'
 import {
   EXAMEN_CLINIQUE_TEMPLATES,
   CONCLUSION_TEMPLATES,
@@ -1642,6 +1645,49 @@ export default function NewConsultationPage() {
                 placeholder="Conclusion de la consultation..."
               />
             </div>
+
+            {/* Suggestions automatiques */}
+            {formData.patientId && prescriptionsList.length > 0 && (
+              <div className="space-y-4">
+                {/* Bilans */}
+                <BilanSuggestion
+                  prescriptions={prescriptionsList}
+                  patientId={formData.patientId}
+                  consultationType={formData.type}
+                  onBilanAdded={() => {
+                    showNotification({
+                      type: 'success',
+                      message: 'Bilan ajouté aux résultats en attente',
+                    })
+                  }}
+                />
+
+                {/* Contraceptifs */}
+                <ContraceptifSuggestion
+                  prescriptions={prescriptionsList}
+                  patientId={formData.patientId}
+                  onContraceptifAdded={() => {
+                    showNotification({
+                      type: 'success',
+                      message: 'Contraceptif ajouté au suivi',
+                    })
+                  }}
+                />
+
+                {/* Frottis */}
+                <FrottisSuggestion
+                  prescriptions={prescriptionsList}
+                  conclusion={formData.conclusion}
+                  patientId={formData.patientId}
+                  onFrottisAdded={() => {
+                    showNotification({
+                      type: 'success',
+                      message: 'Frottis ajouté au suivi',
+                    })
+                  }}
+                />
+              </div>
+            )}
 
             <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <div className="flex items-center justify-between">

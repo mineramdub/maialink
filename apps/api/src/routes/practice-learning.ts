@@ -1,14 +1,14 @@
 import { Router } from 'express'
-import { authenticateToken } from '../middleware/auth'
-import { PracticeLearningService } from '../lib/practice-learning-service'
-import { db } from '../lib/db'
-import { users } from '../lib/schema'
+import { authMiddleware, AuthRequest } from '../middleware/auth.js'
+import { PracticeLearningService } from '../lib/practice-learning-service.js'
+import { db } from '../lib/db.js'
+import { users } from '../lib/schema.js'
 import { eq } from 'drizzle-orm'
 
 const router = Router()
 
 // Toutes les routes nécessitent une authentification
-router.use(authenticateToken)
+router.use(authMiddleware)
 
 /**
  * GET /api/practice-learning/stats
@@ -16,7 +16,7 @@ router.use(authenticateToken)
  */
 router.get('/stats', async (req, res) => {
   try {
-    const userId = req.user!.id
+    const userId = (req as AuthRequest).user!.id
 
     const stats = await PracticeLearningService.getUserLearningStats(userId)
 
@@ -33,7 +33,7 @@ router.get('/stats', async (req, res) => {
  */
 router.post('/suggestions', async (req, res) => {
   try {
-    const userId = req.user!.id
+    const userId = (req as AuthRequest).user!.id
     const { context } = req.body
 
     if (!context) {
@@ -55,7 +55,7 @@ router.post('/suggestions', async (req, res) => {
  */
 router.post('/capture/prescription', async (req, res) => {
   try {
-    const userId = req.user!.id
+    const userId = (req as AuthRequest).user!.id
     const { context, prescription } = req.body
 
     if (!context || !prescription) {
@@ -77,7 +77,7 @@ router.post('/capture/prescription', async (req, res) => {
  */
 router.post('/capture/examen', async (req, res) => {
   try {
-    const userId = req.user!.id
+    const userId = (req as AuthRequest).user!.id
     const { context, examen } = req.body
 
     if (!context || !examen) {
@@ -99,7 +99,7 @@ router.post('/capture/examen', async (req, res) => {
  */
 router.post('/capture/conseil', async (req, res) => {
   try {
-    const userId = req.user!.id
+    const userId = (req as AuthRequest).user!.id
     const { context, conseil } = req.body
 
     if (!context || !conseil) {
@@ -121,7 +121,7 @@ router.post('/capture/conseil', async (req, res) => {
  */
 router.post('/suggestions/:id/accept', async (req, res) => {
   try {
-    const userId = req.user!.id
+    const userId = (req as AuthRequest).user!.id
     const suggestionId = req.params.id
 
     await PracticeLearningService.acceptSuggestion(userId, suggestionId)
@@ -139,7 +139,7 @@ router.post('/suggestions/:id/accept', async (req, res) => {
  */
 router.post('/suggestions/:id/reject', async (req, res) => {
   try {
-    const userId = req.user!.id
+    const userId = (req as AuthRequest).user!.id
     const suggestionId = req.params.id
     const { feedback } = req.body
 
@@ -158,7 +158,7 @@ router.post('/suggestions/:id/reject', async (req, res) => {
  */
 router.get('/settings', async (req, res) => {
   try {
-    const userId = req.user!.id
+    const userId = (req as AuthRequest).user!.id
 
     const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
@@ -188,7 +188,7 @@ router.get('/settings', async (req, res) => {
  */
 router.put('/settings', async (req, res) => {
   try {
-    const userId = req.user!.id
+    const userId = (req as AuthRequest).user!.id
     const settings = req.body
 
     // TODO: Ajouter practiceLearningSettings au schéma users
@@ -206,7 +206,7 @@ router.put('/settings', async (req, res) => {
  */
 router.delete('/data', async (req, res) => {
   try {
-    const userId = req.user!.id
+    const userId = (req as AuthRequest).user!.id
 
     await PracticeLearningService.deleteAllUserData(userId)
 

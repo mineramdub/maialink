@@ -27,18 +27,23 @@ export function ShortcutsDialog() {
     {
       category: 'Navigation',
       items: [
-        { keys: ['⌘', '1'], description: 'Tableau de bord' },
+        { keys: ['⌘', 'H'], description: 'Tableau de bord' },
+        { keys: ['⌘', '1'], description: 'Tableau de bord (alt)' },
+        { keys: ['⌘', 'P'], description: 'Recherche patient' },
         { keys: ['⌘', '2'], description: 'Patientes' },
+        { keys: ['⌘', 'G'], description: 'Grossesses' },
         { keys: ['⌘', '3'], description: 'Agenda' },
         { keys: ['⌘', '4'], description: 'Documents' },
       ]
     },
     {
-      category: 'Actions',
+      category: 'Actions Rapides',
       items: [
-        { keys: ['⌘', '⇧', 'P'], description: 'Nouvelle patiente' },
-        { keys: ['⌘', '⇧', 'C'], description: 'Nouvelle consultation' },
-        { keys: ['⌘', '⇧', 'D'], description: 'Nouveau document' },
+        { keys: ['⌘', 'N'], description: 'Nouvelle consultation' },
+        { keys: ['⌘', 'O'], description: 'Nouvelle ordonnance' },
+        { keys: ['⌘', 'D'], description: 'Générer un document' },
+        { keys: ['⌘', '⇧', 'P'], description: 'Nouveau patient' },
+        { keys: ['⌘', '⇧', 'C'], description: 'Consultation rapide (modal)' },
         { keys: ['⌘', 'E'], description: 'Éditer (page détail)' },
       ]
     },

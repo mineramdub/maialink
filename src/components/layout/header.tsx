@@ -155,12 +155,12 @@ export function Header({ user }: HeaderProps) {
           />
           <div className="fixed inset-y-0 left-0 w-full max-w-xs bg-white shadow-xl">
             <div className="flex h-16 items-center justify-between px-6 border-b border-slate-200">
-              <div className="flex items-center gap-2">
+              <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity" onClick={() => setShowMobileMenu(false)}>
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900">
                   <Heart className="h-5 w-5 text-white" />
                 </div>
                 <span className="text-xl font-semibold">MaiaLink</span>
-              </div>
+              </Link>
               <button onClick={() => setShowMobileMenu(false)}>
                 <X className="h-6 w-6 text-slate-500" />
               </button>

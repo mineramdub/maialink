@@ -102,6 +102,7 @@ export const users = pgTable('users', {
   role: userRoleEnum('role').notNull().default('sage_femme'),
   rpps: text('rpps'),
   adeli: text('adeli'),
+  numeroAM: text('numero_am'), // Numéro Assurance Maladie
   phone: text('phone'),
   twoFactorSecret: text('two_factor_secret'),
   twoFactorEnabled: boolean('two_factor_enabled').default(false),
@@ -119,6 +120,9 @@ export const practitionerSettings = pgTable('practitioner_settings', {
   cabinetCity: text('cabinet_city'),
   cabinetPhone: text('cabinet_phone'),
   cabinetEmail: text('cabinet_email'),
+  specialite: text('specialite'), // Ex: "Suivi de grossesse et post-partum"
+  typeStructure: text('type_structure'), // Ex: "MAISON DE SANTE", "CABINET LIBERAL"
+  nomStructure: text('nom_structure'), // Ex: "Maison de Santé de..."
   signatureImageUrl: text('signature_image_url'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

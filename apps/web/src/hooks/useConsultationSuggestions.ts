@@ -223,17 +223,49 @@ export function useConsultationSuggestions(data: ConsultationData) {
       }
     }
 
-    // Suggestions pour conclusion
+    // Suggestions pour conclusion selon le type de consultation
     if (alerts.length === 0) {
+      // Conclusion normale adaptée au type de consultation
+      let conclusionText = ''
+
+      switch (data.type) {
+        case 'gyneco':
+          conclusionText = 'Consultation sans particularité. Pas de signe d\'alerte. Prochain rendez-vous selon indication clinique.'
+          break
+        case 'prenatale':
+          conclusionText = 'Consultation sans particularité. Grossesse évolutive normale. Prochain rendez-vous dans 1 mois.'
+          break
+        case 'postnatale':
+          conclusionText = 'Suites de couches simples. Pas de complication. Rééducation périnéale à débuter à partir de 6 semaines.'
+          break
+        case 'reeducation':
+          conclusionText = 'Séance de rééducation périnéale réalisée. Progression satisfaisante.'
+          break
+        case 'preparation':
+          conclusionText = 'Séance de préparation à la naissance réalisée. Conseils donnés.'
+          break
+        default:
+          conclusionText = 'Consultation sans particularité. Prochain rendez-vous selon indication clinique.'
+      }
+
       suggestionList.push({
         field: 'conclusion',
-        text: 'Consultation sans particularité. Grossesse évolutive normale. Prochain rendez-vous dans 1 mois.',
+        text: conclusionText,
         category: 'normal'
       })
     } else if (alerts.some(a => a.type === 'danger')) {
+      // Conclusion urgente adaptée au type
+      let conclusionText = ''
+
+      if (data.type === 'gyneco') {
+        conclusionText = 'Situation nécessitant une prise en charge urgente. Orientation vers les urgences gynécologiques.'
+      } else {
+        conclusionText = 'Situation nécessitant une prise en charge urgente. Orientation vers la maternité.'
+      }
+
       suggestionList.push({
         field: 'conclusion',
-        text: 'Situation nécessitant une prise en charge urgente. Orientation vers la maternité.',
+        text: conclusionText,
         category: 'urgent'
       })
     } else if (alerts.some(a => a.type === 'warning')) {

@@ -1,5 +1,6 @@
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { SurveillanceWidget } from '../components/surveillance/SurveillanceWidget'
 
 export default function DashboardPage() {
   const { user, logout } = useAuth()
@@ -23,17 +24,21 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-xl font-semibold">
-            Bienvenue, {user?.firstName} {user?.lastName}
-          </h2>
-          <p className="text-gray-600">Email: {user?.email}</p>
-          <p className="text-gray-600">Role: {user?.role}</p>
-          {user?.rpps && <p className="text-gray-600">RPPS: {user.rpps}</p>}
-          {user?.adeli && <p className="text-gray-600">ADELI: {user.adeli}</p>}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="rounded-lg bg-white p-6 shadow">
+            <h2 className="mb-4 text-xl font-semibold">
+              Bienvenue, {user?.firstName} {user?.lastName}
+            </h2>
+            <p className="text-gray-600">Email: {user?.email}</p>
+            <p className="text-gray-600">Role: {user?.role}</p>
+            {user?.rpps && <p className="text-gray-600">RPPS: {user.rpps}</p>}
+            {user?.adeli && <p className="text-gray-600">ADELI: {user.adeli}</p>}
+          </div>
+
+          <SurveillanceWidget />
         </div>
 
-        <div className="mt-8 rounded-lg bg-white p-6 shadow">
+        <div className="rounded-lg bg-white p-6 shadow">
           <h3 className="mb-4 text-lg font-semibold">
             Migration Next.js → React + Vite reussie!
           </h3>

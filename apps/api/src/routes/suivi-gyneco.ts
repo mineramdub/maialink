@@ -1,8 +1,19 @@
 import { Router } from 'express'
 import { db } from '../lib/db.js'
-import { frottis, contraceptifs, resultatsARecuperer, grossesses, patients } from '../lib/schema.js'
+import { frottis, contraceptifs, resultatsARecuperer, grossesses, patients, resultatsLaboratoire } from '../lib/schema.js'
 import { authMiddleware, AuthRequest } from '../middleware/auth.js'
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm'
+import { upload } from '../middleware/upload.js'
+import { readFile, unlink } from 'fs/promises'
+import { createRequire } from 'module'
+import Anthropic from '@anthropic-ai/sdk'
+
+const require = createRequire(import.meta.url)
+const pdfParse = require('pdf-parse')
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY || '',
+})
 
 const router = Router()
 
@@ -476,6 +487,113 @@ router.delete('/resultats/:id', authMiddleware, async (req: AuthRequest, res) =>
   } catch (error) {
     console.error('Error deleting resultat:', error)
     res.status(500).json({ success: false, error: 'Erreur serveur' })
+  }
+})
+
+// POST /api/suivi-gyneco/resultats/upload-and-analyze - Upload PDF et analyser
+router.post('/resultats/upload-and-analyze', authMiddleware, upload.single('file'), async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.id
+    const { resultatId, patientId } = req.body
+    const file = req.file
+
+    if (!file) {
+      return res.status(400).json({ success: false, error: 'Fichier requis' })
+    }
+
+    if (!resultatId || !patientId) {
+      return res.status(400).json({ success: false, error: 'resultatId et patientId requis' })
+    }
+
+    // Lire et parser le PDF
+    const dataBuffer = await readFile(file.path)
+    const pdfData = await pdfParse(dataBuffer)
+    const pdfText = pdfData.text
+
+    // Analyser avec Claude
+    const prompt = `Tu es un assistant médical spécialisé dans l'analyse de résultats de laboratoire.
+
+Analyse ce texte extrait d'un PDF de résultats de laboratoire et extrais les informations suivantes au format JSON strict :
+
+{
+  "dateAnalyse": "YYYY-MM-DD",
+  "laboratoire": "nom du laboratoire",
+  "typeExamen": "type d'examen (NFS, Biochimie, Sérologie, etc.)",
+  "description": "description courte de l'examen",
+  "normal": true/false,
+  "resultatTexte": "résumé textuel des résultats principaux",
+  "commentaire": "commentaire médical ou observations"
+}
+
+Si certaines informations ne sont pas disponibles, utilise null.
+
+Texte du PDF:
+${pdfText}
+
+Réponds UNIQUEMENT avec le JSON, sans texte additionnel.`
+
+    const message = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 2000,
+      messages: [{
+        role: 'user',
+        content: prompt
+      }]
+    })
+
+    const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+    let extractedData
+
+    try {
+      // Extract JSON from response (might be wrapped in markdown code blocks)
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        extractedData = JSON.parse(jsonMatch[0])
+      } else {
+        throw new Error('No JSON found in response')
+      }
+    } catch (e) {
+      console.error('Failed to parse AI response:', responseText)
+      extractedData = {
+        dateAnalyse: new Date().toISOString().split('T')[0],
+        laboratoire: null,
+        typeExamen: 'Autre',
+        description: 'Résultat de laboratoire',
+        normal: null,
+        resultatTexte: pdfText.substring(0, 500),
+        commentaire: null
+      }
+    }
+
+    // Créer l'entrée dans resultatsLaboratoire
+    const [resultatLabo] = await db.insert(resultatsLaboratoire).values({
+      patientId,
+      userId,
+      type: extractedData.typeExamen || 'autre',
+      nom: extractedData.description || 'Résultat de laboratoire',
+      dateAnalyse: extractedData.dateAnalyse || new Date().toISOString().split('T')[0],
+      resultatManuel: extractedData.resultatTexte || pdfText.substring(0, 500),
+      fichierUrl: `/uploads/${file.filename}`,
+      fichierNom: file.originalname,
+      normal: extractedData.normal,
+      commentaire: extractedData.commentaire,
+      laboratoire: extractedData.laboratoire,
+    }).returning()
+
+    // Marquer le résultat comme récupéré
+    await db.update(resultatsARecuperer)
+      .set({
+        statut: 'recupere',
+        dateRecuperation: new Date().toISOString().split('T')[0],
+        fichierUrl: `/uploads/${file.filename}`,
+        fichierNom: file.originalname,
+      })
+      .where(and(eq(resultatsARecuperer.id, resultatId), eq(resultatsARecuperer.userId, userId)))
+
+    res.json({ success: true, resultatLabo, extractedData })
+  } catch (error) {
+    console.error('Error uploading and analyzing PDF:', error)
+    res.status(500).json({ success: false, error: 'Erreur lors de l\'analyse du PDF' })
   }
 })
 

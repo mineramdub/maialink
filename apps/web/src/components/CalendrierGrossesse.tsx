@@ -68,7 +68,6 @@ export function CalendrierGrossesse({ grossesseId, currentSA, ddr, dpa, calendri
   // Filter states
   const [showCompleted, setShowCompleted] = useState(false)
   const [filterPriority, setFilterPriority] = useState<'all' | 'obligatoire' | 'recommande'>('all')
-  const [filterType, setFilterType] = useState<'all' | 'consultation' | 'examen' | 'echographie'>('all')
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline')
 
   const handleValidateEvent = async (eventId: string) => {
@@ -239,9 +238,6 @@ export function CalendrierGrossesse({ grossesseId, currentSA, ddr, dpa, calendri
 
       // Filtre par priorité
       if (filterPriority !== 'all' && event.priorite !== filterPriority) return false
-
-      // Filtre par type
-      if (filterType !== 'all' && event.type !== filterType) return false
 
       return true
     })
@@ -439,17 +435,6 @@ export function CalendrierGrossesse({ grossesseId, currentSA, ddr, dpa, calendri
                 </SelectContent>
               </Select>
 
-              <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous types</SelectItem>
-                  <SelectItem value="consultation">Consultations</SelectItem>
-                  <SelectItem value="examen">Examens</SelectItem>
-                  <SelectItem value="echographie">Échographies</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="flex items-center gap-2">
@@ -638,6 +623,74 @@ export function CalendrierGrossesse({ grossesseId, currentSA, ddr, dpa, calendri
                       )
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* Sous-examens (échographies, biologies, consultations externes) */}
+              {(selectedEvent as any).sousExamens && (selectedEvent as any).sousExamens.length > 0 && (
+                <div className="space-y-4 border-t pt-4">
+                  <h4 className="font-semibold text-base mb-3 flex items-center gap-2 text-purple-900">
+                    <FileText className="h-5 w-5" />
+                    Examens à prescrire pour cette consultation
+                  </h4>
+                  {(selectedEvent as any).sousExamens.map((sousExamen: any, sIdx: number) => {
+                    const getIconForType = (type: string) => {
+                      switch(type) {
+                        case 'echographie': return <Activity className="h-4 w-4 text-purple-600" />
+                        case 'biologie': return <TestTube className="h-4 w-4 text-blue-600" />
+                        case 'consultation_externe': return <Stethoscope className="h-4 w-4 text-green-600" />
+                        default: return <FileText className="h-4 w-4 text-slate-600" />
+                      }
+                    }
+
+                    const getColorForType = (type: string) => {
+                      switch(type) {
+                        case 'echographie': return 'bg-purple-50 border-purple-200'
+                        case 'biologie': return 'bg-blue-50 border-blue-200'
+                        case 'consultation_externe': return 'bg-green-50 border-green-200'
+                        default: return 'bg-slate-50 border-slate-200'
+                      }
+                    }
+
+                    return (
+                      <div key={sIdx} className={`p-3 rounded-lg border-2 ${getColorForType(sousExamen.type)}`}>
+                        <div className="flex items-start gap-2 mb-2">
+                          {getIconForType(sousExamen.type)}
+                          <h5 className="font-semibold text-sm flex-1">{sousExamen.titre}</h5>
+                          {sousExamen.priorite === 'obligatoire' && (
+                            <Badge variant="destructive" className="text-xs">Obligatoire</Badge>
+                          )}
+                          {sousExamen.priorite === 'recommande' && (
+                            <Badge variant="outline" className="text-xs bg-orange-100 border-orange-300">Recommandé</Badge>
+                          )}
+                        </div>
+                        <div className="space-y-1 ml-6">
+                          {sousExamen.items.map((item: string, iIdx: number) => {
+                            const key = `${selectedEvent.id}-sous-${sIdx}-${iIdx}`
+                            return (
+                              <div key={iIdx} className="flex items-start gap-2">
+                                <input
+                                  type="checkbox"
+                                  id={key}
+                                  checked={checkedItems[key] || false}
+                                  onChange={() => toggleItem(key)}
+                                  className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-600 focus:ring-slate-500"
+                                />
+                                <label
+                                  htmlFor={key}
+                                  className={`text-sm text-slate-700 cursor-pointer ${
+                                    checkedItems[key] ? 'line-through opacity-60' : ''
+                                  }`}
+                                >
+                                  {item}
+                                </label>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
 

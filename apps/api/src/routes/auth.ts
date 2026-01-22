@@ -41,7 +41,12 @@ router.post('/login', async (req, res) => {
 
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, firstName, lastName, rpps, adeli } = req.body
+    const {
+      email, password, firstName, lastName,
+      rpps, adeli, numeroAM, phone,
+      specialite, typeStructure, nomStructure,
+      cabinetAddress, cabinetPostalCode, cabinetCity
+    } = req.body
 
     if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({
@@ -57,6 +62,14 @@ router.post('/register', async (req, res) => {
       lastName,
       rpps,
       adeli,
+      numeroAM,
+      phone,
+      specialite,
+      typeStructure,
+      nomStructure,
+      cabinetAddress,
+      cabinetPostalCode,
+      cabinetCity,
     })
 
     if (!result.success) {

@@ -24,10 +24,14 @@ export const users = pgTable('users', {
   role: userRoleEnum('role').notNull().default('sage_femme'),
   rpps: text('rpps'),
   adeli: text('adeli'),
+  numeroAM: text('numero_am'), // Numéro Assurance Maladie
   phone: text('phone'),
   cabinetAddress: text('cabinet_address'),
   cabinetPostalCode: text('cabinet_postal_code'),
   cabinetCity: text('cabinet_city'),
+  specialite: text('specialite'), // Ex: "Suivi de grossesse et post-partum"
+  typeStructure: text('type_structure'), // Ex: "MAISON DE SANTE", "CABINET LIBERAL"
+  nomStructure: text('nom_structure'), // Ex: "Maison de Santé de..."
   twoFactorSecret: text('two_factor_secret'),
   twoFactorEnabled: boolean('two_factor_enabled').default(false),
   isActive: boolean('is_active').default(true),

@@ -49,6 +49,9 @@ export function useKeyboardShortcuts() {
         } else if (e.key === 'D') {
           e.preventDefault()
           navigate('/documents/new')
+        } else if (e.key === 'S') {
+          e.preventDefault()
+          navigate('/surveillance')
         }
       }
 
@@ -65,6 +68,54 @@ export function useKeyboardShortcuts() {
       if (e.key === '/') {
         e.preventDefault()
         document.dispatchEvent(new CustomEvent('show-keyboard-shortcuts'))
+      }
+
+      // Palette de commandes (Cmd+K)
+      if (e.key === 'k') {
+        e.preventDefault()
+        const event = new CustomEvent('open-command-palette')
+        window.dispatchEvent(event)
+      }
+
+      // Nouvelle consultation (Cmd+N)
+      if (e.key === 'n' && !e.shiftKey) {
+        e.preventDefault()
+        navigate('/consultations/new')
+      }
+
+      // Nouvelle ordonnance (Cmd+O)
+      if (e.key === 'o' && !e.shiftKey) {
+        e.preventDefault()
+        navigate('/ordonnances/new')
+      }
+
+      // Générer document (Cmd+D)
+      if (e.key === 'd' && !e.shiftKey) {
+        e.preventDefault()
+        navigate('/documents/generate')
+      }
+
+      // Recherche patient (Cmd+P)
+      if (e.key === 'p' && !e.shiftKey) {
+        e.preventDefault()
+        navigate('/patients')
+        // Focus sur le champ de recherche après navigation
+        setTimeout(() => {
+          const searchInput = document.querySelector('input[type="search"]') as HTMLInputElement
+          if (searchInput) searchInput.focus()
+        }, 100)
+      }
+
+      // Grossesses (Cmd+G)
+      if (e.key === 'g' && !e.shiftKey) {
+        e.preventDefault()
+        navigate('/grossesses')
+      }
+
+      // Dashboard (Cmd+H)
+      if (e.key === 'h' && !e.shiftKey) {
+        e.preventDefault()
+        navigate('/dashboard')
       }
     }
 

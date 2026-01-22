@@ -22,6 +22,7 @@ import {
 } from './ui/dialog'
 import { Label } from './ui/label'
 import { Input } from './ui/input'
+import { Textarea } from './ui/textarea'
 import { Checkbox } from './ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 
@@ -31,29 +32,50 @@ interface RecapGrossesseProps {
 }
 
 interface RecapData {
-  // Sérologies
+  // Sérologies avec dates
   groupeSanguin?: string
+  groupeSanguinDate?: string
   rhesus?: string
+  rhesusDate?: string
   toxoplasmose?: 'immune' | 'non_immune' | 'nc'
+  toxoplasmoseDate?: string
   rubeole?: 'immune' | 'non_immune' | 'nc'
+  rubeoleDate?: string
   syphilis?: 'negatif' | 'positif' | 'nc'
+  syphilisDate?: string
   vhb?: 'negatif' | 'positif' | 'nc'
+  vhbDate?: string
   vhc?: 'negatif' | 'positif' | 'nc'
+  vhcDate?: string
   vih?: 'negatif' | 'positif' | 'nc'
+  vihDate?: string
 
-  // Examens
+  // Examens avec dates
   gaj?: string // Glycémie à jeun
+  gajDate?: string
   hgpo?: 'normal' | 'patho' | 'nc'
+  hgpoDate?: string
   echoT1?: boolean
+  echoT1Date?: string
+  echoT1Description?: string
   echoT2?: boolean
+  echoT2Date?: string
+  echoT2Description?: string
   echoT3?: boolean
+  echoT3Date?: string
+  echoT3Description?: string
   rai?: 'negatif' | 'positif' | 'nc'
+  raiDate?: string
   nfs6mois?: 'normal' | 'anemie' | 'nc'
+  nfs6moisDate?: string
 
-  // À cocher
+  // À cocher avec dates
   vitD?: boolean
+  vitDDate?: string
   vaccinCoqueluche?: boolean
+  vaccinCoqelucheDate?: string
   pvStreptoB?: 'negatif' | 'positif' | 'nc'
+  pvSteptoBDate?: string
 }
 
 export function RecapGrossesse({ grossesseId, patientId }: RecapGrossesseProps) {
@@ -107,7 +129,7 @@ export function RecapGrossesse({ grossesseId, patientId }: RecapGrossesseProps) 
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/grossesses/${grossesseId}`,
         {
-          method: 'PUT',
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
@@ -132,68 +154,35 @@ export function RecapGrossesse({ grossesseId, patientId }: RecapGrossesseProps) 
     setIsEditOpen(true)
   }
 
-  const getStatusBadge = (
+  const getDisplayValue = (
     value: string | boolean | undefined,
     type: 'serologie' | 'exam' | 'checkbox'
   ) => {
     if (type === 'checkbox') {
-      return value ? (
-        <Badge className="bg-green-100 text-green-800 border-green-300">
-          <Check className="h-3 w-3 mr-1" />
-          Fait
-        </Badge>
-      ) : (
-        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300">
-          <AlertCircle className="h-3 w-3 mr-1" />
-          À faire
-        </Badge>
-      )
+      if (!value) return null
+      return 'Fait'
     }
 
     if (type === 'exam') {
-      if (value === true) {
-        return <Badge className="bg-green-100 text-green-800 border-green-300">
-          <Check className="h-3 w-3 mr-1" />
-          Réalisée
-        </Badge>
-      }
-      return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300">
-        <AlertCircle className="h-3 w-3 mr-1" />
-        À faire
-      </Badge>
+      if (value !== true) return null
+      return 'Fait'
     }
 
-    // Sérologie
+    // Sérologie - Ne rien afficher si non renseigné
     if (!value || value === 'nc') {
-      return (
-        <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-300">
-          <X className="h-3 w-3 mr-1" />
-          Non renseigné
-        </Badge>
-      )
+      return null
     }
 
-    if (value === 'immune' || value === 'negatif' || value === 'normal') {
-      return (
-        <Badge className="bg-green-100 text-green-800 border-green-300">
-          <Check className="h-3 w-3 mr-1" />
-          {value === 'immune' ? 'Immune' : value === 'negatif' ? 'Négatif' : 'Normal'}
-        </Badge>
-      )
-    }
+    // Conversion des valeurs en texte simple
+    if (value === 'immune') return '+'
+    if (value === 'non_immune') return '-'
+    if (value === 'negatif') return 'Négatif'
+    if (value === 'positif') return 'Positif'
+    if (value === 'normal') return 'Normal'
+    if (value === 'anemie') return 'Anémie'
+    if (value === 'patho') return 'Pathologique'
 
-    if (value === 'non_immune' || value === 'positif' || value === 'anemie' || value === 'patho') {
-      return (
-        <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-300">
-          <AlertCircle className="h-3 w-3 mr-1" />
-          {value === 'non_immune' ? 'Non immune' :
-           value === 'positif' ? 'Positif' :
-           value === 'anemie' ? 'Anémie' : 'Pathologique'}
-        </Badge>
-      )
-    }
-
-    return <Badge variant="outline">{value}</Badge>
+    return value
   }
 
   if (isLoading) {
@@ -208,141 +197,137 @@ export function RecapGrossesse({ grossesseId, patientId }: RecapGrossesseProps) 
 
   return (
     <>
-      <Card className="border-pink-200 bg-pink-50/30">
-        <CardHeader>
+      <Card
+        className="border-pink-200 bg-pink-50/50 cursor-pointer hover:bg-pink-100/50 transition-colors group"
+        onClick={openEdit}
+      >
+        <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Activity className="h-4 w-4 text-pink-600" />
+            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
               Récapitulatif Grossesse
+              <Edit className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
             </CardTitle>
-            <Button size="sm" variant="outline" onClick={openEdit}>
-              <Edit className="h-3 w-3 mr-1" />
-              Modifier
-            </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 text-xs">
-          {/* Groupe sanguin */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 text-slate-600">
-                <Droplet className="h-3 w-3" />
-                Groupe
-              </span>
-              {data.groupeSanguin ? (
-                <Badge variant="outline" className="font-mono">
-                  {data.groupeSanguin}
-                </Badge>
-              ) : (
-                getStatusBadge(undefined, 'serologie')
-              )}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">Rhésus</span>
-              {data.rhesus ? (
-                <Badge
-                  variant="outline"
-                  className={data.rhesus === 'negatif' ? 'bg-orange-50 border-orange-300' : ''}
-                >
-                  {data.rhesus}
-                </Badge>
-              ) : (
-                getStatusBadge(undefined, 'serologie')
-              )}
-            </div>
-          </div>
+        <CardContent className="pt-2">
+          <div className="grid grid-cols-8 gap-x-3 gap-y-1">
+            {/* Groupe sanguin & Rhésus */}
+            {data.groupeSanguin && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">Groupe:</span>
+                <span className="text-base font-bold">{data.groupeSanguin}</span>
+              </div>
+            )}
+            {data.rhesus && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">Rhésus:</span>
+                <span className="text-base font-bold">{data.rhesus === 'negatif' ? 'Négatif' : 'Positif'}</span>
+              </div>
+            )}
 
-          {/* Sérologies */}
-          <div className="border-t pt-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">Toxoplasmose</span>
-              {getStatusBadge(data.toxoplasmose, 'serologie')}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">Rubéole</span>
-              {getStatusBadge(data.rubeole, 'serologie')}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">Syphilis</span>
-              {getStatusBadge(data.syphilis, 'serologie')}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">VHB</span>
-              {getStatusBadge(data.vhb, 'serologie')}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">VHC</span>
-              {getStatusBadge(data.vhc, 'serologie')}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">VIH</span>
-              {getStatusBadge(data.vih, 'serologie')}
-            </div>
-          </div>
+            {/* Sérologies */}
+            {getDisplayValue(data.toxoplasmose, 'serologie') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">Toxo:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.toxoplasmose, 'serologie')}</span>
+              </div>
+            )}
+            {getDisplayValue(data.rubeole, 'serologie') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">Rubéole:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.rubeole, 'serologie')}</span>
+              </div>
+            )}
+            {getDisplayValue(data.syphilis, 'serologie') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">Syphilis:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.syphilis, 'serologie')}</span>
+              </div>
+            )}
+            {getDisplayValue(data.vhb, 'serologie') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">VHB:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.vhb, 'serologie')}</span>
+              </div>
+            )}
+            {getDisplayValue(data.vhc, 'serologie') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">VHC:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.vhc, 'serologie')}</span>
+              </div>
+            )}
+            {getDisplayValue(data.vih, 'serologie') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">VIH:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.vih, 'serologie')}</span>
+              </div>
+            )}
 
-          {/* Examens */}
-          <div className="border-t pt-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">GàJ</span>
-              {data.gaj ? (
-                <Badge variant="outline" className="font-mono">{data.gaj} g/L</Badge>
-              ) : (
-                getStatusBadge(undefined, 'serologie')
-              )}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">HGPO</span>
-              {getStatusBadge(data.hgpo, 'serologie')}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">RAI</span>
-              {getStatusBadge(data.rai, 'serologie')}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">NFS 6ème mois</span>
-              {getStatusBadge(data.nfs6mois, 'serologie')}
-            </div>
-          </div>
+            {/* Examens */}
+            {data.gaj && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">GàJ:</span>
+                <span className="text-base font-bold font-mono">{data.gaj}</span>
+              </div>
+            )}
+            {getDisplayValue(data.hgpo, 'serologie') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">HGPO:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.hgpo, 'serologie')}</span>
+              </div>
+            )}
+            {getDisplayValue(data.rai, 'serologie') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">RAI:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.rai, 'serologie')}</span>
+              </div>
+            )}
+            {getDisplayValue(data.nfs6mois, 'serologie') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">NFS:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.nfs6mois, 'serologie')}</span>
+              </div>
+            )}
+            {getDisplayValue(data.pvStreptoB, 'serologie') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">Strepto B:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.pvStreptoB, 'serologie')}</span>
+              </div>
+            )}
 
-          {/* Échographies */}
-          <div className="border-t pt-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">Écho T1</span>
-              {getStatusBadge(data.echoT1, 'exam')}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">Écho T2</span>
-              {getStatusBadge(data.echoT2, 'exam')}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">Écho T3</span>
-              {getStatusBadge(data.echoT3, 'exam')}
-            </div>
-          </div>
+            {/* Échographies */}
+            {getDisplayValue(data.echoT1, 'exam') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">T1:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.echoT1, 'exam')}</span>
+              </div>
+            )}
+            {getDisplayValue(data.echoT2, 'exam') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">T2:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.echoT2, 'exam')}</span>
+              </div>
+            )}
+            {getDisplayValue(data.echoT3, 'exam') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">T3:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.echoT3, 'exam')}</span>
+              </div>
+            )}
 
-          {/* À cocher */}
-          <div className="border-t pt-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 text-slate-600">
-                <Pill className="h-3 w-3" />
-                Vit D
-              </span>
-              {getStatusBadge(data.vitD, 'checkbox')}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 text-slate-600">
-                <Syringe className="h-3 w-3" />
-                Vaccin coqueluche
-              </span>
-              {getStatusBadge(data.vaccinCoqueluche, 'checkbox')}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 text-slate-600">
-                <TestTube className="h-3 w-3" />
-                PV Strepto B
-              </span>
-              {getStatusBadge(data.pvStreptoB, 'serologie')}
-            </div>
+            {/* Prévention */}
+            {getDisplayValue(data.vitD, 'checkbox') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">Vit D:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.vitD, 'checkbox')}</span>
+              </div>
+            )}
+            {getDisplayValue(data.vaccinCoqueluche, 'checkbox') && (
+              <div className="flex items-center gap-1">
+                <span className="text-base font-bold text-slate-700">Coqueluche:</span>
+                <span className="text-base font-bold">{getDisplayValue(data.vaccinCoqueluche, 'checkbox')}</span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -397,30 +382,38 @@ export function RecapGrossesse({ grossesseId, patientId }: RecapGrossesseProps) 
                 { key: 'vhc', label: 'VHC' },
                 { key: 'vih', label: 'VIH' },
               ].map((item) => (
-                <div key={item.key} className="grid grid-cols-3 gap-2 items-center">
+                <div key={item.key} className="space-y-2">
                   <Label className="text-xs">{item.label}</Label>
-                  <Select
-                    value={(editData as any)[item.key] || 'nc'}
-                    onValueChange={(v) => setEditData({ ...editData, [item.key]: v })}
-                  >
-                    <SelectTrigger className="col-span-2">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="nc">Non renseigné</SelectItem>
-                      {item.key === 'toxoplasmose' || item.key === 'rubeole' ? (
-                        <>
-                          <SelectItem value="immune">Immune</SelectItem>
-                          <SelectItem value="non_immune">Non immune</SelectItem>
-                        </>
-                      ) : (
-                        <>
-                          <SelectItem value="negatif">Négatif</SelectItem>
-                          <SelectItem value="positif">Positif</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select
+                      value={(editData as any)[item.key] || 'nc'}
+                      onValueChange={(v) => setEditData({ ...editData, [item.key]: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nc">Non renseigné</SelectItem>
+                        {item.key === 'toxoplasmose' || item.key === 'rubeole' ? (
+                          <>
+                            <SelectItem value="immune">Immune</SelectItem>
+                            <SelectItem value="non_immune">Non immune</SelectItem>
+                          </>
+                        ) : (
+                          <>
+                            <SelectItem value="negatif">Négatif</SelectItem>
+                            <SelectItem value="positif">Positif</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="date"
+                      value={(editData as any)[item.key + 'Date'] || ''}
+                      onChange={(e) => setEditData({ ...editData, [item.key + 'Date']: e.target.value })}
+                      placeholder="Date"
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -429,14 +422,21 @@ export function RecapGrossesse({ grossesseId, patientId }: RecapGrossesseProps) 
             <div className="space-y-4 border-t pt-4">
               <h4 className="font-medium text-sm">Examens</h4>
 
-              <div className="grid grid-cols-3 gap-2 items-center">
+              <div className="space-y-2">
                 <Label className="text-xs">GàJ</Label>
-                <Input
-                  className="col-span-2"
-                  value={editData.gaj || ''}
-                  onChange={(e) => setEditData({ ...editData, gaj: e.target.value })}
-                  placeholder="0.85"
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    value={editData.gaj || ''}
+                    onChange={(e) => setEditData({ ...editData, gaj: e.target.value })}
+                    placeholder="0.85"
+                  />
+                  <Input
+                    type="date"
+                    value={editData.gajDate || ''}
+                    onChange={(e) => setEditData({ ...editData, gajDate: e.target.value })}
+                    placeholder="Date"
+                  />
+                </div>
               </div>
 
               {[
@@ -445,35 +445,43 @@ export function RecapGrossesse({ grossesseId, patientId }: RecapGrossesseProps) 
                 { key: 'nfs6mois', label: 'NFS 6ème mois' },
                 { key: 'pvStreptoB', label: 'PV Strepto B' },
               ].map((item) => (
-                <div key={item.key} className="grid grid-cols-3 gap-2 items-center">
+                <div key={item.key} className="space-y-2">
                   <Label className="text-xs">{item.label}</Label>
-                  <Select
-                    value={(editData as any)[item.key] || 'nc'}
-                    onValueChange={(v) => setEditData({ ...editData, [item.key]: v })}
-                  >
-                    <SelectTrigger className="col-span-2">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="nc">Non renseigné</SelectItem>
-                      {item.key === 'hgpo' ? (
-                        <>
-                          <SelectItem value="normal">Normal</SelectItem>
-                          <SelectItem value="patho">Pathologique</SelectItem>
-                        </>
-                      ) : item.key === 'nfs6mois' ? (
-                        <>
-                          <SelectItem value="normal">Normal</SelectItem>
-                          <SelectItem value="anemie">Anémie</SelectItem>
-                        </>
-                      ) : (
-                        <>
-                          <SelectItem value="negatif">Négatif</SelectItem>
-                          <SelectItem value="positif">Positif</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select
+                      value={(editData as any)[item.key] || 'nc'}
+                      onValueChange={(v) => setEditData({ ...editData, [item.key]: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nc">Non renseigné</SelectItem>
+                        {item.key === 'hgpo' ? (
+                          <>
+                            <SelectItem value="normal">Normal</SelectItem>
+                            <SelectItem value="patho">Pathologique</SelectItem>
+                          </>
+                        ) : item.key === 'nfs6mois' ? (
+                          <>
+                            <SelectItem value="normal">Normal</SelectItem>
+                            <SelectItem value="anemie">Anémie</SelectItem>
+                          </>
+                        ) : (
+                          <>
+                            <SelectItem value="negatif">Négatif</SelectItem>
+                            <SelectItem value="positif">Positif</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="date"
+                      value={(editData as any)[item.key + 'Date'] || ''}
+                      onChange={(e) => setEditData({ ...editData, [item.key + 'Date']: e.target.value })}
+                      placeholder="Date"
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -487,17 +495,35 @@ export function RecapGrossesse({ grossesseId, patientId }: RecapGrossesseProps) 
                 { key: 'echoT2', label: 'Écho T2' },
                 { key: 'echoT3', label: 'Écho T3' },
               ].map((item) => (
-                <div key={item.key} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={item.key}
-                    checked={(editData as any)[item.key] || false}
-                    onCheckedChange={(checked) =>
-                      setEditData({ ...editData, [item.key]: checked })
-                    }
-                  />
-                  <Label htmlFor={item.key} className="text-sm cursor-pointer">
-                    {item.label}
-                  </Label>
+                <div key={item.key} className="space-y-2 p-3 border rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={item.key}
+                      checked={(editData as any)[item.key] || false}
+                      onCheckedChange={(checked) =>
+                        setEditData({ ...editData, [item.key]: checked })
+                      }
+                    />
+                    <Label htmlFor={item.key} className="text-sm font-medium cursor-pointer">
+                      {item.label}
+                    </Label>
+                  </div>
+                  {(editData as any)[item.key] && (
+                    <>
+                      <Input
+                        type="date"
+                        value={(editData as any)[item.key + 'Date'] || ''}
+                        onChange={(e) => setEditData({ ...editData, [item.key + 'Date']: e.target.value })}
+                        placeholder="Date de l'échographie"
+                      />
+                      <Textarea
+                        value={(editData as any)[item.key + 'Description'] || ''}
+                        onChange={(e) => setEditData({ ...editData, [item.key + 'Description']: e.target.value })}
+                        placeholder="Description de l'échographie (ex: biométrie, anomalies détectées...)"
+                        rows={3}
+                      />
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -510,17 +536,27 @@ export function RecapGrossesse({ grossesseId, patientId }: RecapGrossesseProps) 
                 { key: 'vitD', label: 'Vitamine D prescrite' },
                 { key: 'vaccinCoqueluche', label: 'Vaccin coqueluche fait' },
               ].map((item) => (
-                <div key={item.key} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={item.key}
-                    checked={(editData as any)[item.key] || false}
-                    onCheckedChange={(checked) =>
-                      setEditData({ ...editData, [item.key]: checked })
-                    }
-                  />
-                  <Label htmlFor={item.key} className="text-sm cursor-pointer">
-                    {item.label}
-                  </Label>
+                <div key={item.key} className="space-y-2 p-3 border rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={item.key}
+                      checked={(editData as any)[item.key] || false}
+                      onCheckedChange={(checked) =>
+                        setEditData({ ...editData, [item.key]: checked })
+                      }
+                    />
+                    <Label htmlFor={item.key} className="text-sm font-medium cursor-pointer">
+                      {item.label}
+                    </Label>
+                  </div>
+                  {(editData as any)[item.key] && (
+                    <Input
+                      type="date"
+                      value={(editData as any)[item.key + 'Date'] || ''}
+                      onChange={(e) => setEditData({ ...editData, [item.key + 'Date']: e.target.value })}
+                      placeholder="Date"
+                    />
+                  )}
                 </div>
               ))}
             </div>

@@ -4,7 +4,9 @@ import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import { Input } from '../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { Plus, Loader2, CheckCircle2, Trash2, Edit2, Save, X, AlertCircle } from 'lucide-react'
+import { Combobox } from '../ui/combobox'
+import { Plus, Loader2, Trash2, Edit2, AlertCircle, Upload, FileText } from 'lucide-react'
+import { Checkbox } from '../ui/checkbox'
 import { cn } from '../../lib/utils'
 
 interface Resultat {
@@ -13,11 +15,13 @@ interface Resultat {
   description: string
   categorie: 'obstetrique' | 'gyneco'
   dateExamen?: string
-  laboratoire?: string
   statut: string
   dateRecuperation?: string
   notes?: string
+  fichierUrl?: string
+  fichierNom?: string
   patient: {
+    id: string
     firstName: string
     lastName: string
   }
@@ -37,10 +41,9 @@ export function ResultatsTab() {
     description: '',
     categorie: 'gyneco' as 'obstetrique' | 'gyneco',
     dateExamen: new Date().toISOString().split('T')[0],
-    laboratoire: '',
     statut: 'en_attente',
     notes: '',
-    patient: { firstName: '', lastName: '' },
+    patient: { id: '', firstName: '', lastName: '' },
     patientId: '',
     createdAt: new Date().toISOString(),
   }
@@ -100,7 +103,6 @@ export function ResultatsTab() {
           description: newRow.description,
           categorie: newRow.categorie,
           dateExamen: newRow.dateExamen,
-          laboratoire: newRow.laboratoire,
           notes: newRow.notes,
         }),
       })
@@ -184,6 +186,58 @@ export function ResultatsTab() {
     }
   }
 
+  const handleUploadPDF = async (resultatId: string, patientId: string, file: File) => {
+    if (!file) return
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('resultatId', resultatId)
+      formData.append('patientId', patientId)
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/suivi-gyneco/resultats/upload-and-analyze`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        alert('PDF analysé et résultat ajouté au dossier patient!')
+        fetchResultats()
+      } else {
+        alert(data.error || 'Erreur lors de l\'analyse du PDF')
+      }
+    } catch (error) {
+      console.error('Error uploading PDF:', error)
+      alert('Erreur lors de l\'upload du PDF')
+    }
+  }
+
+  const handleToggleRecovered = async (resultatId: string, isRecovered: boolean) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/suivi-gyneco/resultats/${resultatId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          statut: isRecovered ? 'en_attente' : 'recupere',
+          dateRecuperation: isRecovered ? null : new Date().toISOString().split('T')[0],
+        }),
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        fetchResultats()
+      } else {
+        alert(data.error || 'Erreur lors de la mise à jour')
+      }
+    } catch (error) {
+      console.error('Error toggling recovered:', error)
+      alert('Erreur lors de la mise à jour')
+    }
+  }
+
   const getRowColor = (resultat: Resultat) => {
     const daysOld = resultat.dateExamen
       ? Math.floor((Date.now() - new Date(resultat.dateExamen).getTime()) / (1000 * 60 * 60 * 24))
@@ -245,18 +299,19 @@ export function ResultatsTab() {
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+        <div>
+          <table className="w-full border-collapse table-fixed">
             <thead>
               <tr className="border-b-2 border-slate-200">
-                <th className="text-left p-3 text-sm font-semibold text-slate-700 w-40">Patiente</th>
-                <th className="text-left p-3 text-sm font-semibold text-slate-700 w-32">Type</th>
-                <th className="text-left p-3 text-sm font-semibold text-slate-700 w-48">Description</th>
-                <th className="text-left p-3 text-sm font-semibold text-slate-700 w-28">Catégorie</th>
-                <th className="text-left p-3 text-sm font-semibold text-slate-700 w-32">Date</th>
-                <th className="text-left p-3 text-sm font-semibold text-slate-700 w-32">Laboratoire</th>
-                <th className="text-left p-3 text-sm font-semibold text-slate-700 w-48">Notes</th>
-                <th className="text-right p-3 text-sm font-semibold text-slate-700 w-32">Actions</th>
+                <th className="text-left p-3 text-sm font-semibold text-slate-700" style={{width: '15%'}}>Patiente</th>
+                <th className="text-left p-3 text-sm font-semibold text-slate-700" style={{width: '10%'}}>Type</th>
+                <th className="text-left p-3 text-sm font-semibold text-slate-700" style={{width: '15%'}}>Description</th>
+                <th className="text-left p-3 text-sm font-semibold text-slate-700" style={{width: '10%'}}>Catégorie</th>
+                <th className="text-left p-3 text-sm font-semibold text-slate-700" style={{width: '10%'}}>Date</th>
+                <th className="text-left p-3 text-sm font-semibold text-slate-700" style={{width: '15%'}}>PDF</th>
+                <th className="text-left p-3 text-sm font-semibold text-slate-700" style={{width: '13%'}}>Notes</th>
+                <th className="text-center p-3 text-sm font-semibold text-slate-700" style={{width: '7%'}}>Reçu</th>
+                <th className="text-right p-3 text-sm font-semibold text-slate-700" style={{width: '5%'}}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -264,24 +319,21 @@ export function ResultatsTab() {
               {isAdding && (
                 <tr className="border-b bg-green-50">
                   <td className="p-2">
-                    <Select
+                    <Combobox
+                      options={patients.map(p => ({
+                        value: p.id,
+                        label: `${p.firstName} ${p.lastName}`
+                      }))}
                       value={newRow.patientId}
                       onValueChange={(v) => {
                         const patient = patients.find(p => p.id === v)
                         setNewRow({ ...newRow, patientId: v, patient })
                       }}
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Sélectionner" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {patients.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.firstName} {p.lastName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Sélectionner une patiente"
+                      searchPlaceholder="Rechercher une patiente..."
+                      emptyText="Aucune patiente trouvée"
+                      className="h-8 text-sm"
+                    />
                   </td>
                   <td className="p-2">
                     <Select
@@ -306,6 +358,12 @@ export function ResultatsTab() {
                       onChange={(e) => setNewRow({ ...newRow, description: e.target.value })}
                       placeholder="ex: NFS, TSH..."
                       className="h-8 text-sm"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleSaveNew()
+                        }
+                      }}
                     />
                   </td>
                   <td className="p-2">
@@ -328,15 +386,16 @@ export function ResultatsTab() {
                       value={newRow.dateExamen}
                       onChange={(e) => setNewRow({ ...newRow, dateExamen: e.target.value })}
                       className="h-8 text-sm"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleSaveNew()
+                        }
+                      }}
                     />
                   </td>
                   <td className="p-2">
-                    <Input
-                      value={newRow.laboratoire}
-                      onChange={(e) => setNewRow({ ...newRow, laboratoire: e.target.value })}
-                      placeholder="Laboratoire"
-                      className="h-8 text-sm"
-                    />
+                    <span className="text-xs text-slate-400">-</span>
                   </td>
                   <td className="p-2">
                     <Input
@@ -344,25 +403,19 @@ export function ResultatsTab() {
                       onChange={(e) => setNewRow({ ...newRow, notes: e.target.value })}
                       placeholder="Notes..."
                       className="h-8 text-sm"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleSaveNew()
+                        }
+                      }}
                     />
                   </td>
+                  <td className="p-2 text-center">
+                    <span className="text-xs text-slate-400">-</span>
+                  </td>
                   <td className="p-2 text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button size="sm" variant="ghost" onClick={handleSaveNew} className="h-8 w-8 p-0">
-                        <Save className="h-4 w-4 text-green-600" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setIsAdding(false)
-                          setNewRow(emptyRow)
-                        }}
-                        className="h-8 w-8 p-0"
-                      >
-                        <X className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
+                    <span className="text-xs text-slate-500 italic">Appuyez sur Entrée</span>
                   </td>
                 </tr>
               )}
@@ -406,6 +459,12 @@ export function ResultatsTab() {
                           setResultats(updated)
                         }}
                         className="h-8 text-sm"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleUpdate(resultat)
+                          }
+                        }}
                       />
                     ) : (
                       resultat.description
@@ -442,23 +501,55 @@ export function ResultatsTab() {
                           setResultats(updated)
                         }}
                         className="h-8 text-sm"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleUpdate(resultat)
+                          }
+                        }}
                       />
                     ) : (
                       resultat.dateExamen && new Date(resultat.dateExamen).toLocaleDateString('fr-FR')
                     )}
                   </td>
                   <td className="p-3 text-sm">
-                    {editingId === resultat.id ? (
-                      <Input
-                        value={resultat.laboratoire || ''}
-                        onChange={(e) => {
-                          const updated = resultats.map(r => r.id === resultat.id ? { ...r, laboratoire: e.target.value } : r)
-                          setResultats(updated)
-                        }}
-                        className="h-8 text-sm"
-                      />
+                    {resultat.fichierUrl ? (
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={resultat.fichierUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline flex items-center gap-1"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span className="text-xs truncate max-w-[100px]">{resultat.fichierNom || 'PDF'}</span>
+                        </a>
+                      </div>
                     ) : (
-                      resultat.laboratoire
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              handleUploadPDF(resultat.id, resultat.patient.id, file)
+                            }
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          asChild
+                        >
+                          <span>
+                            <Upload className="h-3 w-3 mr-1" />
+                            Upload
+                          </span>
+                        </Button>
+                      </label>
                     )}
                   </td>
                   <td className="p-3 text-sm">
@@ -470,37 +561,29 @@ export function ResultatsTab() {
                           setResultats(updated)
                         }}
                         className="h-8 text-sm"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleUpdate(resultat)
+                          }
+                        }}
                       />
                     ) : (
                       resultat.notes
                     )}
                   </td>
+                  <td className="p-3 text-center">
+                    <Checkbox
+                      checked={resultat.statut === 'recupere'}
+                      onCheckedChange={(checked) => {
+                        handleToggleRecovered(resultat.id, resultat.statut === 'recupere')
+                      }}
+                    />
+                  </td>
                   <td className="p-3 text-right">
                     <div className="flex justify-end gap-1">
                       {editingId === resultat.id ? (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              handleUpdate(resultat)
-                            }}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Save className="h-4 w-4 text-green-600" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingId(null)
-                              fetchResultats()
-                            }}
-                            className="h-8 w-8 p-0"
-                          >
-                            <X className="h-4 w-4 text-red-600" />
-                          </Button>
-                        </>
+                        <span className="text-xs text-slate-500 italic">Entrée</span>
                       ) : (
                         <>
                           <Button
@@ -511,15 +594,6 @@ export function ResultatsTab() {
                             title="Modifier"
                           >
                             <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleMarkAsRecovered(resultat.id)}
-                            className="h-8 w-8 p-0"
-                            title="Marquer récupéré"
-                          >
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
                           </Button>
                           <Button
                             size="sm"
@@ -539,7 +613,7 @@ export function ResultatsTab() {
 
               {resultats.length === 0 && !isAdding && (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-600">
+                  <td colSpan={9} className="text-center py-12 text-slate-600">
                     Aucun résultat en attente
                   </td>
                 </tr>

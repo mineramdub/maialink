@@ -6,6 +6,7 @@ import { Label } from '../../components/ui/label'
 import { Textarea } from '../../components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
+import { Checkbox } from '../../components/ui/checkbox'
 import { ArrowLeft, Loader2, Save } from 'lucide-react'
 
 export default function NewGrossessePage() {
@@ -24,6 +25,8 @@ export default function NewGrossessePage() {
     nombreFoetus: 1,
     facteursRisque: [] as string[],
     notes: '',
+    suiviPartageGyneco: false,
+    nomGyneco: '',
   })
 
   useEffect(() => {
@@ -185,6 +188,38 @@ export default function NewGrossessePage() {
                 onChange={(e) => updateField('notes', e.target.value)}
                 placeholder="Informations complémentaires..."
               />
+            </div>
+
+            <div className="space-y-4 pt-4 border-t">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="suiviPartageGyneco"
+                  checked={formData.suiviPartageGyneco}
+                  onCheckedChange={(checked) => {
+                    updateField('suiviPartageGyneco', checked)
+                    if (!checked) updateField('nomGyneco', '')
+                  }}
+                />
+                <Label
+                  htmlFor="suiviPartageGyneco"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  Suivi partagé avec gynécologue
+                </Label>
+              </div>
+
+              {formData.suiviPartageGyneco && (
+                <div className="space-y-2 ml-6">
+                  <Label htmlFor="nomGyneco">Nom du gynécologue</Label>
+                  <Input
+                    id="nomGyneco"
+                    type="text"
+                    value={formData.nomGyneco}
+                    onChange={(e) => updateField('nomGyneco', e.target.value)}
+                    placeholder="Dr. Nom du gynécologue"
+                  />
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

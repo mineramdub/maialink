@@ -32,6 +32,21 @@ interface Patient {
   securityNumber?: string
 }
 
+interface PractitionerInfo {
+  firstName: string
+  lastName: string
+  rpps?: string
+  adeli?: string
+  numeroAM?: string
+  phone?: string
+  cabinetAddress?: string
+  cabinetPostalCode?: string
+  cabinetCity?: string
+  specialite?: string
+  typeStructure?: string
+  nomStructure?: string
+}
+
 const DOCUMENT_TYPES = [
   { id: 'ordonnance', label: 'Ordonnance', icon: '📋' },
   { id: 'certificat', label: 'Certificat medical', icon: '📜' },
@@ -49,6 +64,7 @@ export default function NouveauDocumentPage() {
   const documentRef = useRef<HTMLDivElement>(null)
 
   const [patients, setPatients] = useState<Patient[]>([])
+  const [practitioner, setPractitioner] = useState<PractitionerInfo | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -69,6 +85,7 @@ export default function NouveauDocumentPage() {
 
   useEffect(() => {
     fetchPatients()
+    fetchPractitionerInfo()
   }, [])
 
   useEffect(() => {
@@ -77,6 +94,49 @@ export default function NouveauDocumentPage() {
       setFormData((prev) => ({ ...prev, titre: type.label }))
     }
   }, [formData.type])
+
+  useEffect(() => {
+    const generateBarcodes = async () => {
+      if (!practitioner) return
+
+      try {
+        const JsBarcode = (await import('jsbarcode')).default
+
+        if (practitioner.rpps) {
+          const canvas = document.getElementById('barcode-rpps')
+          if (canvas) {
+            JsBarcode(canvas, practitioner.rpps, {
+              format: 'CODE128',
+              width: 1.5,
+              height: 40,
+              displayValue: true,
+              fontSize: 10,
+              margin: 2,
+            })
+          }
+        }
+
+        if (practitioner.numeroAM) {
+          const canvas = document.getElementById('barcode-am')
+          if (canvas) {
+            JsBarcode(canvas, practitioner.numeroAM, {
+              format: 'CODE128',
+              width: 1.5,
+              height: 40,
+              displayValue: true,
+              fontSize: 10,
+              margin: 2,
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Error generating barcodes:', error)
+      }
+    }
+
+    // Petit délai pour s'assurer que les canvas sont montés
+    setTimeout(generateBarcodes, 100)
+  }, [practitioner])
 
   const fetchPatients = async () => {
     try {
@@ -89,6 +149,18 @@ export default function NouveauDocumentPage() {
       console.error('Error fetching patients:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchPractitionerInfo = async () => {
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'include' })
+      const data = await res.json()
+      if (data.success) {
+        setPractitioner(data.user)
+      }
+    } catch (error) {
+      console.error('Error fetching practitioner info:', error)
     }
   }
 
@@ -112,18 +184,23 @@ export default function NouveauDocumentPage() {
       const html2canvas = (await import('html2canvas')).default
       const jsPDF = (await import('jspdf')).default
 
+      // Capture avec haute résolution pour une meilleure qualité
       const canvas = await html2canvas(documentRef.current, {
-        scale: 2,
+        scale: 3, // Augmenté de 2 à 3 pour une meilleure qualité
         useCORS: true,
         backgroundColor: '#ffffff',
+        logging: false,
+        windowWidth: documentRef.current.scrollWidth,
+        windowHeight: documentRef.current.scrollHeight,
       })
 
-      const imgData = canvas.toDataURL('image/png')
+      const imgData = canvas.toDataURL('image/png', 1.0) // Qualité maximale
       const pdf = new jsPDF('p', 'mm', 'a4')
-      const imgWidth = 210
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      const imgWidth = 210 // A4 width in mm
+      const imgHeight = 297 // A4 height in mm
 
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)
+      // Ajouter l'image avec les dimensions exactes A4
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight, '', 'FAST')
 
       const fileName = `${formData.type}_${selectedPatient?.lastName || 'document'}_${new Date().toISOString().split('T')[0]}.pdf`
       pdf.save(fileName)
@@ -281,11 +358,11 @@ export default function NouveauDocumentPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, prescriptions: e.target.value })
                     }
-                    rows={6}
+                    rows={8}
                     placeholder={
                       formData.type === 'ordonnance'
-                        ? "- Acide folique 0.4mg\n  1 comprime par jour\n\n- Fer 80mg\n  1 comprime par jour au repas"
-                        : "Je soussignee, certifie avoir examine ce jour..."
+                        ? "1) Acide folique 0,4mg\n   1 comprimé par jour, le matin à jeun\n   Durée : 3 mois\n\n2) Fer élément 80mg\n   1 comprimé par jour au cours du repas\n   Durée : jusqu'à normalisation de la ferritinémie"
+                        : "Je soussignée, certifie avoir examiné ce jour..."
                     }
                   />
                 </div>
@@ -318,109 +395,202 @@ export default function NouveauDocumentPage() {
             <CardContent className="p-0">
               <div
                 ref={documentRef}
-                className="bg-white p-8 min-h-[800px] border-t"
-                style={{ fontFamily: 'Georgia, serif' }}
+                className="bg-white relative"
+                style={{
+                  fontFamily: 'Arial, sans-serif',
+                  width: '210mm',
+                  minHeight: '297mm',
+                  padding: '20mm 15mm',
+                  margin: '0 auto'
+                }}
               >
-                {/* En-tete */}
-                <div className="flex justify-between items-start mb-8 pb-4 border-b-2 border-slate-200">
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-800">Cabinet Sage-Femme</h2>
-                    <p className="text-sm text-slate-600 mt-1">
-                      [Votre nom]<br />
-                      [Adresse du cabinet]<br />
-                      [Telephone] - [Email]
-                    </p>
-                    <p className="text-xs text-slate-500 mt-2">
-                      N° RPPS: [Numero]
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-slate-600">
-                      {formatDate(new Date())}
-                    </p>
-                  </div>
-                </div>
+                {/* Bordure décorative */}
+                <div className="absolute inset-0 border-4 border-double border-blue-900" style={{ margin: '5mm' }}></div>
 
-                {/* Titre du document */}
-                <div className="text-center mb-8">
-                  <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-wide">
-                    {formData.titre}
-                  </h1>
-                </div>
+                <div className="relative" style={{ minHeight: '257mm' }}>
+                  {/* En-tête professionnel */}
+                  <div className="flex justify-between items-start mb-6 pb-4" style={{ borderBottom: '2px solid #1e40af' }}>
+                    <div style={{ flex: 1 }}>
+                      {practitioner?.nomStructure && (
+                        <div className="text-base font-bold text-blue-900 uppercase" style={{ letterSpacing: '0.5px' }}>
+                          {practitioner.nomStructure}
+                        </div>
+                      )}
+                      <div className="mt-2 text-lg font-bold text-gray-900">
+                        {practitioner?.firstName} {practitioner?.lastName}
+                      </div>
+                      {practitioner?.specialite && (
+                        <div className="text-sm text-gray-700 italic mt-1">{practitioner.specialite}</div>
+                      )}
 
-                {/* Infos patient */}
-                {selectedPatient && (
-                  <div className="mb-8 p-4 bg-slate-50 rounded-lg">
-                    <p className="font-semibold text-slate-800">
-                      Patient(e): {selectedPatient.firstName} {selectedPatient.lastName}
-                    </p>
-                    <p className="text-sm text-slate-600 mt-1">
-                      Ne(e) le: {new Date(selectedPatient.birthDate).toLocaleDateString('fr-FR')}
-                    </p>
-                    {selectedPatient.address && (
-                      <p className="text-sm text-slate-600">
-                        Adresse: {selectedPatient.address}, {selectedPatient.postalCode} {selectedPatient.city}
-                      </p>
-                    )}
-                    {selectedPatient.securityNumber && (
-                      <p className="text-sm text-slate-600">
-                        N° SS: {selectedPatient.securityNumber}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Contenu selon le type */}
-                {formData.type === 'courrier' && formData.destinataire && (
-                  <div className="mb-6">
-                    <p className="font-medium">A l'attention de: {formData.destinataire}</p>
-                    {formData.objet && (
-                      <p className="mt-2">
-                        <span className="font-medium">Objet:</span> {formData.objet}
-                      </p>
-                    )}
-                    <p className="mt-4">Madame, Monsieur,</p>
-                  </div>
-                )}
-
-                {/* Prescriptions / Contenu principal */}
-                <div className="mb-8 min-h-[200px]">
-                  {formData.prescriptions ? (
-                    <div className="whitespace-pre-wrap text-slate-800 leading-relaxed">
-                      {formData.prescriptions}
+                      {/* Coordonnées */}
+                      <div className="mt-3 text-xs text-gray-600 leading-relaxed">
+                        {practitioner?.cabinetAddress && <div>{practitioner.cabinetAddress}</div>}
+                        {(practitioner?.cabinetPostalCode || practitioner?.cabinetCity) && (
+                          <div>{practitioner.cabinetPostalCode} {practitioner.cabinetCity}</div>
+                        )}
+                        {practitioner?.phone && <div>Tél. : {practitioner.phone}</div>}
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-slate-400 italic">
-                      {formData.type === 'ordonnance'
-                        ? 'Les prescriptions apparaitront ici...'
-                        : 'Le contenu du document apparaitra ici...'}
-                    </p>
+
+                    <div className="text-right">
+                      {/* Date */}
+                      <div className="text-sm font-medium text-gray-700 mb-3">
+                        {practitioner?.cabinetCity || '[Ville]'}, le {new Date().toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric'
+                        })}
+                      </div>
+
+                      {/* Codes-barres */}
+                      {(practitioner?.rpps || practitioner?.numeroAM) && (
+                        <div className="space-y-2 mt-4">
+                          {practitioner?.rpps && (
+                            <canvas id="barcode-rpps" style={{ maxWidth: '110px', height: 'auto' }}></canvas>
+                          )}
+                          {practitioner?.numeroAM && (
+                            <canvas id="barcode-am" style={{ maxWidth: '110px', height: 'auto' }}></canvas>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Titre */}
+                  <div className="text-center my-6">
+                    <h1 className="text-2xl font-bold uppercase tracking-widest" style={{
+                      color: '#1e40af',
+                      borderTop: '3px double #1e40af',
+                      borderBottom: '3px double #1e40af',
+                      padding: '12px 0',
+                      letterSpacing: '3px'
+                    }}>
+                      {formData.titre}
+                    </h1>
+                  </div>
+
+                  {/* Informations patient */}
+                  {selectedPatient && (
+                    <div className="mb-8 pb-4" style={{ borderBottom: '1px solid #e5e7eb' }}>
+                      <div className="text-sm">
+                        <div className="font-semibold text-gray-900 mb-1">
+                          Patient(e) : <span className="uppercase">{selectedPatient.lastName}</span> {selectedPatient.firstName}
+                        </div>
+                        <div className="text-gray-700">
+                          Né(e) le : {new Date(selectedPatient.birthDate).toLocaleDateString('fr-FR')}
+                        </div>
+                        {selectedPatient.securityNumber && (
+                          <div className="text-gray-700">
+                            N° Sécurité Sociale : {selectedPatient.securityNumber}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
-                </div>
 
-                {/* Observations */}
-                {formData.observations && (
-                  <div className="mb-8 p-4 bg-amber-50 rounded-lg border border-amber-200">
-                    <p className="text-sm font-medium text-amber-800">Observations:</p>
-                    <p className="text-sm text-amber-700 mt-1">{formData.observations}</p>
+                  {/* Contenu selon type */}
+                  {formData.type === 'courrier' && formData.destinataire && (
+                    <div className="mb-6">
+                      <div className="font-medium mb-2">À l'attention de {formData.destinataire}</div>
+                      {formData.objet && (
+                        <div className="mb-4">
+                          <span className="font-semibold">Objet :</span> {formData.objet}
+                        </div>
+                      )}
+                      <div className="mt-4">Madame, Monsieur,</div>
+                    </div>
+                  )}
+
+                  {/* Prescriptions */}
+                  <div className="mb-8" style={{ minHeight: '200px' }}>
+                    {formData.prescriptions ? (
+                      <div className="text-gray-900" style={{
+                        fontSize: '14px',
+                        lineHeight: '1.8',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        {formData.prescriptions.split('\n').map((line, index) => {
+                          const trimmed = line.trim()
+                          if (!trimmed) return <div key={index} style={{ height: '8px' }}></div>
+
+                          // Si la ligne commence par un tiret ou un numéro
+                          if (trimmed.match(/^[-•]\s/) || trimmed.match(/^\d+[.)]\s/)) {
+                            return (
+                              <div key={index} className="mb-3 pl-4" style={{
+                                textIndent: '-16px',
+                                fontWeight: '500'
+                              }}>
+                                {line}
+                              </div>
+                            )
+                          }
+
+                          // Sinon ligne normale (posologie, etc.)
+                          return (
+                            <div key={index} className="mb-1 pl-6 text-gray-700">
+                              {line}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-gray-400 italic text-center py-8">
+                        {formData.type === 'ordonnance'
+                          ? 'Les prescriptions apparaîtront ici...'
+                          : 'Le contenu du document apparaîtra ici...'}
+                      </div>
+                    )}
                   </div>
-                )}
 
-                {/* Signature */}
-                <div className="mt-12 flex justify-end">
-                  <div className="text-center">
-                    <p className="text-sm text-slate-600 mb-12">
-                      Fait a [Ville], le {formatDate(new Date())}
-                    </p>
-                    <div className="border-t border-slate-300 pt-2 w-48">
-                      <p className="text-sm text-slate-600">Signature et cachet</p>
+                  {/* Observations */}
+                  {formData.observations && (
+                    <div className="mb-8 p-4" style={{
+                      backgroundColor: '#fef3c7',
+                      border: '1px solid #fbbf24',
+                      borderLeft: '4px solid #f59e0b'
+                    }}>
+                      <div className="text-sm font-semibold text-amber-900 mb-2">Observations :</div>
+                      <div className="text-sm text-amber-800">{formData.observations}</div>
+                    </div>
+                  )}
+
+                  {/* Signature */}
+                  <div className="absolute" style={{ bottom: '40mm', right: '15mm' }}>
+                    <div className="text-center">
+                      <div className="text-sm text-gray-600 mb-16">
+                        Signature et cachet du praticien
+                      </div>
+                      <div style={{
+                        borderTop: '1px solid #6b7280',
+                        width: '180px',
+                        paddingTop: '8px'
+                      }}>
+                        <div className="text-xs text-gray-500">
+                          {practitioner?.firstName} {practitioner?.lastName}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Pied de page */}
-                <div className="absolute bottom-8 left-8 right-8 text-center text-xs text-slate-400 border-t pt-4">
-                  Document genere par MaiaLink - {formatDate(new Date())}
+                  {/* Pied de page */}
+                  <div className="absolute text-center text-xs" style={{
+                    bottom: '10mm',
+                    left: '15mm',
+                    right: '15mm',
+                    paddingTop: '8px',
+                    borderTop: '1px solid #d1d5db',
+                    color: '#6b7280'
+                  }}>
+                    <div className="flex justify-between items-center">
+                      <div className="flex gap-4">
+                        {practitioner?.rpps && <span>RPPS: {practitioner.rpps}</span>}
+                        {practitioner?.adeli && <span>ADELI: {practitioner.adeli}</span>}
+                        {practitioner?.numeroAM && <span>N°AM: {practitioner.numeroAM}</span>}
+                      </div>
+                      <div>Document généré le {new Date().toLocaleDateString('fr-FR')}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>

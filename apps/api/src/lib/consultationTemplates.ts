@@ -1,9 +1,17 @@
 // Templates de consultation adaptés au terme de grossesse
 
 export interface ConsultationTemplate {
+  id: string
   name: string
+  description: string
+  type: 'prenatale' | 'postnatale' | 'gyneco' | 'epp' | 'preparation' | 'autre'
   saMin: number
   saMax: number
+  data: {
+    motif?: string
+    examenClinique?: string
+    conclusion?: string
+  }
   examensRecommandes: string[]
   pointsVigilance: string[]
   questionsPoser: string[]
@@ -11,11 +19,68 @@ export interface ConsultationTemplate {
 }
 
 export const consultationTemplates: ConsultationTemplate[] = [
+  // EPP - Entretien Prénatal Précoce
+  {
+    id: 'epp',
+    name: "Entretien Prénatal Précoce (EPP)",
+    description: "Entretien obligatoire pour préparer la grossesse et identifier les besoins",
+    type: 'epp',
+    saMin: 16,
+    saMax: 20,
+    data: {
+      motif: "Entretien Prénatal Précoce (EPP) - Échange autour du projet de naissance",
+      examenClinique: "Pas d'examen clinique systématique lors de l'EPP.\n\nTemps d'écoute et d'échange privilégié avec la patiente et son entourage.",
+      conclusion: "EPP réalisé.\n\nBesoins identifiés et orientation proposée.\n\nProchain RDV : consultation prénatale du [X]ème mois."
+    },
+    examensRecommandes: [],
+    pointsVigilance: [
+      "Situation sociale et professionnelle",
+      "Soutien familial et entourage",
+      "Violences conjugales ou intrafamiliales",
+      "Addictions (tabac, alcool, drogues)",
+      "Santé mentale (anxiété, dépression)",
+      "Précarité ou difficultés financières",
+      "Isolement social",
+      "Antécédents traumatiques"
+    ],
+    questionsPoser: [
+      "Comment vivez-vous cette grossesse?",
+      "Votre entourage vous soutient-il?",
+      "Avez-vous des inquiétudes particulières?",
+      "Situation professionnelle et aménagements nécessaires?",
+      "Projet de naissance (lieu, accompagnement)?",
+      "Souhaitez-vous allaiter?",
+      "Préparation à la naissance envisagée?",
+      "Avez-vous déjà réfléchi au mode de garde?",
+      "Ressources disponibles (famille, amis)?",
+      "Questions sur le déroulement de la grossesse?",
+      "Besoin d'accompagnement spécifique?",
+      "Consommation de substances?",
+      "Vous sentez-vous en sécurité à votre domicile?"
+    ],
+    prescriptionsSuggestions: [
+      "Séances de préparation à la naissance (8 séances remboursées)",
+      "Orientation PMI si besoin d'accompagnement social",
+      "Consultation psychologique si nécessaire",
+      "Consultation diététique si besoin",
+      "Sevrage tabagique (consultation tabacologue)",
+      "Entretien post-natal à programmer (4ème mois post-partum)"
+    ]
+  },
+
   // Premier trimestre
   {
+    id: 'prenatal_t1',
     name: "Consultation prénatale 1er trimestre (avant 14 SA)",
+    description: "Première consultation de grossesse, déclaration et examens initiaux",
+    type: 'prenatale',
     saMin: 0,
     saMax: 14,
+    data: {
+      motif: "Première consultation prénatale - Déclaration de grossesse",
+      examenClinique: "Examen général\nPoids: [X] kg - IMC: [X]\nTension artérielle: [X]/[X] mmHg\nExamen gynécologique: col fermé, utérus gravide\nBruits du cœur fœtal: perçus au doppler\nMembres inférieurs: pas de varices ni d'œdèmes",
+      conclusion: "Grossesse évolutive de [X] SA.\nPatiente informée du suivi de grossesse.\nDéclaration de grossesse remise.\nProchain RDV: consultation 2ème mois."
+    },
     examensRecommandes: [
       "Tension artérielle",
       "Poids et IMC",
@@ -58,9 +123,17 @@ export const consultationTemplates: ConsultationTemplate[] = [
 
   // Deuxième trimestre précoce
   {
+    id: 'prenatal_t2_early',
     name: "Consultation prénatale 15-20 SA",
+    description: "Consultation 2ème trimestre précoce - Mouvements actifs fœtaux",
+    type: 'prenatale',
     saMin: 15,
     saMax: 20,
+    data: {
+      motif: "Consultation prénatale 2ème trimestre - Suivi de grossesse",
+      examenClinique: "Poids: [X] kg (prise: [X] kg depuis début grossesse)\nTension artérielle: [X]/[X] mmHg\nHauteur utérine: [X] cm\nBruits du cœur fœtal: [X] bpm\nMouvements actifs fœtaux: perçus par la patiente\nBandelette urinaire: négative",
+      conclusion: "Grossesse évolutive de [X] SA + [X]j.\nSuivi de grossesse conforme.\nProchain RDV: consultation du [X]ème mois."
+    },
     examensRecommandes: [
       "Tension artérielle",
       "Poids",
@@ -96,9 +169,17 @@ export const consultationTemplates: ConsultationTemplate[] = [
 
   // Deuxième trimestre tardif
   {
+    id: 'prenatal_t2_late',
     name: "Consultation prénatale 21-28 SA",
+    description: "Consultation 2ème trimestre tardif - Dépistage diabète gestationnel",
+    type: 'prenatale',
     saMin: 21,
     saMax: 28,
+    data: {
+      motif: "Consultation prénatale 2ème trimestre tardif - Suivi de grossesse",
+      examenClinique: "Poids: [X] kg\nTension artérielle: [X]/[X] mmHg\nHauteur utérine: [X] cm (conforme au terme)\nBruits du cœur fœtal: [X] bpm, bien perçus\nMouvements actifs fœtaux: réguliers\nBandelette urinaire: négative\nMembres inférieurs: pas d'œdèmes",
+      conclusion: "Grossesse évolutive de [X] SA + [X]j.\nPas de signe d'appel pathologique.\nProchain RDV: consultation du [X]ème mois."
+    },
     examensRecommandes: [
       "Tension artérielle",
       "Poids (surveillance prise pondérale)",
@@ -138,9 +219,17 @@ export const consultationTemplates: ConsultationTemplate[] = [
 
   // Troisième trimestre précoce
   {
+    id: 'prenatal_t3_early',
     name: "Consultation prénatale 29-32 SA",
+    description: "Consultation 3ème trimestre précoce - Surveillance pré-éclampsie",
+    type: 'prenatale',
     saMin: 29,
     saMax: 32,
+    data: {
+      motif: "Consultation prénatale 3ème trimestre - Suivi de grossesse",
+      examenClinique: "Poids: [X] kg\nTension artérielle: [X]/[X] mmHg\nHauteur utérine: [X] cm\nBruits du cœur fœtal: [X] bpm\nMouvements actifs fœtaux: réguliers\nPrésentation fœtale: [céphalique/siège]\nBandelette urinaire: négative\nMembres inférieurs: pas d'œdèmes",
+      conclusion: "Grossesse évolutive de [X] SA + [X]j.\nSurveillance renforcée 3ème trimestre.\nProchain RDV: consultation du [X]ème mois."
+    },
     examensRecommandes: [
       "Tension artérielle",
       "Poids",
@@ -183,9 +272,17 @@ export const consultationTemplates: ConsultationTemplate[] = [
 
   // Troisième trimestre tardif
   {
+    id: 'prenatal_t3_late',
     name: "Consultation prénatale 33-37 SA",
+    description: "Consultation 3ème trimestre tardif - Préparation accouchement",
+    type: 'prenatale',
     saMin: 33,
     saMax: 37,
+    data: {
+      motif: "Consultation prénatale 3ème trimestre tardif - Préparation accouchement",
+      examenClinique: "Poids: [X] kg\nTension artérielle: [X]/[X] mmHg\nHauteur utérine: [X] cm\nBruits du cœur fœtal: [X] bpm\nMouvements actifs fœtaux: réguliers\nPrésentation fœtale: céphalique, [non engagée/engagée]\nScore de Bishop: [X]/13\nBandelette urinaire: négative",
+      conclusion: "Grossesse de [X] SA + [X]j.\nPrésentation céphalique.\nProjet de naissance discuté.\nConsultation anesthésiste réalisée.\nProchain RDV: consultation à terme."
+    },
     examensRecommandes: [
       "Tension artérielle",
       "Poids",
@@ -231,9 +328,17 @@ export const consultationTemplates: ConsultationTemplate[] = [
 
   // Terme et dépassement
   {
+    id: 'prenatal_term',
     name: "Consultation à terme (≥ 37 SA)",
+    description: "Consultation à terme - Surveillance rapprochée",
+    type: 'prenatale',
     saMin: 37,
     saMax: 42,
+    data: {
+      motif: "Consultation à terme - Surveillance grossesse à terme",
+      examenClinique: "Poids: [X] kg\nTension artérielle: [X]/[X] mmHg\nHauteur utérine: [X] cm\nBruits du cœur fœtal: [X] bpm, réguliers\nMouvements actifs fœtaux: ressentis quotidiennement\nPrésentation: céphalique, [engagement]\nScore de Bishop: [X]/13\nMonitoring fœtal: RCF réactif, pas de contractions\nBandelette urinaire: négative",
+      conclusion: "Grossesse à terme de [X] SA + [X]j.\nSurveillance rapprochée.\nSignes de début de travail expliqués.\nProchain RDV: surveillance à terme ou début travail."
+    },
     examensRecommandes: [
       "Tension artérielle",
       "Poids",
@@ -276,9 +381,17 @@ export const consultationTemplates: ConsultationTemplate[] = [
 
   // Post-partum
   {
+    id: 'postpartum_early',
     name: "Consultation post-natale précoce (J1-J10)",
+    description: "Visite post-natale précoce - Mère et bébé",
+    type: 'postnatale',
     saMin: -1, // Spécial post-partum
     saMax: -1,
+    data: {
+      motif: "Consultation post-natale précoce - Visite à domicile J[X]",
+      examenClinique: "État général: bon\nTempérature: [X]°C\nTension artérielle: [X]/[X] mmHg\nSeins: [souples/tendus/engorgés], [crevasses]\nHauteur utérine: [X] cm (involution normale)\nLochies: [normales/abondantes], aspect [physiologique]\nPérinée: [cicatrisation normale/œdème/hématome]\nMembres inférieurs: pas de signes de phlébite\nÉtat psychologique: [bien/fatigue/baby blues]",
+      conclusion: "Suites de couches simples à J[X].\nAllaitement [maternel/artificiel]: [bien installé/difficultés].\nRééducation périnéale à programmer.\nProchain RDV: visite post-natale à 6-8 semaines."
+    },
     examensRecommandes: [
       "Tension artérielle",
       "Température",
@@ -478,4 +591,14 @@ function addWeeks(date: Date, weeks: number): Date {
   const result = new Date(date)
   result.setDate(result.getDate() + weeks * 7)
   return result
+}
+
+// Get templates by consultation type
+export function getTemplatesByType(type: string): ConsultationTemplate[] {
+  return consultationTemplates.filter(t => t.type === type)
+}
+
+// Get template by ID
+export function getTemplateById(id: string): ConsultationTemplate | undefined {
+  return consultationTemplates.find(t => t.id === id)
 }

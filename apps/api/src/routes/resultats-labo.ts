@@ -135,7 +135,7 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req: AuthRe
     const [resultat] = await db.insert(resultatsLaboratoire).values({
       patientId,
       grossesseId: grossesseId || null,
-      userId: req.user!.userId,
+      userId: req.user!.id,
       fichierUrl: req.file.path,
       fichierName: req.file.originalname,
       fichierSize: req.file.size,

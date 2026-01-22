@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
@@ -13,6 +13,9 @@ import {
   SelectValue,
 } from '../../components/ui/select'
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
+import { CardReaderWidget } from '../../components/billing/CardReaderWidget'
+import { FSETransmission } from '../../components/billing/FSETransmission'
+import type { PatientVitaleData, ProfessionalCPSData } from '../../services/billing'
 
 interface Patient {
   id: string
@@ -42,6 +45,7 @@ const COTATIONS = [
 
 export default function NewFacturationPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [patients, setPatients] = useState<Patient[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -52,12 +56,25 @@ export default function NewFacturationPage() {
     status: 'brouillon',
     paymentMethod: '',
     notes: '',
+    partSecu: 0,
+    partMutuelle: 0,
+    consultationId: '',
   })
 
   const [cotations, setCotations] = useState<Cotation[]>([])
+  const [vitaleData, setVitaleData] = useState<PatientVitaleData | null>(null)
+  const [cpsData, setCPSData] = useState<ProfessionalCPSData | null>(null)
 
   useEffect(() => {
     fetchPatients()
+
+    // Pre-fill from query params
+    const patientId = searchParams.get('patientId')
+    const consultationId = searchParams.get('consultationId')
+
+    if (patientId) {
+      setFormData(prev => ({ ...prev, patientId, consultationId: consultationId || '' }))
+    }
   }, [])
 
   const fetchPatients = async () => {
@@ -313,6 +330,94 @@ export default function NewFacturationPage() {
                 <div className="flex justify-between items-center text-lg font-semibold">
                   <span>Total TTC</span>
                   <span>{calculateTotal().toFixed(2)} €</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Lecteur de cartes Vitale / CPS */}
+        <CardReaderWidget
+          onVitaleRead={(data) => {
+            setVitaleData(data)
+            // Pré-remplir les informations patient si nécessaire
+          }}
+          onCPSRead={(data) => {
+            setCPSData(data)
+          }}
+        />
+
+        {/* Télétransmission FSE */}
+        {cotations.length > 0 && (
+          <FSETransmission
+            patientData={vitaleData}
+            professionalData={cpsData}
+            actes={cotations}
+            onTransmissionSuccess={(result) => {
+              console.log('Télétransmission réussie:', result)
+              // Mettre à jour le statut de la facture
+              setFormData(prev => ({ ...prev, status: 'envoyee' }))
+            }}
+          />
+        )}
+
+        {/* Répartition paiement */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Répartition du paiement</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="partSecu">Part Sécurité Sociale (Carte Vitale)</Label>
+                <div className="relative">
+                  <Input
+                    id="partSecu"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.partSecu}
+                    onChange={(e) => setFormData({ ...formData, partSecu: parseFloat(e.target.value) || 0 })}
+                    className="pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">€</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="partMutuelle">Part Mutuelle</Label>
+                <div className="relative">
+                  <Input
+                    id="partMutuelle"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.partMutuelle}
+                    onChange={(e) => setFormData({ ...formData, partMutuelle: parseFloat(e.target.value) || 0 })}
+                    className="pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">€</span>
+                </div>
+              </div>
+            </div>
+
+            {cotations.length > 0 && (
+              <div className="pt-4 border-t space-y-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-600">Total facture</span>
+                  <span className="font-medium">{calculateTotal().toFixed(2)} €</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-600">Part Sécu + Mutuelle</span>
+                  <span className="font-medium">{(formData.partSecu + formData.partMutuelle).toFixed(2)} €</span>
+                </div>
+                <div className="flex justify-between items-center text-sm font-semibold">
+                  <span className={`${(calculateTotal() - formData.partSecu - formData.partMutuelle) > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                    Reste à charge patient
+                  </span>
+                  <span className={`${(calculateTotal() - formData.partSecu - formData.partMutuelle) > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                    {(calculateTotal() - formData.partSecu - formData.partMutuelle).toFixed(2)} €
+                  </span>
                 </div>
               </div>
             )}

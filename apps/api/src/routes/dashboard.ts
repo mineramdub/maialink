@@ -7,6 +7,82 @@ import { eq, and, gte, lte, between, sql } from 'drizzle-orm'
 const router = Router()
 router.use(authMiddleware)
 
+// Route pour les stats du widget
+router.get('/stats', async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.id
+    const today = new Date()
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    const firstDayOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+    const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
+
+    // Total patientes
+    const totalPatients = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(patients)
+      .where(and(
+        eq(patients.userId, userId),
+        eq(patients.status, 'active')
+      ))
+
+    // Nouvelles patientes ce mois
+    const newPatientsThisMonth = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(patients)
+      .where(and(
+        eq(patients.userId, userId),
+        gte(patients.createdAt, firstDayOfMonth),
+        lte(patients.createdAt, lastDayOfMonth)
+      ))
+
+    // Grossesses actives
+    const activeGrossesses = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(grossesses)
+      .where(and(
+        eq(grossesses.userId, userId),
+        eq(grossesses.status, 'en_cours')
+      ))
+
+    // Consultations ce mois
+    const consultationsThisMonth = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(consultations)
+      .where(and(
+        eq(consultations.userId, userId),
+        gte(consultations.date, firstDayOfMonth),
+        lte(consultations.date, lastDayOfMonth)
+      ))
+
+    // Consultations mois dernier (pour le changement)
+    const consultationsLastMonth = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(consultations)
+      .where(and(
+        eq(consultations.userId, userId),
+        gte(consultations.date, firstDayOfLastMonth),
+        lte(consultations.date, lastDayOfLastMonth)
+      ))
+
+    const consultationsChange = Number(consultationsThisMonth[0]?.count || 0) - Number(consultationsLastMonth[0]?.count || 0)
+
+    res.json({
+      success: true,
+      stats: {
+        totalPatients: Number(totalPatients[0]?.count || 0),
+        newPatientsThisMonth: Number(newPatientsThisMonth[0]?.count || 0),
+        activeGrossesses: Number(activeGrossesses[0]?.count || 0),
+        consultationsThisMonth: Number(consultationsThisMonth[0]?.count || 0),
+        consultationsChange
+      }
+    })
+  } catch (error) {
+    console.error('Stats error:', error)
+    res.status(500).json({ success: false, error: 'Erreur serveur' })
+  }
+})
+
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
@@ -46,12 +122,12 @@ router.get('/', async (req: AuthRequest, res) => {
 
     // Stats - CA du mois
     const monthlyRevenue = await db
-      .select({ sum: sql<number>`COALESCE(SUM(montant_total), 0)` })
+      .select({ sum: sql<number>`COALESCE(SUM(montant_ttc), 0)` })
       .from(invoices)
       .where(and(
         eq(invoices.userId, userId),
-        gte(invoices.dateFacture, firstDayOfMonth),
-        lte(invoices.dateFacture, lastDayOfMonth)
+        gte(invoices.date, firstDayOfMonth),
+        lte(invoices.date, lastDayOfMonth)
       ))
 
     // Alertes - Grossesses proche du terme (>= 37 SA)

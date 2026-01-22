@@ -37,6 +37,9 @@ export async function GET(
         alertes: {
           where: (alertes, { eq }) => eq(alertes.isRead, false),
         },
+        resultatsLabo: {
+          orderBy: (resultatsLabo, { desc }) => [desc(resultatsLabo.dateAnalyse), desc(resultatsLabo.createdAt)],
+        },
       },
     })
 

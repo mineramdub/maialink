@@ -143,7 +143,7 @@ export default function PatientsPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
-            placeholder="Rechercher par nom, prenom ou email..."
+            placeholder="Rechercher par nom, prénom, email ou date de naissance..."
             className="pl-10"
             value={search}
             onChange={(e) => setSearch(e.target.value)}

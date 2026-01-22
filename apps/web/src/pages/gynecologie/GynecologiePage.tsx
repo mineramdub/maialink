@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Plus, Activity, Loader2, Calendar, X, User, FileText } from 'lucide-react'
 import { formatDate } from '../../lib/utils'
 import { getObservationTemplate, generateObservationFromData } from '../../lib/observationTemplates'
+import { GynecoContraceptifSuggestion } from '../../components/GynecoContraceptifSuggestion'
 
 interface Patient {
   id: string
@@ -48,6 +49,11 @@ export default function GynecologiePage() {
   const [formData, setFormData] = useState<any>({
     date: new Date().toISOString().split('T')[0],
   })
+  const [lastSubmittedConsultation, setLastSubmittedConsultation] = useState<{
+    patientId: string
+    contraceptionActuelle?: string
+    dateDebutContraception?: string
+  } | null>(null)
 
   useEffect(() => {
     fetchConsultations()
@@ -101,6 +107,13 @@ export default function GynecologiePage() {
       const data = await res.json()
 
       if (data.success) {
+        // Store consultation data for contraceptif suggestion
+        setLastSubmittedConsultation({
+          patientId: formData.patientId,
+          contraceptionActuelle: formData.contraceptionActuelle,
+          dateDebutContraception: formData.dateDebutContraception,
+        })
+
         setShowForm(false)
         setFormData({ date: new Date().toISOString().split('T')[0] })
         fetchConsultations()
@@ -424,6 +437,21 @@ export default function GynecologiePage() {
             </form>
           </CardContent>
         </Card>
+      )}
+
+      {/* Contraceptif Suggestion */}
+      {lastSubmittedConsultation && (
+        <GynecoContraceptifSuggestion
+          patientId={lastSubmittedConsultation.patientId}
+          contraceptionActuelle={lastSubmittedConsultation.contraceptionActuelle}
+          dateDebutContraception={lastSubmittedConsultation.dateDebutContraception}
+          onContraceptifAdded={() => {
+            setLastSubmittedConsultation(null)
+          }}
+          onContraceptifRemoved={() => {
+            setLastSubmittedConsultation(null)
+          }}
+        />
       )}
 
       {/* Liste des consultations */}

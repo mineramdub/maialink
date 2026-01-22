@@ -161,7 +161,7 @@ export default function GrossesseDetailPage({ params }: { params: Promise<{ id: 
         </div>
         <div className="flex gap-2 ml-12 lg:ml-0">
           <Button variant="outline" asChild>
-            <Link href={`/consultations/new?patient=${grossesse.patientId}&grossesse=${grossesse.id}`}>
+            <Link href={`/consultations/new?patient=${grossesse.patientId}&grossesse=${grossesse.id}&type=prenatale`}>
               <Plus className="h-4 w-4 mr-1" />
               Consultation
             </Link>
@@ -317,7 +317,7 @@ export default function GrossesseDetailPage({ params }: { params: Promise<{ id: 
                               <Badge variant="success">Realise</Badge>
                             ) : isCurrent ? (
                               <Button size="sm" asChild>
-                                <Link href={`/consultations/new?patient=${grossesse.patientId}&grossesse=${grossesse.id}`}>
+                                <Link href={`/consultations/new?patient=${grossesse.patientId}&grossesse=${grossesse.id}&type=prenatale`}>
                                   Saisir
                                 </Link>
                               </Button>
@@ -566,7 +566,7 @@ export default function GrossesseDetailPage({ params }: { params: Promise<{ id: 
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Consultations prenatales</CardTitle>
               <Button asChild>
-                <Link href={`/consultations/new?patient=${grossesse.patientId}&grossesse=${grossesse.id}`}>
+                <Link href={`/consultations/new?patient=${grossesse.patientId}&grossesse=${grossesse.id}&type=prenatale`}>
                   <Plus className="h-4 w-4 mr-1" />
                   Nouvelle consultation
                 </Link>

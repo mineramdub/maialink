@@ -85,6 +85,8 @@ router.post('/', async (req: AuthRequest, res) => {
       parite: patient.para || 0,
       facteursRisque: body.facteursRisque || [],
       notes: body.notes || null,
+      suiviPartageGyneco: body.suiviPartageGyneco || false,
+      nomGyneco: body.nomGyneco || null,
     }).returning()
 
     // Update patient gravida
@@ -246,10 +248,54 @@ router.get('/:id/calendrier', async (req: AuthRequest, res) => {
     // Get consultation recommendations
     const recommendations = getConsultationRecommendations(currentSA)
 
+    // Récupérer les examens réalisés pour cette grossesse
+    const { examensPrenataux, consultations: consultationsTable } = await import('../lib/schema.js')
+    const examensRealises = await db.query.examensPrenataux.findMany({
+      where: eq(examensPrenataux.grossesseId, id)
+    })
+
+    // Récupérer les consultations
+    const consultations = await db.query.consultations.findMany({
+      where: eq(consultationsTable.grossesseId, id)
+    })
+
+    // Pour chaque événement du calendrier, déterminer s'il est complété
+    const eventsWithStatus = CALENDRIER_GROSSESSE.map(event => {
+      let isCompleted = false
+      let completedDate = null
+
+      // Vérifier selon le type d'événement
+      if (event.type === 'consultation') {
+        // Chercher consultation correspondante
+        const matchingConsult = consultations.find((c: any) =>
+          c.saTerm !== undefined && c.saTerm !== null &&
+          c.saTerm >= event.saMin && c.saTerm <= event.saMax
+        )
+        isCompleted = !!matchingConsult
+        completedDate = matchingConsult?.date
+      } else if (event.type === 'examen' || event.type === 'echographie' || event.type === 'biologie') {
+        // Chercher examen correspondant
+        const matchingExam = examensRealises.find((e: any) =>
+          event.examens?.includes(e.nom) && e.dateRealisee
+        )
+        isCompleted = !!matchingExam
+        completedDate = matchingExam?.dateRealisee
+      }
+
+      return {
+        ...event,
+        isCompleted,
+        completedDate,
+        status: isCompleted ? 'done' :
+                currentSA > event.saMax ? 'overdue' :
+                currentSA >= event.saMin && currentSA <= event.saMax ? 'pending' : 'upcoming'
+      }
+    })
+
     res.json({
       success: true,
       currentSA,
-      calendrier: CALENDRIER_GROSSESSE,
+      calendrier: eventsWithStatus,
       events,
       recommendations
     })
@@ -291,6 +337,55 @@ router.get('/:id/recommendations', async (req: AuthRequest, res) => {
     })
   } catch (error) {
     console.error('Get recommendations error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// POST /api/grossesses/:grossesseId/calendar/:eventId/validate - Mark calendar event as completed
+router.post('/:grossesseId/calendar/:eventId/validate', async (req: AuthRequest, res) => {
+  try {
+    const { grossesseId, eventId } = req.params
+    const { dateRealisee, notes } = req.body
+
+    // Verify grossesse belongs to user
+    const grossesse = await db.query.grossesses.findFirst({
+      where: and(
+        eq(grossesses.id, grossesseId),
+        eq(grossesses.userId, req.user!.id)
+      )
+    })
+
+    if (!grossesse) {
+      return res.status(404).json({ error: 'Grossesse non trouvée' })
+    }
+
+    // Import examensPrenataux schema
+    const { examensPrenataux } = await import('../lib/schema.js')
+
+    // Create an exam record to mark this event as completed
+    const [examen] = await db.insert(examensPrenataux).values({
+      grossesseId,
+      type: 'autre',
+      nom: `Validation calendrier: ${eventId}`,
+      dateRealisee: dateRealisee ? new Date(dateRealisee) : new Date(),
+      datePrevue: dateRealisee ? new Date(dateRealisee) : new Date(),
+      normal: true,
+      notes: notes || `Événement du calendrier validé manuellement`,
+      resultat: 'Validé'
+    }).returning()
+
+    // Audit log
+    await db.insert(auditLogs).values({
+      userId: req.user!.id,
+      action: 'create',
+      tableName: 'examensPrenataux',
+      recordId: examen.id,
+      newData: examen
+    })
+
+    res.json({ success: true, examen })
+  } catch (error) {
+    console.error('Validate calendar event error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })

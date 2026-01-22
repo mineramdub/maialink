@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import {
   ArrowLeft,
   Loader2,
@@ -34,6 +35,22 @@ import {
   Trash2,
 } from 'lucide-react'
 import { formatDate, calculateAge, calculateSA, calculateDPA, calculateIMC, getIMCCategory } from '@/lib/utils'
+import { ResultatLaboModal } from '@/components/patient/ResultatLaboModal'
+
+interface ResultatLabo {
+  id: string
+  type: string
+  nom: string
+  dateAnalyse?: string
+  dateReception?: string
+  resultatManuel?: string
+  fichierUrl?: string
+  fichierNom?: string
+  normal?: boolean
+  commentaire?: string
+  laboratoire?: string
+  createdAt: string
+}
 
 interface Patient {
   id: string
@@ -58,6 +75,27 @@ interface Patient {
   traitementEnCours?: string
   gravida: number
   para: number
+  // Gynécologie
+  ageMenarche?: number
+  dureeCycle?: number
+  dureeRegles?: number
+  regulariteCycle?: string
+  dysmenorrhee?: string
+  dyspareunie?: string
+  leucorrhees?: string
+  contraceptionActuelle?: string
+  dateDernierFrottis?: string
+  dateDerniereMammographie?: string
+  // Obstétrique détaillé
+  datesDernieresRegles?: string
+  gestesParite?: string
+  accouchements?: string
+  cesarienne?: boolean
+  nombreCesariennes?: number
+  fausseCouches?: number
+  ivg?: number
+  grossesseExtraUterine?: boolean
+  mortNe?: boolean
   mutuelle?: string
   numeroMutuelle?: string
   medecinTraitant?: string
@@ -69,6 +107,7 @@ interface Patient {
   grossesses: Grossesse[]
   consultations: Consultation[]
   alertes: Alerte[]
+  resultatsLabo?: ResultatLabo[]
 }
 
 interface Grossesse {
@@ -110,6 +149,11 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   const [nextNotes, setNextNotes] = useState('')
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [isSavingNotes, setIsSavingNotes] = useState(false)
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState<string>('')
+  const [isSavingField, setIsSavingField] = useState(false)
+  const [showOncogeneticScore, setShowOncogeneticScore] = useState(false)
+  const [showLabModal, setShowLabModal] = useState(false)
 
   useEffect(() => {
     fetchPatient()
@@ -181,6 +225,134 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
     }
   }
 
+  const startEditField = (fieldName: string, currentValue: string) => {
+    setEditingField(fieldName)
+    setEditValue(currentValue || '')
+  }
+
+  const cancelEditField = () => {
+    setEditingField(null)
+    setEditValue('')
+  }
+
+  const saveField = async (fieldName: string) => {
+    if (!patient) return
+    setIsSavingField(true)
+    try {
+      let bodyData: any = {}
+
+      // Gestion spéciale pour le groupe sanguin
+      if (fieldName === 'bloodType' && editValue) {
+        const bloodType = editValue.slice(0, -1) // A, B, AB ou O
+        const rhesus = editValue.slice(-1) // + ou -
+        bodyData = { bloodType, rhesus }
+      } else {
+        bodyData = { [fieldName]: editValue || null }
+      }
+
+      const res = await fetch(`/api/patients/${patient.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyData),
+      })
+      const data = await res.json()
+      if (data.success) {
+        if (fieldName === 'bloodType' && editValue) {
+          setPatient({ ...patient, bloodType: editValue.slice(0, -1), rhesus: editValue.slice(-1) })
+        } else {
+          setPatient({ ...patient, [fieldName]: editValue || undefined })
+        }
+        setEditingField(null)
+        setEditValue('')
+      }
+    } catch (error) {
+      console.error('Error saving field:', error)
+    } finally {
+      setIsSavingField(false)
+    }
+  }
+
+  const handleDeleteResultat = async (resultatId: string) => {
+    if (!confirm('Supprimer ce résultat de laboratoire ?')) return
+
+    try {
+      const res = await fetch(`/api/resultats-labo/${resultatId}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json()
+      if (data.success) {
+        fetchPatient()
+      }
+    } catch (error) {
+      console.error('Error deleting resultat:', error)
+    }
+  }
+
+  // Calcul du score oncogénétique selon critères Eisinger
+  const calculateOncogeneticScore = () => {
+    if (!patient?.antecedentsFamiliaux) return { score: 0, recommendation: '', details: [] }
+
+    const atcds = patient.antecedentsFamiliaux.join(' ').toLowerCase()
+    let score = 0
+    const details: string[] = []
+
+    // Critères majeurs (score élevé)
+    if (atcds.includes('cancer du sein') && atcds.includes('ovaire')) {
+      score += 3
+      details.push('Association cancer sein + ovaire dans la famille')
+    }
+
+    if (atcds.includes('cancer du sein') && atcds.includes('homme')) {
+      score += 3
+      details.push('Cancer du sein chez un homme')
+    }
+
+    // Comptage des cas de cancer du sein
+    const cancerSeinMatches = (atcds.match(/cancer du sein/g) || []).length
+    if (cancerSeinMatches >= 3) {
+      score += 2
+      details.push(`${cancerSeinMatches} cas de cancer du sein dans la famille`)
+    } else if (cancerSeinMatches === 2) {
+      score += 1
+      details.push(`${cancerSeinMatches} cas de cancer du sein dans la famille`)
+    } else if (cancerSeinMatches === 1) {
+      score += 0.5
+      details.push('1 cas de cancer du sein dans la famille')
+    }
+
+    // Age précoce
+    if (atcds.includes('avant') || atcds.includes('jeune') || atcds.includes('40 ans')) {
+      score += 1
+      details.push('Cancer diagnostiqué à un âge précoce')
+    }
+
+    // Cancer bilatéral
+    if (atcds.includes('bilatéral') || atcds.includes('deux seins')) {
+      score += 1
+      details.push('Cancer du sein bilatéral')
+    }
+
+    // Recommandation
+    let recommendation = ''
+    let level: 'low' | 'moderate' | 'high' = 'low'
+
+    if (score >= 3) {
+      recommendation = 'Consultation oncogénétique FORTEMENT RECOMMANDÉE'
+      level = 'high'
+    } else if (score >= 1.5) {
+      recommendation = 'Consultation oncogénétique recommandée'
+      level = 'moderate'
+    } else if (score > 0) {
+      recommendation = 'Surveillance renforcée conseillée'
+      level = 'low'
+    } else {
+      recommendation = 'Pas de critère oncogénétique identifié'
+      level = 'low'
+    }
+
+    return { score, recommendation, details, level }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -248,7 +420,6 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           </Button>
           <Button asChild>
             <Link href={`/patients/${patient.id}/edit`}>
-              <Edit className="h-4 w-4 mr-1" />
               Modifier
             </Link>
           </Button>
@@ -286,6 +457,41 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           ))}
         </div>
       )}
+
+      {/* Rappel frottis */}
+      {(() => {
+        if (!patient.dateDernierFrottis) {
+          return (
+            <div className="flex items-start gap-3 p-3 rounded-lg border bg-amber-50 border-amber-200">
+              <AlertTriangle className="h-5 w-5 mt-0.5 text-amber-600" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-900">Frottis cervico-utérin à programmer</p>
+                <p className="text-xs text-amber-700 mt-1">Aucun frottis enregistré. Recommandation : tous les 3 ans entre 25 et 65 ans.</p>
+              </div>
+            </div>
+          )
+        }
+
+        const dateFrottis = new Date(patient.dateDernierFrottis)
+        const now = new Date()
+        const diffYears = (now.getTime() - dateFrottis.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+
+        if (diffYears >= 3) {
+          return (
+            <div className="flex items-start gap-3 p-3 rounded-lg border bg-amber-50 border-amber-200">
+              <AlertTriangle className="h-5 w-5 mt-0.5 text-amber-600" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-900">Frottis cervico-utérin à renouveler</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Dernier frottis : {formatDate(patient.dateDernierFrottis)}
+                  {diffYears >= 4 && <span className="font-semibold"> (en retard)</span>}
+                </p>
+              </div>
+            </div>
+          )
+        }
+        return null
+      })()}
 
       {/* Grossesse en cours */}
       {currentGrossesse && sa && (
@@ -476,33 +682,91 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
 
             {/* Medical */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">Informations medicales</CardTitle>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href={`/patients/${patient.id}/edit?tab=medical`}>
+                    <Edit className="h-4 w-4" />
+                  </Link>
+                </Button>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Groupe sanguin</span>
-                  <span className="font-medium">
-                    {patient.bloodType ? `${patient.bloodType}${patient.rhesus}` : 'Non renseigne'}
-                  </span>
-                </div>
+              <CardContent className="space-y-2 text-sm">
+                {/* Groupe sanguin */}
+                {patient.bloodType && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Groupe sanguin:</span>
+                    <span className="font-medium">{patient.bloodType}{patient.rhesus}</span>
+                  </div>
+                )}
+
+                {/* Médecin traitant */}
                 {patient.medecinTraitant && (
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Medecin traitant</span>
+                    <span className="text-slate-500">Médecin traitant:</span>
                     <span className="font-medium">{patient.medecinTraitant}</span>
                   </div>
                 )}
+
+                {/* Allergies */}
                 {patient.allergies && (
-                  <div className="pt-3 border-t">
-                    <p className="text-xs text-slate-500 mb-1">Allergies</p>
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-slate-500 mb-1">Allergies:</p>
                     <Badge variant="destructive">{patient.allergies}</Badge>
                   </div>
                 )}
+
+                {/* Traitements */}
                 {patient.traitementEnCours && (
-                  <div className="pt-3 border-t">
-                    <p className="text-xs text-slate-500 mb-1">Traitements en cours</p>
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-slate-500 mb-1">Traitements:</p>
                     <p className="text-sm">{patient.traitementEnCours}</p>
                   </div>
+                )}
+
+                {/* ATCD médicaux */}
+                {patient.antecedentsMedicaux && patient.antecedentsMedicaux.length > 0 && (
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-slate-500 mb-1">ATCD médicaux:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {patient.antecedentsMedicaux.map((atcd, idx) => (
+                        <Badge key={idx} variant="secondary">{atcd}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ATCD chirurgicaux */}
+                {patient.antecedentsChirurgicaux && patient.antecedentsChirurgicaux.length > 0 && (
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-slate-500 mb-1">ATCD chirurgicaux:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {patient.antecedentsChirurgicaux.map((atcd, idx) => (
+                        <Badge key={idx} variant="secondary">{atcd}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ATCD familiaux */}
+                {patient.antecedentsFamiliaux && patient.antecedentsFamiliaux.length > 0 && (
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-slate-500 mb-1">ATCD familiaux:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {patient.antecedentsFamiliaux.map((atcd, idx) => (
+                        <Badge key={idx} variant="outline">{atcd}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Message si aucune info */}
+                {!patient.bloodType && !patient.medecinTraitant && !patient.allergies && !patient.traitementEnCours &&
+                 (!patient.antecedentsMedicaux || patient.antecedentsMedicaux.length === 0) &&
+                 (!patient.antecedentsChirurgicaux || patient.antecedentsChirurgicaux.length === 0) &&
+                 (!patient.antecedentsFamiliaux || patient.antecedentsFamiliaux.length === 0) && (
+                  <p className="text-sm text-slate-400 text-center py-4">
+                    Aucune information médicale renseignée
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -717,20 +981,74 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
         <TabsContent value="documents">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Documents</CardTitle>
-              <Button asChild>
-                <Link href={`/documents/new?patient=${patient.id}`}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Nouveau document
-                </Link>
+              <CardTitle>Résultats de laboratoire</CardTitle>
+              <Button onClick={() => setShowLabModal(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                Nouveau résultat
               </Button>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-slate-500 text-center py-8">
-                Aucun document pour cette patiente
-              </p>
+              {!patient.resultatsLabo || patient.resultatsLabo.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-8">
+                  Aucun résultat de laboratoire
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {patient.resultatsLabo.map((resultat) => (
+                    <div key={resultat.id} className="flex items-start justify-between p-3 border rounded-lg hover:bg-slate-50">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium">{resultat.nom}</h4>
+                          {resultat.normal !== null && resultat.normal !== undefined && (
+                            <Badge variant={resultat.normal ? 'default' : 'destructive'}>
+                              {resultat.normal ? 'Normal' : 'Anormal'}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-500">
+                          {resultat.dateAnalyse && formatDate(resultat.dateAnalyse)}
+                          {resultat.laboratoire && ` • ${resultat.laboratoire}`}
+                        </p>
+                        {resultat.resultatManuel && (
+                          <div className="mt-2 bg-slate-50 p-3 rounded border border-slate-200">
+                            <p className="text-sm whitespace-pre-wrap font-mono leading-relaxed">
+                              {resultat.resultatManuel}
+                            </p>
+                          </div>
+                        )}
+                        {resultat.commentaire && (
+                          <p className="text-sm text-slate-600 mt-1 italic">{resultat.commentaire}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        {resultat.fichierUrl && (
+                          <Button size="sm" variant="outline" asChild>
+                            <a href={resultat.fichierUrl} target="_blank" rel="noopener noreferrer">
+                              <FileText className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteResultat(resultat.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          <ResultatLaboModal
+            patientId={patient.id}
+            open={showLabModal}
+            onClose={() => setShowLabModal(false)}
+            onSuccess={fetchPatient}
+          />
         </TabsContent>
 
         {/* Facturation */}

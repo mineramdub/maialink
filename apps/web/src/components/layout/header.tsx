@@ -114,7 +114,7 @@ export function Header({ user }: HeaderProps) {
                     <p className="text-xs text-slate-500">{user?.email}</p>
                   </div>
                   <Link
-                    href="/parametres"
+                    to="/parametres"
                     className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                     onClick={() => setShowUserMenu(false)}
                   >
@@ -159,7 +159,7 @@ export function Header({ user }: HeaderProps) {
                 {mobileNavigation.map((item) => (
                   <li key={item.name}>
                     <Link
-                      href={item.href}
+                      to={item.href}
                       className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
                       onClick={() => setShowMobileMenu(false)}
                     >

@@ -5,6 +5,8 @@ import { Textarea } from './ui/textarea'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
+import { Checkbox } from './ui/checkbox'
+import { Badge } from './ui/badge'
 import {
   X,
   GripVertical,
@@ -20,17 +22,31 @@ import {
   FileText,
   MessageSquare,
   CheckCircle,
+  Bell,
+  ListTodo,
+  AlertTriangle,
+  CheckCheck,
+  Trash2,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { addDays, differenceInDays, format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 interface FloatingWidgetProps {
   onClose?: () => void
 }
 
+interface Task {
+  id: string
+  text: string
+  completed: boolean
+  createdAt: string
+}
+
 export function FloatingWidget({ onClose }: FloatingWidgetProps) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   // Position and size state
   const [position, setPosition] = useState({ x: 20, y: 100 })
@@ -43,6 +59,10 @@ export function FloatingWidget({ onClose }: FloatingWidgetProps) {
 
   // Bloc-notes state (persisted in localStorage)
   const [notes, setNotes] = useState('')
+
+  // Tâches state (persisted in localStorage)
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [newTaskText, setNewTaskText] = useState('')
 
   // Calculatrice SA state
   const [ddr, setDdr] = useState('')
@@ -62,11 +82,33 @@ export function FloatingWidget({ onClose }: FloatingWidgetProps) {
 
   const widgetRef = useRef<HTMLDivElement>(null)
 
+  // Fetch alerts
+  const { data: alertsData } = useQuery({
+    queryKey: ['alerts-widget'],
+    queryFn: async () => {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/alertes`,
+        { credentials: 'include' }
+      )
+      if (!res.ok) throw new Error('Failed to fetch alerts')
+      return res.json()
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+  })
+
+  const alerts = alertsData?.alertes || []
+
   // Load notes from localStorage on mount
   useEffect(() => {
     const savedNotes = localStorage.getItem('maialink_widget_notes')
     if (savedNotes) {
       setNotes(savedNotes)
+    }
+
+    // Load saved tasks
+    const savedTasks = localStorage.getItem('maialink_widget_tasks')
+    if (savedTasks) {
+      setTasks(JSON.parse(savedTasks))
     }
 
     // Load saved position
@@ -86,6 +128,40 @@ export function FloatingWidget({ onClose }: FloatingWidgetProps) {
   const handleNotesChange = (value: string) => {
     setNotes(value)
     localStorage.setItem('maialink_widget_notes', value)
+  }
+
+  // Tasks management
+  const saveTasks = (newTasks: Task[]) => {
+    setTasks(newTasks)
+    localStorage.setItem('maialink_widget_tasks', JSON.stringify(newTasks))
+  }
+
+  const addTask = () => {
+    if (!newTaskText.trim()) return
+    const newTask: Task = {
+      id: Date.now().toString(),
+      text: newTaskText.trim(),
+      completed: false,
+      createdAt: new Date().toISOString(),
+    }
+    saveTasks([...tasks, newTask])
+    setNewTaskText('')
+  }
+
+  const toggleTask = (taskId: string) => {
+    saveTasks(
+      tasks.map((task) =>
+        task.id === taskId ? { ...task, completed: !task.completed } : task
+      )
+    )
+  }
+
+  const deleteTask = (taskId: string) => {
+    saveTasks(tasks.filter((task) => task.id !== taskId))
+  }
+
+  const clearCompletedTasks = () => {
+    saveTasks(tasks.filter((task) => !task.completed))
   }
 
   // Save position to localStorage
@@ -341,10 +417,28 @@ export function FloatingWidget({ onClose }: FloatingWidgetProps) {
         {/* Content */}
         <CardContent className="flex-1 overflow-hidden p-0 no-drag">
           <Tabs defaultValue="outils" className="h-full flex flex-col">
-            <TabsList className="grid w-full grid-cols-3 rounded-none">
+            <TabsList className="grid w-full grid-cols-5 rounded-none">
               <TabsTrigger value="outils" className="text-xs">
                 <Plus className="h-3 w-3 mr-1" />
                 Actions
+              </TabsTrigger>
+              <TabsTrigger value="alertes" className="text-xs relative">
+                <Bell className="h-3 w-3 mr-1" />
+                Alertes
+                {alerts.length > 0 && (
+                  <Badge variant="destructive" className="ml-1 h-4 px-1 text-[10px]">
+                    {alerts.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="taches" className="text-xs relative">
+                <ListTodo className="h-3 w-3 mr-1" />
+                Tâches
+                {tasks.filter(t => !t.completed).length > 0 && (
+                  <Badge className="ml-1 h-4 px-1 text-[10px]">
+                    {tasks.filter(t => !t.completed).length}
+                  </Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger value="calculatrice" className="text-xs">
                 <Calculator className="h-3 w-3 mr-1" />
@@ -420,6 +514,192 @@ export function FloatingWidget({ onClose }: FloatingWidgetProps) {
                       <ExternalLink className="h-3 w-3 ml-auto" />
                     </Button>
                   </div>
+                </div>
+              </TabsContent>
+
+              {/* Alertes */}
+              <TabsContent value="alertes" className="p-4 space-y-3 m-0">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-slate-700">
+                      Alertes actives
+                    </h4>
+                    <Badge variant="destructive" className="h-5">
+                      {alerts.length}
+                    </Badge>
+                  </div>
+
+                  {alerts.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <CheckCircle className="h-12 w-12 text-green-500 mb-2" />
+                      <p className="text-sm text-slate-600 font-medium">
+                        Aucune alerte
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Tout va bien !
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {alerts.map((alert: any) => (
+                        <div
+                          key={alert.id}
+                          className="p-3 rounded-lg border-2 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+                          style={{
+                            borderColor:
+                              alert.type === 'critique'
+                                ? '#ef4444'
+                                : alert.type === 'important'
+                                ? '#f59e0b'
+                                : '#3b82f6',
+                          }}
+                          onClick={() => navigate(`/alertes`)}
+                        >
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle
+                              className="h-4 w-4 flex-shrink-0 mt-0.5"
+                              style={{
+                                color:
+                                  alert.type === 'critique'
+                                    ? '#ef4444'
+                                    : alert.type === 'important'
+                                    ? '#f59e0b'
+                                    : '#3b82f6',
+                              }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-slate-900">
+                                {alert.patientNom}
+                              </p>
+                              <p className="text-xs text-slate-600 mt-1">
+                                {alert.message}
+                              </p>
+                              {alert.dateCreation && (
+                                <p className="text-[10px] text-slate-400 mt-1">
+                                  {format(
+                                    new Date(alert.dateCreation),
+                                    'dd/MM/yyyy à HH:mm',
+                                    { locale: fr }
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <Button
+                    className="w-full mt-3"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/alertes')}
+                  >
+                    Voir toutes les alertes
+                  </Button>
+                </div>
+              </TabsContent>
+
+              {/* Tâches */}
+              <TabsContent value="taches" className="p-4 space-y-3 m-0">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-slate-700">
+                      Mes tâches
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      <Badge className="h-5">
+                        {tasks.filter(t => !t.completed).length}/{tasks.length}
+                      </Badge>
+                      {tasks.some(t => t.completed) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={clearCompletedTasks}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Nettoyer
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Add task input */}
+                  <div className="flex gap-2 mb-3">
+                    <Input
+                      placeholder="Nouvelle tâche..."
+                      value={newTaskText}
+                      onChange={(e) => setNewTaskText(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && addTask()}
+                      className="text-sm h-9"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={addTask}
+                      disabled={!newTaskText.trim()}
+                      className="h-9 px-3"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {/* Tasks list */}
+                  {tasks.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <ListTodo className="h-12 w-12 text-slate-300 mb-2" />
+                      <p className="text-sm text-slate-600 font-medium">
+                        Aucune tâche
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Ajoutez votre première tâche ci-dessus
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {tasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className={`flex items-start gap-2 p-2 rounded-lg border transition-all ${
+                            task.completed
+                              ? 'bg-slate-50 border-slate-200'
+                              : 'bg-white border-slate-300 hover:border-slate-400'
+                          }`}
+                        >
+                          <Checkbox
+                            checked={task.completed}
+                            onCheckedChange={() => toggleTask(task.id)}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className={`text-sm ${
+                                task.completed
+                                  ? 'line-through text-slate-400'
+                                  : 'text-slate-900'
+                              }`}
+                            >
+                              {task.text}
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              {format(new Date(task.createdAt), 'dd/MM/yyyy HH:mm', {
+                                locale: fr,
+                              })}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => deleteTask(task.id)}
+                          >
+                            <Trash2 className="h-3 w-3 text-slate-400 hover:text-red-500" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
