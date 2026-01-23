@@ -210,18 +210,14 @@ export function RecapGrossesse({ grossesseId, patientId }: RecapGrossesseProps) 
           </div>
         </CardHeader>
         <CardContent className="pt-2">
-          <div className="grid grid-cols-8 gap-x-3 gap-y-1">
-            {/* Groupe sanguin & Rhésus */}
-            {data.groupeSanguin && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-x-3 gap-y-1.5">
+            {/* Groupe sanguin combiné avec Rhésus */}
+            {data.groupeSanguin && data.rhesus && (
               <div className="flex items-center gap-1">
                 <span className="text-base font-bold text-slate-700">Groupe:</span>
-                <span className="text-base font-bold">{data.groupeSanguin}</span>
-              </div>
-            )}
-            {data.rhesus && (
-              <div className="flex items-center gap-1">
-                <span className="text-base font-bold text-slate-700">Rhésus:</span>
-                <span className="text-base font-bold">{data.rhesus === 'negatif' ? 'Négatif' : 'Positif'}</span>
+                <span className="text-base font-bold">
+                  {data.groupeSanguin}{data.rhesus === 'negatif' ? '-' : '+'}
+                </span>
               </div>
             )}
 
