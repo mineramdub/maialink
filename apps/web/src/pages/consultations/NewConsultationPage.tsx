@@ -7,7 +7,7 @@ import { Textarea } from '../../components/ui/textarea'
 import { HighlightableTextarea } from '../../components/ui/highlightable-textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
-import { ArrowLeft, Loader2, Save, FileText, Calendar, AlertTriangle, CheckCircle2, Plus, Sparkles } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, FileText, Calendar, AlertTriangle, CheckCircle2, Plus, Sparkles, CreditCard } from 'lucide-react'
 import { Badge } from '../../components/ui/badge'
 import { getTemplatesByType, getTemplateById, type ConsultationTemplate } from '../../lib/consultationTemplates'
 import { getObservationTemplate, generateObservationFromData } from '../../lib/observationTemplates'
@@ -694,7 +694,7 @@ export default function NewConsultationPage() {
               return (
                 <Link
                   key={i}
-                  to={`/ordonnances/new?patientId=${formData.patientId}&grossesseId=${formData.grossesseId}`}
+                  to={`/ordonnances/new?patientId=${formData.patientId}&grossesseId=${formData.grossesseId}&returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`}
                   className="text-blue-600 hover:text-blue-800 underline font-medium cursor-pointer"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -1172,6 +1172,198 @@ export default function NewConsultationPage() {
           lastDate={lastConsultation?.date}
         />
 
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Examen clinique</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="poids">Poids (kg)</Label>
+                <Input
+                  id="poids"
+                  type="number"
+                  step="0.1"
+                  value={formData.poids}
+                  onChange={(e) => updateField('poids', e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="hauteurUterine">Hauteur utérine (cm)</Label>
+                <Input
+                  id="hauteurUterine"
+                  type="number"
+                  step="0.1"
+                  value={formData.hauteurUterine}
+                  onChange={(e) => updateField('hauteurUterine', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="tensionSystolique">TA Systolique</Label>
+                <Input
+                  id="tensionSystolique"
+                  type="number"
+                  placeholder="120"
+                  value={formData.tensionSystolique}
+                  onChange={(e) => updateField('tensionSystolique', e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tensionDiastolique">TA Diastolique</Label>
+                <Input
+                  id="tensionDiastolique"
+                  type="number"
+                  placeholder="80"
+                  value={formData.tensionDiastolique}
+                  onChange={(e) => updateField('tensionDiastolique', e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bdc">BDC (bpm)</Label>
+                <Input
+                  id="bdc"
+                  type="number"
+                  placeholder="140"
+                  value={formData.bdc}
+                  onChange={(e) => updateField('bdc', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="examenClinique" className="text-base font-semibold mb-2">
+                Examen clinique
+              </Label>
+              <ExamenCliniqueAdapte
+                type={formData.type}
+                motif={formData.motif}
+                defaultValue={formData.examenClinique}
+                onChange={(text) => updateField('examenClinique', text)}
+              />
+            </div>
+
+            {formData.type === 'postnatale' && selectedBebe && (
+              <SuiviBebe
+                bebeId={selectedBebe.id}
+                sexe={selectedBebe.sexe as 'M' | 'F'}
+                dateNaissance={selectedBebe.dateNaissance}
+                onMeasurementsChange={(measurements) => {
+                  console.log('Mensurations mises à jour:', measurements)
+                }}
+                showPreviousMeasurements={true}
+              />
+            )}
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="conclusion">Conclusion</Label>
+                <TextTemplateSelector
+                  templates={CONCLUSION_TEMPLATES}
+                  onSelect={(text) => setFormData(prev => ({ ...prev, conclusion: text }))}
+                  label="Templates"
+                />
+              </div>
+              <HighlightableTextarea
+                id="conclusion"
+                rows={10}
+                value={formData.conclusion}
+                onChange={(value) => updateField('conclusion', value)}
+                placeholder="Conclusion de la consultation..."
+              />
+            </div>
+
+            {/* Suggestions automatiques */}
+            {formData.patientId && prescriptionsList.length > 0 && (
+              <div className="space-y-4">
+                {/* Bilans */}
+                <BilanSuggestion
+                  prescriptions={prescriptionsList}
+                  patientId={formData.patientId}
+                  consultationType={formData.type}
+                  onBilanAdded={() => {
+                    showNotification({
+                      type: 'success',
+                      message: 'Bilan ajouté aux résultats en attente',
+                    })
+                  }}
+                />
+
+                {/* Contraceptifs */}
+                <ContraceptifSuggestion
+                  prescriptions={prescriptionsList}
+                  patientId={formData.patientId}
+                  onContraceptifAdded={() => {
+                    showNotification({
+                      type: 'success',
+                      message: 'Contraceptif ajouté au suivi',
+                    })
+                  }}
+                />
+
+                {/* Frottis */}
+                <FrottisSuggestion
+                  prescriptions={prescriptionsList}
+                  conclusion={formData.conclusion}
+                  patientId={formData.patientId}
+                  onFrottisAdded={() => {
+                    showNotification({
+                      type: 'success',
+                      message: 'Frottis ajouté au suivi',
+                    })
+                  }}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="resumeCourt" className="text-sm font-medium flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-blue-600" />
+                  Résumé court (pour affichage dans les listes)
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={generateSummary}
+                  disabled={isGeneratingSummary}
+                  className="text-xs"
+                >
+                  {isGeneratingSummary ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Génération...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Générer avec IA
+                    </>
+                  )}
+                </Button>
+              </div>
+              <Input
+                id="resumeCourt"
+                type="text"
+                maxLength={100}
+                placeholder="Ex: Cslt prénatal 28SA - RAS"
+                value={formData.resumeCourt}
+                onChange={(e) => updateField('resumeCourt', e.target.value)}
+                className="bg-white"
+              />
+              <p className="text-xs text-slate-600">
+                Ce résumé apparaîtra à côté de la consultation dans la liste des consultations. Max 100 caractères.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
         {/* Recommandations et suggestions - Section unifiée */}
         {(calendarRecommendations || gynecologyRecommendations?.ordonnancesSuggerees?.length > 0 || aiSuggestions.length > 0) && (
           <Card className="border-blue-200 bg-blue-50/30">
@@ -1410,9 +1602,9 @@ export default function NewConsultationPage() {
                           onClick={() => {
                             addPrescription(ordonnance.nom)
                             const consultationIdParam = formData.id ? `&consultationId=${formData.id}` : ''
-                            window.open(
-                              `/ordonnances/new?patientId=${formData.patientId}${consultationIdParam}&template=${encodeURIComponent(ordonnance.templateNom || ordonnance.nom)}`,
-                              '_blank'
+                            const returnUrl = window.location.pathname + window.location.search
+                            navigate(
+                              `/ordonnances/new?patientId=${formData.patientId}${consultationIdParam}&template=${encodeURIComponent(ordonnance.templateNom || ordonnance.nom)}&returnUrl=${encodeURIComponent(returnUrl)}`
                             )
                           }}
                           className="shrink-0 ml-3"
@@ -1464,9 +1656,9 @@ export default function NewConsultationPage() {
                           onClick={() => {
                             addPrescription(ordonnance.nom)
                             const consultationIdParam = formData.id ? `&consultationId=${formData.id}` : ''
-                            window.open(
-                              `/ordonnances/new?patientId=${formData.patientId}${consultationIdParam}&template=${encodeURIComponent(ordonnance.templateNom || ordonnance.nom)}`,
-                              '_blank'
+                            const returnUrl = window.location.pathname + window.location.search
+                            navigate(
+                              `/ordonnances/new?patientId=${formData.patientId}${consultationIdParam}&template=${encodeURIComponent(ordonnance.templateNom || ordonnance.nom)}&returnUrl=${encodeURIComponent(returnUrl)}`
                             )
                           }}
                           className="shrink-0 ml-3"
@@ -1519,12 +1711,15 @@ export default function NewConsultationPage() {
                           onClick={() => {
                             addPrescription(suggestion.nom)
                             const consultationIdParam = formData.id ? `&consultationId=${formData.id}` : ''
+                            const returnUrl = window.location.pathname + window.location.search
                             const params = new URLSearchParams({
                               patientId: formData.patientId,
                               ...(formData.grossesseId && { grossesseId: formData.grossesseId }),
-                              ...(suggestion.templateNom && { template: suggestion.templateNom })
+                              ...(suggestion.templateNom && { template: suggestion.templateNom }),
+                              ...(consultationIdParam && { consultationId: formData.id }),
+                              returnUrl
                             })
-                            window.open(`/ordonnances/new?${params.toString()}`, '_blank')
+                            navigate(`/ordonnances/new?${params.toString()}`)
                           }}
                           className="shrink-0 ml-3"
                         >
@@ -1540,202 +1735,50 @@ export default function NewConsultationPage() {
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Examen clinique</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="poids">Poids (kg)</Label>
-                <Input
-                  id="poids"
-                  type="number"
-                  step="0.1"
-                  value={formData.poids}
-                  onChange={(e) => updateField('poids', e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="hauteurUterine">Hauteur utérine (cm)</Label>
-                <Input
-                  id="hauteurUterine"
-                  type="number"
-                  step="0.1"
-                  value={formData.hauteurUterine}
-                  onChange={(e) => updateField('hauteurUterine', e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="tensionSystolique">TA Systolique</Label>
-                <Input
-                  id="tensionSystolique"
-                  type="number"
-                  placeholder="120"
-                  value={formData.tensionSystolique}
-                  onChange={(e) => updateField('tensionSystolique', e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="tensionDiastolique">TA Diastolique</Label>
-                <Input
-                  id="tensionDiastolique"
-                  type="number"
-                  placeholder="80"
-                  value={formData.tensionDiastolique}
-                  onChange={(e) => updateField('tensionDiastolique', e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bdc">BDC (bpm)</Label>
-                <Input
-                  id="bdc"
-                  type="number"
-                  placeholder="140"
-                  value={formData.bdc}
-                  onChange={(e) => updateField('bdc', e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="examenClinique" className="text-base font-semibold mb-2">
-                Examen clinique
-              </Label>
-              <ExamenCliniqueAdapte
-                type={formData.type}
-                motif={formData.motif}
-                defaultValue={formData.examenClinique}
-                onChange={(text) => updateField('examenClinique', text)}
-              />
-            </div>
-
-            {formData.type === 'postnatale' && selectedBebe && (
-              <SuiviBebe
-                bebeId={selectedBebe.id}
-                sexe={selectedBebe.sexe as 'M' | 'F'}
-                dateNaissance={selectedBebe.dateNaissance}
-                onMeasurementsChange={(measurements) => {
-                  console.log('Mensurations mises à jour:', measurements)
-                }}
-                showPreviousMeasurements={true}
-              />
-            )}
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="conclusion">Conclusion</Label>
-                <TextTemplateSelector
-                  templates={CONCLUSION_TEMPLATES}
-                  onSelect={(text) => setFormData(prev => ({ ...prev, conclusion: text }))}
-                  label="Templates"
-                />
-              </div>
-              <HighlightableTextarea
-                id="conclusion"
-                rows={10}
-                value={formData.conclusion}
-                onChange={(value) => updateField('conclusion', value)}
-                placeholder="Conclusion de la consultation..."
-              />
-            </div>
-
-            {/* Suggestions automatiques */}
-            {formData.patientId && prescriptionsList.length > 0 && (
-              <div className="space-y-4">
-                {/* Bilans */}
-                <BilanSuggestion
-                  prescriptions={prescriptionsList}
-                  patientId={formData.patientId}
-                  consultationType={formData.type}
-                  onBilanAdded={() => {
-                    showNotification({
-                      type: 'success',
-                      message: 'Bilan ajouté aux résultats en attente',
-                    })
-                  }}
-                />
-
-                {/* Contraceptifs */}
-                <ContraceptifSuggestion
-                  prescriptions={prescriptionsList}
-                  patientId={formData.patientId}
-                  onContraceptifAdded={() => {
-                    showNotification({
-                      type: 'success',
-                      message: 'Contraceptif ajouté au suivi',
-                    })
-                  }}
-                />
-
-                {/* Frottis */}
-                <FrottisSuggestion
-                  prescriptions={prescriptionsList}
-                  conclusion={formData.conclusion}
-                  patientId={formData.patientId}
-                  onFrottisAdded={() => {
-                    showNotification({
-                      type: 'success',
-                      message: 'Frottis ajouté au suivi',
-                    })
-                  }}
-                />
-              </div>
-            )}
-
-            <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="resumeCourt" className="text-sm font-medium flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-blue-600" />
-                  Résumé court (pour affichage dans les listes)
-                </Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={generateSummary}
-                  disabled={isGeneratingSummary}
-                  className="text-xs"
-                >
-                  {isGeneratingSummary ? (
-                    <>
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      Génération...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3 w-3 mr-1" />
-                      Générer avec IA
-                    </>
-                  )}
-                </Button>
-              </div>
-              <Input
-                id="resumeCourt"
-                type="text"
-                maxLength={100}
-                placeholder="Ex: Cslt prénatal 28SA - RAS"
-                value={formData.resumeCourt}
-                onChange={(e) => updateField('resumeCourt', e.target.value)}
-                className="bg-white"
-              />
-              <p className="text-xs text-slate-600">
-                Ce résumé apparaîtra à côté de la consultation dans la liste des consultations. Max 100 caractères.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
         <div className="flex justify-end gap-4">
           <Button type="button" variant="outline" onClick={() => navigate('/consultations')}>
             Annuler
           </Button>
+          {formData.patientId && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const returnUrl = window.location.pathname + window.location.search
+                const consultationIdParam = formData.id ? `&consultationId=${formData.id}` : ''
+                const grossesseIdParam = formData.grossesseId ? `&grossesseId=${formData.grossesseId}` : ''
+                navigate(`/ordonnances/new?patientId=${formData.patientId}${consultationIdParam}${grossesseIdParam}&returnUrl=${encodeURIComponent(returnUrl)}`)
+              }}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Créer ordonnance
+            </Button>
+          )}
+          {formData.id && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                // Determine actes based on consultation type
+                let actes = ''
+                if (formData.type === 'prenatale') {
+                  actes = 'C+CMF' // Consultation + Consultation Maïeutique du 1er Trimestre
+                } else if (formData.type === 'postnatale') {
+                  actes = 'C+CMPN' // Consultation + Consultation Maïeutique Post-Natale
+                } else if (formData.type === 'gynecologie') {
+                  actes = 'C+CMG' // Consultation + Consultation Maïeutique Gynécologique
+                } else {
+                  actes = 'C' // Consultation simple
+                }
+
+                const returnUrl = window.location.pathname + window.location.search
+                navigate(`/facturation/new?patientId=${formData.patientId}&consultationId=${formData.id}&actes=${encodeURIComponent(actes)}&returnUrl=${encodeURIComponent(returnUrl)}`)
+              }}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              Facturer
+            </Button>
+          )}
           <Button type="submit" disabled={isLoading}>
             {isLoading ? (
               <>
@@ -1745,7 +1788,7 @@ export default function NewConsultationPage() {
             ) : (
               <>
                 <Save className="mr-2 h-4 w-4" />
-                Créer la consultation
+                {formData.id ? 'Mettre à jour' : 'Créer la consultation'}
               </>
             )}
           </Button>

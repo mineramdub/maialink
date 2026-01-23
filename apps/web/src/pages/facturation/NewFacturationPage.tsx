@@ -33,6 +33,9 @@ interface Cotation {
 const COTATIONS = [
   { code: 'C', libelle: 'Consultation', montant: 25.0, categorie: 'consultation' },
   { code: 'CSF', libelle: 'Consultation de suivi', montant: 25.0, categorie: 'consultation' },
+  { code: 'CMF', libelle: 'Consultation Maïeutique Femme enceinte', montant: 30.0, categorie: 'consultation' },
+  { code: 'CMPN', libelle: 'Consultation Maïeutique Post-Natale', montant: 30.0, categorie: 'postpartum' },
+  { code: 'CMG', libelle: 'Consultation Maïeutique Gynécologique', montant: 30.0, categorie: 'consultation' },
   { code: 'SF 12', libelle: 'Surveillance de grossesse pathologique', montant: 37.80, categorie: 'grossesse' },
   { code: 'SF 15', libelle: 'Monitoring foetal', montant: 47.25, categorie: 'grossesse' },
   { code: 'SF 6', libelle: 'Visite post-natale', montant: 18.90, categorie: 'postpartum' },
@@ -71,9 +74,32 @@ export default function NewFacturationPage() {
     // Pre-fill from query params
     const patientId = searchParams.get('patientId')
     const consultationId = searchParams.get('consultationId')
+    const actesParam = searchParams.get('actes')
 
     if (patientId) {
       setFormData(prev => ({ ...prev, patientId, consultationId: consultationId || '' }))
+    }
+
+    // Pre-fill actes from query params (e.g., "C+CMF")
+    if (actesParam) {
+      const acteCodes = actesParam.split('+').map(c => c.trim())
+      const prefillCotations: Cotation[] = []
+
+      acteCodes.forEach(code => {
+        const cotation = COTATIONS.find(c => c.code === code)
+        if (cotation) {
+          prefillCotations.push({
+            code: cotation.code,
+            libelle: cotation.libelle,
+            montant: cotation.montant,
+            quantity: 1
+          })
+        }
+      })
+
+      if (prefillCotations.length > 0) {
+        setCotations(prefillCotations)
+      }
     }
   }, [])
 
@@ -155,7 +181,10 @@ export default function NewFacturationPage() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate('/facturation')}
+          onClick={() => {
+            const returnUrl = searchParams.get('returnUrl')
+            navigate(returnUrl || '/facturation')
+          }}
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -444,7 +473,10 @@ export default function NewFacturationPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate('/facturation')}
+            onClick={() => {
+              const returnUrl = searchParams.get('returnUrl')
+              navigate(returnUrl || '/facturation')
+            }}
           >
             Annuler
           </Button>

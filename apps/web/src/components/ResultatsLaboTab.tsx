@@ -21,7 +21,8 @@ import {
 import { Label } from './ui/label'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
-import { Upload, Loader2, Download, ChevronDown, ChevronUp, AlertCircle, FileText, Highlighter, Plus, X, History, Pencil } from 'lucide-react'
+import { Checkbox } from './ui/checkbox'
+import { Upload, Loader2, Download, ChevronDown, ChevronUp, AlertCircle, FileText, Highlighter, Plus, X, History, Pencil, Check, FileDown } from 'lucide-react'
 import { formatDate } from '../lib/utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import {
@@ -66,6 +67,8 @@ interface ResultatLabo {
   isProcessed: boolean
   processingError?: string
   highlights?: Highlight[]
+  isReceived?: boolean
+  isInformed?: boolean
   createdAt: string
 }
 
@@ -433,6 +436,63 @@ export function ResultatsLaboTab({ patientId }: ResultatsLaboTabProps) {
     }
   }
 
+  const toggleStatus = async (resultatId: string, field: 'isReceived' | 'isInformed') => {
+    const resultat = resultats.find(r => r.id === resultatId)
+    if (!resultat) return
+
+    const newValue = !resultat[field]
+
+    try {
+      const res = await fetch(`/api/resultats-labo/${resultatId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: newValue }),
+      })
+
+      if (!res.ok) throw new Error('Failed to update status')
+
+      // Mettre à jour l'état local
+      setResultats(prev =>
+        prev.map(r =>
+          r.id === resultatId ? { ...r, [field]: newValue } : r
+        )
+      )
+    } catch (error) {
+      console.error('Error updating status:', error)
+      alert('Erreur lors de la sauvegarde du statut')
+    }
+  }
+
+  const exportToCSV = () => {
+    // Créer les en-têtes CSV
+    const headers = ['Date', 'Laboratoire', 'Reçu', 'Informée', 'Notes']
+
+    // Créer les lignes de données
+    const rows = resultats.map(r => [
+      formatDate(r.dateExamen),
+      r.laboratoire || 'Non spécifié',
+      r.isReceived ? 'Oui' : 'Non',
+      r.isInformed ? 'Oui' : 'Non',
+      r.notes || ''
+    ])
+
+    // Combiner en-têtes et données
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+
+    // Créer le blob et télécharger
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `resultats_labo_${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+    window.URL.revokeObjectURL(url)
+  }
+
   const renderTestCategory = (resultatId: string, category: string, title: string, tests?: TestResult[]) => {
     if (!tests || tests.length === 0) return null
 
@@ -456,10 +516,10 @@ export function ResultatsLaboTab({ patientId }: ResultatsLaboTabProps) {
                 return (
                   <TableRow
                     key={idx}
-                    className={getStatutColor(test.statut)}
+                    className={!highlightColor ? getStatutColor(test.statut) : ''}
                     style={highlightColor ? {
-                      backgroundColor: highlightColor,
-                      backgroundImage: `linear-gradient(to right, ${highlightColor}40, ${highlightColor}20)`
+                      backgroundColor: `${highlightColor}60`,
+                      borderLeft: `4px solid ${highlightColor}`,
                     } : undefined}
                   >
                     <TableCell className="font-medium">{test.nom}</TableCell>
@@ -480,34 +540,62 @@ export function ResultatsLaboTab({ patientId }: ResultatsLaboTabProps) {
                       <div className="flex gap-1">
                         {/* Couleurs de surlignage prédéfinies */}
                         <button
-                          onClick={() => toggleHighlight(resultatId, category, idx, '#FFFF00')}
-                          className="w-6 h-6 rounded border-2 border-slate-300 hover:border-slate-500 transition-colors"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleHighlight(resultatId, category, idx, '#FFFF00')
+                          }}
+                          className={`w-6 h-6 rounded border-2 hover:border-slate-700 transition-colors ${
+                            highlightColor === '#FFFF00' ? 'border-slate-700 ring-2 ring-slate-400' : 'border-slate-300'
+                          }`}
                           style={{ backgroundColor: '#FFFF00' }}
                           title="Jaune"
                         />
                         <button
-                          onClick={() => toggleHighlight(resultatId, category, idx, '#90EE90')}
-                          className="w-6 h-6 rounded border-2 border-slate-300 hover:border-slate-500 transition-colors"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleHighlight(resultatId, category, idx, '#90EE90')
+                          }}
+                          className={`w-6 h-6 rounded border-2 hover:border-slate-700 transition-colors ${
+                            highlightColor === '#90EE90' ? 'border-slate-700 ring-2 ring-slate-400' : 'border-slate-300'
+                          }`}
                           style={{ backgroundColor: '#90EE90' }}
                           title="Vert"
                         />
                         <button
-                          onClick={() => toggleHighlight(resultatId, category, idx, '#FFA500')}
-                          className="w-6 h-6 rounded border-2 border-slate-300 hover:border-slate-500 transition-colors"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleHighlight(resultatId, category, idx, '#FFA500')
+                          }}
+                          className={`w-6 h-6 rounded border-2 hover:border-slate-700 transition-colors ${
+                            highlightColor === '#FFA500' ? 'border-slate-700 ring-2 ring-slate-400' : 'border-slate-300'
+                          }`}
                           style={{ backgroundColor: '#FFA500' }}
                           title="Orange"
                         />
                         <button
-                          onClick={() => toggleHighlight(resultatId, category, idx, '#FFB6C1')}
-                          className="w-6 h-6 rounded border-2 border-slate-300 hover:border-slate-500 transition-colors"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleHighlight(resultatId, category, idx, '#FFB6C1')
+                          }}
+                          className={`w-6 h-6 rounded border-2 hover:border-slate-700 transition-colors ${
+                            highlightColor === '#FFB6C1' ? 'border-slate-700 ring-2 ring-slate-400' : 'border-slate-300'
+                          }`}
                           style={{ backgroundColor: '#FFB6C1' }}
                           title="Rose"
                         />
                         <input
                           type="color"
-                          onChange={(e) => toggleHighlight(resultatId, category, idx, e.target.value)}
-                          className="w-6 h-6 rounded border-2 border-slate-300 cursor-pointer"
+                          onChange={(e) => {
+                            e.stopPropagation()
+                            toggleHighlight(resultatId, category, idx, e.target.value)
+                          }}
+                          className="w-6 h-6 rounded border-2 border-slate-300 cursor-pointer hover:border-slate-700"
                           title="Couleur personnalisée"
+                          value={highlightColor || '#000000'}
                         />
                       </div>
                     </TableCell>
@@ -540,10 +628,18 @@ export function ResultatsLaboTab({ patientId }: ResultatsLaboTabProps) {
             Uploadez un PDF et laissez l'IA extraire automatiquement les résultats
           </p>
         </div>
-        <Button onClick={() => setUploadOpen(true)}>
-          <Upload className="h-4 w-4 mr-2" />
-          Ajouter un résultat
-        </Button>
+        <div className="flex gap-2">
+          {resultats.length > 0 && (
+            <Button variant="outline" onClick={exportToCSV}>
+              <FileDown className="h-4 w-4 mr-2" />
+              Exporter CSV
+            </Button>
+          )}
+          <Button onClick={() => setUploadOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Ajouter un résultat
+          </Button>
+        </div>
       </div>
 
       {/* Processing indicator */}
@@ -609,6 +705,34 @@ export function ResultatsLaboTab({ patientId }: ResultatsLaboTabProps) {
                     <CardDescription className="mt-1">
                       {resultat.laboratoire || 'Laboratoire non spécifié'}
                     </CardDescription>
+                    <div className="flex items-center gap-4 mt-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`received-${resultat.id}`}
+                          checked={resultat.isReceived || false}
+                          onCheckedChange={() => toggleStatus(resultat.id, 'isReceived')}
+                        />
+                        <Label
+                          htmlFor={`received-${resultat.id}`}
+                          className="text-sm font-medium cursor-pointer"
+                        >
+                          Reçu
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`informed-${resultat.id}`}
+                          checked={resultat.isInformed || false}
+                          onCheckedChange={() => toggleStatus(resultat.id, 'isInformed')}
+                        />
+                        <Label
+                          htmlFor={`informed-${resultat.id}`}
+                          className="text-sm font-medium cursor-pointer"
+                        >
+                          Patiente informée
+                        </Label>
+                      </div>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button

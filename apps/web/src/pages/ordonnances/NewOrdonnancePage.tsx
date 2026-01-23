@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, FileText, Search, Plus, X, Save, Pill, Check, Edit } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { documentTemplates } from '@/lib/documentTemplates'
 
 interface Medicament {
   nom: string
@@ -55,6 +56,9 @@ export default function NewOrdonnancePage() {
   const [previewContent, setPreviewContent] = useState('')
   const [isEditingPreview, setIsEditingPreview] = useState(false)
   const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false)
+  const [templateName, setTemplateName] = useState('')
+  const [templateDescription, setTemplateDescription] = useState('')
+  const [templateCategorie, setTemplateCategorie] = useState('gynecologie')
 
   // Charger les patients
   useEffect(() => {
@@ -269,8 +273,68 @@ export default function NewOrdonnancePage() {
       }
 
       const data = await res.json()
-      alert('Ordonnance créée avec succès !')
-      navigate(`/ordonnances/${data.ordonnance.id}`)
+
+      // Générer et télécharger automatiquement le PDF
+      try {
+        const patientData = patient ? {
+          firstName: patient.firstName,
+          lastName: patient.lastName,
+          birthDate: patient.birthDate,
+          secuNumber: patient.socialSecurityNumber
+        } : undefined
+
+        // Get grossesse data if available
+        const grossesseIdParam = searchParams.get('grossesseId')
+        let grossesseData = undefined
+        if (grossesseIdParam) {
+          try {
+            const grossesseRes = await fetch(`${import.meta.env.VITE_API_URL}/api/grossesses/${grossesseIdParam}`, {
+              credentials: 'include'
+            })
+            if (grossesseRes.ok) {
+              const grossesseResult = await grossesseRes.json()
+              if (grossesseResult.grossesse) {
+                const g = grossesseResult.grossesse
+                grossesseData = {
+                  ddr: g.ddr,
+                  dpa: g.dpa,
+                  termeSA: g.termeSA || 0,
+                  termeJours: g.termeJours || 0
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Erreur chargement grossesse:', error)
+          }
+        }
+
+        const doc = documentTemplates.ordonnanceFromText(
+          data.ordonnance.contenu,
+          user,
+          patientData,
+          grossesseData
+        )
+
+        const patientName = patient
+          ? `${patient.lastName}_${patient.firstName}`
+          : 'patient'
+        const date = new Date().toISOString().split('T')[0]
+        const filename = `ordonnance_${patientName}_${date}.pdf`
+
+        doc.save(filename)
+      } catch (error) {
+        console.error('Erreur génération PDF:', error)
+      }
+
+      alert('Ordonnance créée et téléchargée avec succès !')
+
+      // Check if there's a returnUrl to go back to the consultation
+      const returnUrl = searchParams.get('returnUrl')
+      if (returnUrl) {
+        navigate(decodeURIComponent(returnUrl))
+      } else {
+        navigate(`/ordonnances/${data.ordonnance.id}`)
+      }
     } catch (error: any) {
       console.error('Erreur:', error)
       alert(error.message)
@@ -287,7 +351,14 @@ export default function NewOrdonnancePage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate('/ordonnances')}
+            onClick={() => {
+              const returnUrl = searchParams.get('returnUrl')
+              if (returnUrl) {
+                navigate(decodeURIComponent(returnUrl))
+              } else {
+                navigate('/ordonnances')
+              }
+            }}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour
@@ -617,35 +688,64 @@ export default function NewOrdonnancePage() {
                 <FileText className="h-5 w-5 text-blue-600" />
                 <h2 className="text-lg font-semibold">Aperçu de l'ordonnance</h2>
               </div>
-              {isEditingPreview && (
-                <div className="flex gap-2">
+              <div className="flex gap-2">
+                {!isEditingPreview && previewContent && (
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setIsEditingPreview(false)}
+                    onClick={() => setShowSaveTemplateDialog(true)}
                   >
-                    Annuler
+                    <Save className="h-4 w-4 mr-1" />
+                    Sauvegarder comme template
                   </Button>
+                )}
+                {!isEditingPreview ? (
                   <Button
                     size="sm"
-                    onClick={() => {
-                      setIsEditingPreview(false)
-                      if (selectedTemplate) {
-                        setShowSaveTemplateDialog(true)
-                      }
-                    }}
+                    variant="outline"
+                    onClick={() => setIsEditingPreview(true)}
                   >
-                    <Check className="h-4 w-4 mr-1" />
-                    Valider
+                    <Edit className="h-4 w-4 mr-1" />
+                    Éditer
                   </Button>
-                </div>
-              )}
+                ) : (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditingPreview(false)
+                        // Regénérer le preview si on annule
+                        if (selectedMedicaments.length > 0) {
+                          generatePreview(selectedMedicaments)
+                        }
+                      }}
+                    >
+                      Annuler
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setIsEditingPreview(false)}
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Valider
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
 
-            {selectedMedicaments.length === 0 && !previewContent ? (
-              <div className="text-center py-12 text-gray-500">
+            {!isEditingPreview && selectedMedicaments.length === 0 && !previewContent ? (
+              <div
+                className="text-center py-12 text-gray-500 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors"
+                onClick={() => {
+                  setIsEditingPreview(true)
+                  setPreviewContent('MÉDICAMENTS PRESCRITS:\n\n1. \n\n')
+                }}
+              >
                 <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p className="text-sm">Sélectionnez un template ou des médicaments pour voir l'aperçu</p>
+                <p className="text-sm font-medium">Cliquez pour créer une ordonnance libre</p>
+                <p className="text-xs mt-1">Ou sélectionnez un template / des médicaments</p>
               </div>
             ) : (
               <div className="bg-white border-2 border-gray-200 rounded-lg p-6 font-mono text-xs overflow-y-auto max-h-[calc(100vh-200px)]">
@@ -683,11 +783,7 @@ export default function NewOrdonnancePage() {
                     className="w-full font-mono text-xs min-h-[300px] whitespace-pre-wrap"
                   />
                 ) : (
-                  <div
-                    className="whitespace-pre-wrap cursor-pointer hover:bg-gray-50 p-2 rounded"
-                    onClick={() => setIsEditingPreview(true)}
-                    title="Cliquer pour éditer"
-                  >
+                  <div className="whitespace-pre-wrap">
                     {previewContent}
                   </div>
                 )}
@@ -706,47 +802,157 @@ export default function NewOrdonnancePage() {
         </div>
       </div>
 
-      {/* Dialogue pour sauvegarder les modifications au template */}
+      {/* Dialogue pour sauvegarder comme template */}
       <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Sauvegarder les modifications ?</DialogTitle>
+            <DialogTitle>
+              {selectedTemplate ? 'Mettre à jour le template ou créer un nouveau ?' : 'Sauvegarder comme template'}
+            </DialogTitle>
             <DialogDescription>
-              Vous avez modifié le contenu de l'ordonnance basée sur le template "{selectedTemplate}".
-              Voulez-vous sauvegarder ces modifications pour les prochaines ordonnances de ce type ?
+              {selectedTemplate
+                ? `Vous avez modifié l'ordonnance basée sur le template "${selectedTemplate}". Voulez-vous mettre à jour ce template ou créer un nouveau template personnel ?`
+                : 'Créez un template personnel pour réutiliser cette ordonnance dans le futur.'
+              }
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Nom du template *</Label>
+              <Input
+                placeholder="Ex: Traitement anémie grossesse personnalisé"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label>Description</Label>
+              <Input
+                placeholder="Ex: Mon protocole personnalisé pour l'anémie"
+                value={templateDescription}
+                onChange={(e) => setTemplateDescription(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label>Catégorie *</Label>
+              <Select value={templateCategorie} onValueChange={setTemplateCategorie}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="grossesse">Grossesse</SelectItem>
+                  <SelectItem value="gynecologie">Gynécologie</SelectItem>
+                  <SelectItem value="contraception">Contraception</SelectItem>
+                  <SelectItem value="postpartum">Post-partum</SelectItem>
+                  <SelectItem value="allaitement">Allaitement</SelectItem>
+                  <SelectItem value="infections">Infections</SelectItem>
+                  <SelectItem value="menopause">Ménopause</SelectItem>
+                  <SelectItem value="ivg">IVG</SelectItem>
+                  <SelectItem value="rééducation">Rééducation</SelectItem>
+                  <SelectItem value="autre">Autre</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => setShowSaveTemplateDialog(false)}
-            >
-              Non, juste pour cette ordonnance
-            </Button>
-            <Button
-              onClick={async () => {
-                // Sauvegarder le template modifié
-                try {
-                  const template = templates.find(t => t.nom === selectedTemplate)
-                  if (template) {
-                    await fetch(`${import.meta.env.VITE_API_URL}/api/ordonnances/templates/${template.nom}`, {
-                      method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
-                      body: JSON.stringify({
-                        contenu: previewContent
-                      })
-                    })
-                    alert('Template mis à jour avec succès !')
-                  }
-                } catch (error) {
-                  console.error('Erreur mise à jour template:', error)
-                  alert('Erreur lors de la mise à jour du template')
-                }
+              onClick={() => {
                 setShowSaveTemplateDialog(false)
+                setTemplateName('')
+                setTemplateDescription('')
+                setTemplateCategorie('gynecologie')
               }}
             >
-              Oui, sauvegarder le template
+              Annuler
+            </Button>
+
+            {selectedTemplate && (
+              <Button
+                variant="secondary"
+                onClick={async () => {
+                  try {
+                    const template = templates.find(t => t.nom === selectedTemplate)
+                    if (template) {
+                      await fetch(`${import.meta.env.VITE_API_URL}/api/ordonnances/templates`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                          nom: selectedTemplate,
+                          contenu: previewContent
+                        })
+                      })
+                      alert('Template mis à jour avec succès !')
+                      setShowSaveTemplateDialog(false)
+                    }
+                  } catch (error) {
+                    console.error('Erreur mise à jour template:', error)
+                    alert('Erreur lors de la mise à jour du template')
+                  }
+                }}
+              >
+                Mettre à jour "{selectedTemplate}"
+              </Button>
+            )}
+
+            <Button
+              onClick={async () => {
+                if (!templateName.trim()) {
+                  alert('Veuillez donner un nom au template')
+                  return
+                }
+
+                try {
+                  const res = await fetch(`${import.meta.env.VITE_API_URL}/api/ordonnances/templates`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      nom: templateName,
+                      description: templateDescription || templateName,
+                      categorie: templateCategorie,
+                      contenu: previewContent,
+                      type: 'autre',
+                      priorite: 'optionnel',
+                      medicaments: selectedMedicaments.map(m => ({
+                        medicamentId: m.nom,
+                        personnalise: false
+                      }))
+                    })
+                  })
+
+                  if (!res.ok) {
+                    const error = await res.json()
+                    throw new Error(error.error || 'Erreur création template')
+                  }
+
+                  alert('Template personnel créé avec succès !')
+                  setShowSaveTemplateDialog(false)
+                  setTemplateName('')
+                  setTemplateDescription('')
+                  setTemplateCategorie('gynecologie')
+
+                  // Recharger les templates
+                  fetch(`${import.meta.env.VITE_API_URL}/api/ordonnances/templates`, {
+                    credentials: 'include'
+                  })
+                    .then(res => res.json())
+                    .then(data => {
+                      setTemplates(data.templates || [])
+                    })
+                } catch (error: any) {
+                  console.error('Erreur:', error)
+                  alert(error.message)
+                }
+              }}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Créer un nouveau template
             </Button>
           </DialogFooter>
         </DialogContent>

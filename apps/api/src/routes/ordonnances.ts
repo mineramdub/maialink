@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { authMiddleware, AuthRequest } from '../middleware/auth.js'
 import { db } from '../lib/db.js'
-import { documentTemplates, documents, patients } from '../lib/schema.js'
-import { eq, and } from 'drizzle-orm'
+import { documentTemplates, documents, patients, ordonnanceTemplates } from '../lib/schema.js'
+import { eq, and, or, isNull } from 'drizzle-orm'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { ORDONNANCE_TEMPLATES } from '../lib/ordonnanceTemplates.js'
@@ -13,17 +13,48 @@ router.use(authMiddleware)
 // GET /api/ordonnances/templates - Get ordonnance templates and medications
 router.get('/templates', async (req: AuthRequest, res) => {
   try {
-    // Get DB templates (legacy system)
-    const dbTemplates = await db.query.documentTemplates.findMany({
-      where: eq(documentTemplates.type, 'ordonnance'),
-      orderBy: (documentTemplates, { asc }) => [asc(documentTemplates.nom)]
+    // Get system templates from database (isSystemTemplate = true)
+    const systemTemplates = await db.query.ordonnanceTemplates.findMany({
+      where: and(
+        eq(ordonnanceTemplates.isSystemTemplate, true),
+        eq(ordonnanceTemplates.isActive, true)
+      ),
+      orderBy: (ordonnanceTemplates, { asc }) => [asc(ordonnanceTemplates.categorie), asc(ordonnanceTemplates.nom)]
     })
 
-    // Return both DB templates and new medication-based templates
+    // Get user's personal templates
+    const userTemplates = await db.query.ordonnanceTemplates.findMany({
+      where: and(
+        eq(ordonnanceTemplates.userId, req.user!.id),
+        eq(ordonnanceTemplates.isActive, true)
+      ),
+      orderBy: (ordonnanceTemplates, { desc }) => [desc(ordonnanceTemplates.createdAt)]
+    })
+
+    // Convert to the format expected by frontend
+    const allTemplates = [
+      ...systemTemplates.map(t => ({
+        nom: t.nom,
+        categorie: t.categorie,
+        description: t.description || '',
+        contenu: t.contenu,
+        medicaments: [], // Will be populated if needed
+        isSystemTemplate: true
+      })),
+      ...userTemplates.map(t => ({
+        nom: t.nom,
+        categorie: t.categorie,
+        description: t.description || '',
+        contenu: t.contenu,
+        medicaments: [],
+        isSystemTemplate: false
+      }))
+    ]
+
     res.json({
       success: true,
-      templates: ORDONNANCE_TEMPLATES,  // New system
-      dbTemplates  // Legacy system for compatibility
+      templates: allTemplates,
+      medicaments: [] // Medication list if needed
     })
   } catch (error) {
     console.error('Get templates error:', error)
@@ -229,6 +260,122 @@ router.put('/:id', async (req: AuthRequest, res) => {
     res.json({ success: true, document: updated })
   } catch (error) {
     console.error('Update ordonnance error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// POST /api/ordonnances/templates - Create a new personal template
+router.post('/templates', async (req: AuthRequest, res) => {
+  try {
+    const { nom, description, categorie, type, priorite, contenu } = req.body
+
+    if (!nom || !categorie || !type || !contenu) {
+      return res.status(400).json({ error: 'Champs requis manquants' })
+    }
+
+    // Check if a template with the same name already exists for this user
+    const existing = await db.query.ordonnanceTemplates.findFirst({
+      where: and(
+        eq(ordonnanceTemplates.nom, nom),
+        eq(ordonnanceTemplates.userId, req.user!.id)
+      )
+    })
+
+    if (existing) {
+      return res.status(400).json({ error: 'Un template avec ce nom existe déjà' })
+    }
+
+    const [template] = await db.insert(ordonnanceTemplates).values({
+      userId: req.user!.id,
+      nom,
+      description: description || nom,
+      categorie,
+      type: type || 'autre',
+      priorite: priorite || 'optionnel',
+      contenu,
+      isSystemTemplate: false,
+      isActive: true
+    }).returning()
+
+    res.json({ success: true, template })
+  } catch (error) {
+    console.error('Create template error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// PATCH /api/ordonnances/templates - Update a template
+router.patch('/templates', async (req: AuthRequest, res) => {
+  try {
+    const { nom, contenu, description, categorie } = req.body
+
+    if (!nom || !contenu) {
+      return res.status(400).json({ error: 'Nom et contenu requis' })
+    }
+
+    // Find the template (must be user's template, not system template)
+    const existing = await db.query.ordonnanceTemplates.findFirst({
+      where: and(
+        eq(ordonnanceTemplates.nom, nom),
+        eq(ordonnanceTemplates.userId, req.user!.id)
+      )
+    })
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Template non trouvé ou modification non autorisée' })
+    }
+
+    if (existing.isSystemTemplate) {
+      return res.status(403).json({ error: 'Impossible de modifier un template système' })
+    }
+
+    const [updated] = await db
+      .update(ordonnanceTemplates)
+      .set({
+        contenu,
+        description: description || existing.description,
+        categorie: categorie || existing.categorie,
+        updatedAt: new Date()
+      })
+      .where(eq(ordonnanceTemplates.id, existing.id))
+      .returning()
+
+    res.json({ success: true, template: updated })
+  } catch (error) {
+    console.error('Update template error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// DELETE /api/ordonnances/templates/:nom - Delete a personal template
+router.delete('/templates/:nom', async (req: AuthRequest, res) => {
+  try {
+    const { nom } = req.params
+
+    // Find and soft delete the template
+    const existing = await db.query.ordonnanceTemplates.findFirst({
+      where: and(
+        eq(ordonnanceTemplates.nom, nom),
+        eq(ordonnanceTemplates.userId, req.user!.id)
+      )
+    })
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Template non trouvé' })
+    }
+
+    if (existing.isSystemTemplate) {
+      return res.status(403).json({ error: 'Impossible de supprimer un template système' })
+    }
+
+    await db
+      .update(ordonnanceTemplates)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(ordonnanceTemplates.id, existing.id))
+
+    res.json({ success: true, message: 'Template supprimé' })
+  } catch (error) {
+    console.error('Delete template error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })
