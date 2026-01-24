@@ -128,8 +128,8 @@ export default function NewOrdonnancePage() {
     const template = templates.find(t => t.nom === templateNom)
     if (!template) return
 
-    // Trouver les médicaments du template
-    const templateMeds = template.medicaments.map(tm => {
+    // Trouver les médicaments du template (si définis)
+    const templateMeds = (template.medicaments || []).map(tm => {
       const med = medicaments.find(m => m.nom === tm.medicamentId)
       return med ? { ...med, personnalise: tm.personnalise } : null
     }).filter(Boolean) as SelectedMedicament[]
@@ -137,7 +137,7 @@ export default function NewOrdonnancePage() {
     setSelectedMedicaments(templateMeds)
     setSelectedTemplate(templateNom)
 
-    // Générer preview
+    // Générer preview (passe le contenu du template s'il existe)
     generatePreview(templateMeds, template.contenu)
   }
 
