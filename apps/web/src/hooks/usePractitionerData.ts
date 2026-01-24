@@ -35,15 +35,13 @@ export function usePractitionerData(): PraticienData | null {
 
     const settings = settingsData?.settings
 
-    // Build address from user data or settings
+    // Build address from settings
     let address = ''
-    if (user.cabinetAddress) {
-      address = user.cabinetAddress
-      if (user.cabinetPostalCode && user.cabinetCity) {
-        address += `\n${user.cabinetPostalCode} ${user.cabinetCity}`
-      }
-    } else if (settings?.cabinetAddress) {
+    if (settings?.cabinetAddress) {
       address = settings.cabinetAddress
+      if (settings.cabinetPostalCode && settings.cabinetCity) {
+        address += `\n${settings.cabinetPostalCode} ${settings.cabinetCity}`
+      }
     }
 
     // If no address configured, return minimal info (allow PDF generation anyway)

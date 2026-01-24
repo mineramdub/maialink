@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, FileText, Search, Plus, X, Save, Pill, Check, Edit } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { documentTemplates } from '@/lib/documentTemplates'
+import { usePractitionerData } from '@/hooks/usePractitionerData'
 
 interface Medicament {
   nom: string
@@ -38,6 +39,7 @@ export default function NewOrdonnancePage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [searchParams] = useSearchParams()
+  const praticien = usePractitionerData()
 
   const [patients, setPatients] = useState<any[]>([])
   const [medicaments, setMedicaments] = useState<Medicament[]>([])
@@ -275,55 +277,57 @@ export default function NewOrdonnancePage() {
       const data = await res.json()
 
       // Générer et télécharger automatiquement le PDF
-      try {
-        const patientData = patient ? {
-          firstName: patient.firstName,
-          lastName: patient.lastName,
-          birthDate: patient.birthDate,
-          secuNumber: patient.socialSecurityNumber
-        } : undefined
+      if (praticien) {
+        try {
+          const patientData = patient ? {
+            firstName: patient.firstName,
+            lastName: patient.lastName,
+            birthDate: patient.birthDate,
+            secuNumber: patient.socialSecurityNumber
+          } : undefined
 
-        // Get grossesse data if available
-        const grossesseIdParam = searchParams.get('grossesseId')
-        let grossesseData = undefined
-        if (grossesseIdParam) {
-          try {
-            const grossesseRes = await fetch(`${import.meta.env.VITE_API_URL}/api/grossesses/${grossesseIdParam}`, {
-              credentials: 'include'
-            })
-            if (grossesseRes.ok) {
-              const grossesseResult = await grossesseRes.json()
-              if (grossesseResult.grossesse) {
-                const g = grossesseResult.grossesse
-                grossesseData = {
-                  ddr: g.ddr,
-                  dpa: g.dpa,
-                  termeSA: g.termeSA || 0,
-                  termeJours: g.termeJours || 0
+          // Get grossesse data if available
+          const grossesseIdParam = searchParams.get('grossesseId')
+          let grossesseData = undefined
+          if (grossesseIdParam) {
+            try {
+              const grossesseRes = await fetch(`${import.meta.env.VITE_API_URL}/api/grossesses/${grossesseIdParam}`, {
+                credentials: 'include'
+              })
+              if (grossesseRes.ok) {
+                const grossesseResult = await grossesseRes.json()
+                if (grossesseResult.grossesse) {
+                  const g = grossesseResult.grossesse
+                  grossesseData = {
+                    ddr: g.ddr,
+                    dpa: g.dpa,
+                    termeSA: g.termeSA || 0,
+                    termeJours: g.termeJours || 0
+                  }
                 }
               }
+            } catch (error) {
+              console.error('Erreur chargement grossesse:', error)
             }
-          } catch (error) {
-            console.error('Erreur chargement grossesse:', error)
           }
+
+          const doc = documentTemplates.ordonnanceFromText(
+            data.ordonnance.contenu,
+            praticien,
+            patientData,
+            grossesseData
+          )
+
+          const patientName = patient
+            ? `${patient.lastName}_${patient.firstName}`
+            : 'patient'
+          const date = new Date().toISOString().split('T')[0]
+          const filename = `ordonnance_${patientName}_${date}.pdf`
+
+          doc.save(filename)
+        } catch (error) {
+          console.error('Erreur génération PDF:', error)
         }
-
-        const doc = documentTemplates.ordonnanceFromText(
-          data.ordonnance.contenu,
-          user,
-          patientData,
-          grossesseData
-        )
-
-        const patientName = patient
-          ? `${patient.lastName}_${patient.firstName}`
-          : 'patient'
-        const date = new Date().toISOString().split('T')[0]
-        const filename = `ordonnance_${patientName}_${date}.pdf`
-
-        doc.save(filename)
-      } catch (error) {
-        console.error('Erreur génération PDF:', error)
       }
 
       alert('Ordonnance créée et téléchargée avec succès !')
@@ -752,17 +756,14 @@ export default function NewOrdonnancePage() {
                 <div className="mb-6 pb-4 border-b-2 border-gray-300">
                   <div className="text-center font-bold text-sm mb-2">ORDONNANCE</div>
                   <div className="text-xs space-y-1">
-                    <div className="font-semibold">{user?.firstName} {user?.lastName}</div>
+                    <div className="font-semibold">{praticien?.firstName || user?.firstName} {praticien?.lastName || user?.lastName}</div>
                     <div>Sage-Femme</div>
-                    {user?.rpps && <div>N° RPPS: {user.rpps}</div>}
-                    {user?.adeli && <div>N° ADELI: {user.adeli}</div>}
-                    {user?.cabinetAddress && (
-                      <>
-                        <div className="mt-2">{user.cabinetAddress}</div>
-                        <div>{user.cabinetPostalCode} {user.cabinetCity}</div>
-                      </>
+                    {(praticien?.rpps || user?.rpps) && <div>N° RPPS: {praticien?.rpps || user?.rpps}</div>}
+                    {(praticien?.adeli || user?.adeli) && <div>N° ADELI: {praticien?.adeli || user?.adeli}</div>}
+                    {praticien?.address && (
+                      <div className="mt-2 whitespace-pre-line">{praticien.address}</div>
                     )}
-                    {user?.phone && <div>Tél: {user.phone}</div>}
+                    {praticien?.phone && <div>Tél: {praticien.phone}</div>}
                   </div>
                 </div>
 
