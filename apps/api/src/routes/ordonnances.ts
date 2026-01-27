@@ -34,18 +34,24 @@ router.get('/templates', async (req: AuthRequest, res) => {
     // Convert to the format expected by frontend
     const allTemplates = [
       ...systemTemplates.map(t => ({
+        id: t.id,
         nom: t.nom,
         categorie: t.categorie,
         description: t.description || '',
         contenu: t.contenu,
+        type: t.type,
+        priorite: t.priorite,
         medicaments: [], // Will be populated if needed
         isSystemTemplate: true
       })),
       ...userTemplates.map(t => ({
+        id: t.id,
         nom: t.nom,
         categorie: t.categorie,
         description: t.description || '',
         contenu: t.contenu,
+        type: t.type,
+        priorite: t.priorite,
         medicaments: [],
         isSystemTemplate: false
       }))
@@ -119,7 +125,7 @@ router.post('/generate', async (req: AuthRequest, res) => {
     }
 
     // Build legal header
-    const header = `Dr ${prescriber?.firstName || ''} ${prescriber?.lastName || ''}
+    const header = `${prescriber?.firstName || ''} ${prescriber?.lastName || ''}
 Sage-femme
 N° RPPS: ${prescriber?.rpps || 'Non renseigné'}
 N° ADELI: ${prescriber?.adeli || 'Non renseigné'}
@@ -146,7 +152,7 @@ ${grossesseInfo ? '\n' + grossesseInfo : ''}
 Fait à Cabinet, le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}
 
 Signature électronique:
-Dr ${prescriber?.firstName || ''} ${prescriber?.lastName || ''}
+${prescriber?.firstName || ''} ${prescriber?.lastName || ''}
 Sage-femme - N° RPPS: ${prescriber?.rpps || 'Non renseigné'}`
 
     // Combine all
@@ -200,6 +206,31 @@ router.post('/:id/sign', async (req: AuthRequest, res) => {
 })
 
 // GET /api/ordonnances/:id - Get ordonnance
+// GET /api/ordonnances/consultation/:consultationId - Get ordonnances for a consultation
+router.get('/consultation/:consultationId', async (req: AuthRequest, res) => {
+  try {
+    const { consultationId } = req.params
+
+    const { ordonnances } = await import('../lib/schema.js')
+
+    const consultationOrdonnances = await db.query.ordonnances.findMany({
+      where: and(
+        eq(ordonnances.consultationId, consultationId),
+        eq(ordonnances.userId, req.user!.id)
+      ),
+      orderBy: (ordonnances, { desc }) => [desc(ordonnances.createdAt)]
+    })
+
+    res.json({
+      success: true,
+      ordonnances: consultationOrdonnances
+    })
+  } catch (error) {
+    console.error('Get consultation ordonnances error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const { id } = req.params
@@ -304,7 +335,111 @@ router.post('/templates', async (req: AuthRequest, res) => {
   }
 })
 
-// PATCH /api/ordonnances/templates - Update a template
+// POST /api/ordonnances/templates/:id/duplicate - Duplicate a template
+router.post('/templates/:id/duplicate', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    // Find the source template (can be system or user template)
+    const sourceTemplate = await db.query.ordonnanceTemplates.findFirst({
+      where: eq(ordonnanceTemplates.id, id)
+    })
+
+    if (!sourceTemplate) {
+      return res.status(404).json({ error: 'Template source non trouvé' })
+    }
+
+    // Create a new name for the duplicated template
+    let newName = `${sourceTemplate.nom} (Ma version)`
+
+    // Check if a template with this name already exists
+    let counter = 1
+    while (true) {
+      const existing = await db.query.ordonnanceTemplates.findFirst({
+        where: and(
+          eq(ordonnanceTemplates.nom, newName),
+          eq(ordonnanceTemplates.userId, req.user!.id)
+        )
+      })
+
+      if (!existing) break
+
+      counter++
+      newName = `${sourceTemplate.nom} (Ma version ${counter})`
+    }
+
+    // Create the duplicate as a personal template
+    const [duplicate] = await db.insert(ordonnanceTemplates).values({
+      userId: req.user!.id,
+      nom: newName,
+      description: sourceTemplate.description || newName,
+      categorie: sourceTemplate.categorie,
+      type: sourceTemplate.type,
+      priorite: sourceTemplate.priorite,
+      contenu: sourceTemplate.contenu,
+      isSystemTemplate: false,
+      isActive: true
+    }).returning()
+
+    res.json({
+      success: true,
+      template: duplicate,
+      message: `Template dupliqué avec succès : "${newName}"`
+    })
+  } catch (error) {
+    console.error('Duplicate template error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// PATCH /api/ordonnances/templates/:id - Update a template by ID
+router.patch('/templates/:id', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { nom, contenu, description, categorie, type, priorite } = req.body
+
+    if (!contenu) {
+      return res.status(400).json({ error: 'Contenu requis' })
+    }
+
+    // Find the template (must be user's template, not system template)
+    const existing = await db.query.ordonnanceTemplates.findFirst({
+      where: and(
+        eq(ordonnanceTemplates.id, id),
+        eq(ordonnanceTemplates.userId, req.user!.id)
+      )
+    })
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Template non trouvé ou modification non autorisée' })
+    }
+
+    if (existing.isSystemTemplate) {
+      return res.status(403).json({ error: 'Impossible de modifier un template système' })
+    }
+
+    const [updated] = await db
+      .update(ordonnanceTemplates)
+      .set({
+        nom: nom || existing.nom,
+        contenu,
+        description: description || existing.description,
+        categorie: categorie || existing.categorie,
+        type: type || existing.type,
+        priorite: priorite || existing.priorite,
+        updatedAt: new Date()
+      })
+      .where(eq(ordonnanceTemplates.id, existing.id))
+      .returning()
+
+    res.json({ success: true, template: updated })
+  } catch (error) {
+    console.error('Update template error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// PATCH /api/ordonnances/templates - Update a template (legacy, by name)
 router.patch('/templates', async (req: AuthRequest, res) => {
   try {
     const { nom, contenu, description, categorie } = req.body
@@ -377,6 +512,58 @@ router.delete('/templates/:nom', async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Delete template error:', error)
     res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// POST /api/ordonnances/generate-protocole - Generate protocole with AI
+router.post('/generate-protocole', async (req: AuthRequest, res) => {
+  try {
+    const { pathologie, contexte } = req.body
+
+    if (!pathologie) {
+      return res.status(400).json({ error: 'Pathologie requise' })
+    }
+
+    // Call Gemini API to generate protocole
+    const { GoogleGenerativeAI } = await import('@google/generative-ai')
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+
+    const prompt = `Tu es une sage-femme expérimentée. Génère un protocole d'ordonnance concis et professionnel pour la pathologie suivante : "${pathologie}".
+
+Contexte : ${contexte || 'sage-femme libérale'}
+
+Format attendu :
+1. NOM DU MEDICAMENT dosage
+   Posologie: [détails précis]
+   Durée: [durée du traitement]
+
+2. [Autre médicament si nécessaire]
+   ...
+
+Conseils:
+- [Conseil pratique 1]
+- [Conseil pratique 2]
+- [Quand consulter]
+
+IMPORTANT:
+- Maximum 3 médicaments
+- Uniquement des médicaments autorisés pendant la grossesse/allaitement
+- Protocole basé sur les recommandations officielles
+- Format texte simple sans markdown
+- Sois précis et concis`
+
+    const result = await model.generateContent(prompt)
+    const protocole = result.response.text()
+
+    res.json({
+      success: true,
+      protocole: protocole.trim(),
+      source: 'ia'
+    })
+  } catch (error) {
+    console.error('Generate protocole error:', error)
+    res.status(500).json({ error: 'Erreur lors de la génération du protocole' })
   }
 })
 

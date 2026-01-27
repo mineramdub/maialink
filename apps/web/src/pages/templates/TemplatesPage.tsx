@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
@@ -10,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog'
+import { EditTemplateModal } from '../../components/EditTemplateModal'
 import {
   FileText,
   Plus,
@@ -170,6 +172,8 @@ export default function TemplatesPage() {
     const saved = localStorage.getItem('template-favorites')
     return saved ? JSON.parse(saved) : []
   })
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [templateToEdit, setTemplateToEdit] = useState<any>(null)
 
   useEffect(() => {
     loadCustomTemplates()
@@ -199,7 +203,7 @@ export default function TemplatesPage() {
   const loadOrdonnanceTemplates = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/templates`,
+        `${import.meta.env.VITE_API_URL}/api/ordonnances/templates`,
         {
           credentials: 'include',
         }
@@ -220,6 +224,7 @@ export default function TemplatesPage() {
             category: template.categorie,
             type: 'ordonnance',
             contenu: template.contenu,
+            isSystemTemplate: template.isSystemTemplate,
           }
         })
         setOrdonnanceTemplates(formattedTemplates)
@@ -229,8 +234,12 @@ export default function TemplatesPage() {
     }
   }
 
-  // Combiner tous les templates
-  const allTemplates = [...TEMPLATE_CATALOG, ...ordonnanceTemplates]
+  // Séparer les templates d'ordonnances système et personnalisés
+  const systemOrdonnanceTemplates = ordonnanceTemplates.filter(t => t.isSystemTemplate)
+  const personalOrdonnanceTemplates = ordonnanceTemplates.filter(t => !t.isSystemTemplate)
+
+  // Combiner les templates système du catalogue avec les templates d'ordonnances système
+  const allTemplates = [...TEMPLATE_CATALOG, ...systemOrdonnanceTemplates]
 
   const categories = ['all', 'favoris', ...Array.from(new Set(allTemplates.map((t) => t.category)))]
 
@@ -282,8 +291,33 @@ export default function TemplatesPage() {
     alert(`Téléchargement du template ${templateId}`)
   }
 
-  const handleDuplicate = (template: any) => {
-    alert(`Duplication du template ${template.nom}`)
+  const handleDuplicate = async (template: any) => {
+    try {
+      const toastId = toast.loading('Duplication en cours...')
+
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/ordonnances/templates/${template.id}/duplicate`,
+        {
+          method: 'POST',
+          credentials: 'include',
+        }
+      )
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || 'Erreur lors de la duplication', { id: toastId })
+        return
+      }
+
+      toast.success(data.message || 'Template dupliqué avec succès !', { id: toastId })
+
+      // Reload templates to show the new duplicate
+      await loadOrdonnanceTemplates()
+    } catch (error) {
+      console.error('Duplication error:', error)
+      toast.error('Erreur lors de la duplication du template')
+    }
   }
 
   return (
@@ -467,25 +501,25 @@ export default function TemplatesPage() {
                 </CardHeader>
 
               <CardContent>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handlePreview(template)}
-                  >
-                    <Eye className="h-4 w-4 mr-1" />
-                    Aperçu
-                  </Button>
-                  {template.type === 'ordonnance' ? (
-                    <Link to={`/ordonnances/new?template=${encodeURIComponent(template.nom)}`}>
-                      <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                        <FileText className="h-4 w-4 mr-1" />
-                        Utiliser
-                      </Button>
-                    </Link>
-                  ) : (
-                    <>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handlePreview(template)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      Aperçu
+                    </Button>
+                    {template.type === 'ordonnance' ? (
+                      <Link to={`/ordonnances/new?template=${encodeURIComponent(template.nom)}`}>
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                          <FileText className="h-4 w-4 mr-1" />
+                          Utiliser
+                        </Button>
+                      </Link>
+                    ) : (
                       <Button
                         variant="outline"
                         size="sm"
@@ -493,11 +527,17 @@ export default function TemplatesPage() {
                       >
                         <Download className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDuplicate(template)}>
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => handleDuplicate(template)}
+                  >
+                    <Copy className="h-4 w-4 mr-1" />
+                    Dupliquer et personnaliser
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -514,126 +554,45 @@ export default function TemplatesPage() {
             <DialogDescription>{selectedTemplate?.description}</DialogDescription>
           </DialogHeader>
 
-          <div className="bg-slate-50 p-6 rounded-lg min-h-[400px]">
-            {selectedTemplate?.type === 'ordonnance' && selectedTemplate?.contenu ? (
-              <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-                {/* En-tête du document */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b border-slate-200">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-xl font-semibold text-slate-900">
-                        {selectedTemplate.nom}
-                      </h3>
-                      <p className="text-sm text-slate-600 mt-1">{selectedTemplate.description}</p>
-                    </div>
-                    <Badge className="bg-blue-100 text-blue-700 border-blue-200">
-                      {selectedTemplate.category}
-                    </Badge>
+          {/* Prévisualisation avec le style d'ordonnance identique au builder */}
+          <div className="bg-slate-100 p-4 rounded-lg">
+            {selectedTemplate?.contenu ? (
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-slate-300">
+                {/* En-tête minimal avec info template */}
+                <div className="bg-slate-50 px-6 py-3 border-b border-slate-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-slate-500" />
+                    <span className="text-sm font-medium text-slate-700">Aperçu du template</span>
                   </div>
+                  <Badge variant="outline" className="text-xs">
+                    {selectedTemplate.category}
+                  </Badge>
                 </div>
 
-                {/* Contenu du template avec mise en forme améliorée */}
-                <div className="p-6 max-h-[60vh] overflow-y-auto">
-                  <div className="prose prose-sm max-w-none">
-                    {selectedTemplate.contenu.split('\n\n').map((section: string, idx: number) => {
-                      // Détection des titres (texte en majuscules suivi de :)
-                      if (section.match(/^[A-ZÀÂÄÉÈÊËÏÎÔÖÙÛÜÇ\s]+:/)) {
-                        return (
-                          <div key={idx} className="mb-5">
-                            <h4 className="text-base font-bold text-blue-900 mb-3 border-b-2 border-blue-300 pb-2 tracking-wide">
-                              {section}
-                            </h4>
-                          </div>
-                        )
-                      }
-                      // Détection des listes numérotées
-                      if (section.match(/^\d+\./)) {
-                        return (
-                          <div key={idx} className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4 rounded-r">
-                            <div className="whitespace-pre-wrap text-[15px] text-slate-800 font-medium leading-7">
-                              {section.split('\n').map((line, i) => (
-                                <div key={i} className="mb-1">
-                                  {line.split(/(\[à compléter\]|\[à calculer\])/).map((part, j) => (
-                                    part === '[à compléter]' || part === '[à calculer]' ? (
-                                      <span key={j} className="inline-block bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-sm font-semibold border border-amber-300">
-                                        {part}
-                                      </span>
-                                    ) : (
-                                      <span key={j}>{part}</span>
-                                    )
-                                  ))}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )
-                      }
-                      // Détection des recommandations/avertissements
-                      if (
-                        section.toLowerCase().includes('recommandation') ||
-                        section.toLowerCase().includes('attention') ||
-                        section.toLowerCase().includes('important')
-                      ) {
-                        return (
-                          <div key={idx} className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-4 rounded-r">
-                            <div className="whitespace-pre-wrap text-[15px] text-slate-800 font-medium leading-7">
-                              {section.split('\n').map((line, i) => (
-                                <div key={i} className="mb-1">
-                                  {line.split(/(\[à compléter\]|\[à calculer\])/).map((part, j) => (
-                                    part === '[à compléter]' || part === '[à calculer]' ? (
-                                      <span key={j} className="inline-block bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-sm font-semibold border border-amber-300">
-                                        {part}
-                                      </span>
-                                    ) : (
-                                      <span key={j}>{part}</span>
-                                    )
-                                  ))}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )
-                      }
-                      // Contenu normal - amélioration de la typographie
-                      return (
-                        <div key={idx} className="mb-4 bg-white">
-                          <div className="whitespace-pre-wrap text-[15px] text-slate-700 font-normal leading-7">
-                            {section.split('\n').map((line, i) => (
-                              <div key={i} className="mb-1.5">
-                                {line.split(/(\[à compléter\]|\[à calculer\])/).map((part, j) => (
-                                  part === '[à compléter]' || part === '[à calculer]' ? (
-                                    <span key={j} className="inline-block bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-sm font-semibold border border-blue-300 mx-0.5">
-                                      {part}
-                                    </span>
-                                  ) : (
-                                    <span key={j}>{part}</span>
-                                  )
-                                ))}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Pied de page avec informations */}
-                <div className="bg-slate-50 p-4 border-t border-slate-200">
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>Template d'ordonnance MaiaLink</span>
-                    <span>{selectedTemplate.contenu.split('\n').length} lignes</span>
-                  </div>
+                {/* Contenu avec exactement le même style que le builder d'ordonnances */}
+                <div
+                  className="w-full whitespace-pre-wrap max-h-[65vh] overflow-y-auto"
+                  style={{
+                    fontFamily: "'Times New Roman', Times, serif",
+                    fontSize: '12pt',
+                    lineHeight: '1.5',
+                    padding: '20mm',
+                    minHeight: '400px',
+                    background: 'white',
+                    color: '#000',
+                  }}
+                >
+                  {selectedTemplate.contenu}
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-center min-h-[400px]">
+              <div className="flex items-center justify-center min-h-[400px] bg-white rounded-lg">
                 <div className="text-center">
                   <FileText className="h-16 w-16 text-slate-400 mx-auto mb-4" />
                   <p className="text-slate-600">
-                    Aperçu du template PDF
+                    Aperçu non disponible
                     <br />
-                    <span className="text-sm">(Intégration à venir)</span>
+                    <span className="text-sm text-slate-400">(Ce template n'a pas encore de contenu)</span>
                   </p>
                 </div>
               </div>
@@ -644,26 +603,120 @@ export default function TemplatesPage() {
             <Button variant="outline" onClick={() => setShowPreview(false)}>
               Fermer
             </Button>
-            {selectedTemplate?.type === 'ordonnance' ? (
+            {selectedTemplate?.contenu && (
               <Button
                 onClick={() => {
                   // Copier le contenu dans le presse-papier
                   navigator.clipboard.writeText(selectedTemplate.contenu)
-                  alert('Template copié dans le presse-papier')
+                  toast.success('Template copié dans le presse-papier')
                 }}
               >
                 <Copy className="h-4 w-4 mr-2" />
                 Copier
               </Button>
-            ) : (
-              <Button>
-                <Download className="h-4 w-4 mr-2" />
-                Télécharger
-              </Button>
             )}
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Section templates d'ordonnances personnalisés */}
+      {personalOrdonnanceTemplates.length > 0 && (
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>Mes templates d'ordonnances personnalisés</CardTitle>
+            <CardDescription>
+              Templates d'ordonnances que vous avez dupliqués et personnalisés
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {personalOrdonnanceTemplates.map((template) => {
+                const Icon = template.icon
+                return (
+                  <Card key={template.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className={`${template.bgColor} p-2 rounded-lg`}>
+                          <Icon className={`h-5 w-5 ${template.color}`} />
+                        </div>
+                        <Badge variant="outline">{template.category}</Badge>
+                      </div>
+                      <CardTitle className="text-base mt-3">{template.nom}</CardTitle>
+                      <CardDescription className="text-xs line-clamp-2">
+                        {template.description}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => handlePreview(template)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Aperçu
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => {
+                              setTemplateToEdit(template)
+                              setShowEditModal(true)
+                            }}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Modifier
+                          </Button>
+                        </div>
+                        <div className="flex gap-2">
+                          <Link to={`/ordonnances/new?template=${encodeURIComponent(template.nom)}`} className="flex-1">
+                            <Button size="sm" className="w-full bg-green-600 hover:bg-green-700">
+                              <FileText className="h-4 w-4 mr-1" />
+                              Utiliser
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              if (confirm(`Voulez-vous vraiment supprimer le template "${template.nom}" ?`)) {
+                                try {
+                                  const response = await fetch(
+                                    `${import.meta.env.VITE_API_URL}/api/ordonnances/templates/${encodeURIComponent(template.nom)}`,
+                                    {
+                                      method: 'DELETE',
+                                      credentials: 'include',
+                                    }
+                                  )
+                                  if (response.ok) {
+                                    toast.success('Template supprimé avec succès')
+                                    await loadOrdonnanceTemplates()
+                                  } else {
+                                    const data = await response.json()
+                                    toast.error(data.error || 'Erreur lors de la suppression')
+                                  }
+                                } catch (error) {
+                                  console.error('Erreur:', error)
+                                  toast.error('Erreur lors de la suppression')
+                                }
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Section templates personnalisés */}
       <Card>
@@ -833,6 +886,22 @@ export default function TemplatesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal d'édition de template */}
+      <EditTemplateModal
+        open={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setTemplateToEdit(null)
+        }}
+        template={templateToEdit}
+        onSuccess={() => {
+          toast.success('Template modifié avec succès')
+          loadOrdonnanceTemplates()
+          setShowEditModal(false)
+          setTemplateToEdit(null)
+        }}
+      />
     </div>
   )
 }
